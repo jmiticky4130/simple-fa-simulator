@@ -1,126 +1,145 @@
 # DFA/NFA Simulator
 
-Simulátor deterministických a nedeterministických konečných automatov vytvorený v Elm.
+Webový editor a simulátor deterministických (DFA) a nedeterministických (NFA) konečných automatov napísaný v jazyku Elm. Aplikácia umožňuje vizuálne vytvárať automaty, upravovať ich a krokovať simuláciu vstupného slova.
 
-## Štruktúra projektu
+## Spustenie projektu lokálne
+
+### Požiadavky
+- [Elm 0.19.1](https://elm-lang.org/) nainštalovaný na počítači
+
+### Inštalácia a spustenie
+
+1. **Naklonujte repozitár**:
+   ```bash
+   git clone https://github.com/<username>/elm-automaton-simulator.git
+   cd elm-automaton-simulator
+   ```
+
+2. **Skompilujte projekt**:
+   ```bash
+   elm make src/Main.elm --output=elm.js
+   ```
+3. **Spustite aplikáciu**
+   ```bash
+   elm reactor
+   ```
+
+4. **Otvorte aplikáciu**:
+   Otvorte súbor `index.html` v Elm reactor UI.
+
+---
+
+## Používateľská príručka
+
+### Nástroje (Toolbar)
+
+| Nástroj | Funkcia | Použitie |
+|---------|---------|----------|
+| Výber | Výber a presun stavov | Kliknite na stav, ťahajte myšou |
+| Pridať stav | Vytvorenie nového stavu | Kliknite na plátno |
+| Pridať prechod | Vytvorenie prechodu | Kliknite na 2 stavy postupne |
+| Odstrániť | Odstránenie prvkov | Kliknite na stav/prechod |
+| Počiatočný stav | Nastavenie q₀ | Kliknite na stav |
+| Koncový stav | Nastavenie koncového stavu | Kliknite na stav (môže byť viac) |
+| Undo/Redo | Vrátenie/opakovanie akcie | Tlačidlá v toolbare |
+
+### Vizuálne označenia
+
+| Prvok | Význam |
+|-------|--------|
+| Sivý kruh | Normálny stav |
+| Zlatý kruh | Stav v procese pridávania prechodu |
+| Zelený kruh | Aktívny stav (počas simulácie) |
+| Dvojitý kruh | Koncový (akceptujúci) stav |
+| Šípka do stavu | Počiatočný stav |
+| Čierna čiara s modrým symbolom | Prechod |
+
+### Vytvorenie automatu – krok za krokom
+
+1. **Vytvorte stavy**:
+   - Kliknite na „Pridať stav"
+   - Klikajte na plátno pre vytvorenie stavov (automatickicé pomenovania: q0, q1, q2, ...)
+
+2. **Nastavte počiatočný stav**:
+   - Kliknite na „Počiatočný stav"
+   - Kliknite na stav → zobrazí sa šípka
+
+3. **Vytvorte prechody**:
+   - Kliknite na „Pridať prechod"
+   - Kliknite na zdrojový stav, potom na cieľový stav
+   - Pre slučku (self-loop) kliknite dvakrát na ten istý stav
+   - Zadajte symbol, alebo symboly oddelené čiarkou.
+
+4. **Nastavte koncové stavy**:
+   - Kliknite na „Koncový stav"
+   - Kliknite na stav → získa dvojitý kruh
+
+5. **Skontrolujte formálny zápis**:
+   - Pravý panel zobrazuje Q, q₀, F a prechodovú tabuľku δ
+
+### Simulácia
+
+1. Prepnite do režimu **Simulátor** (tlačidlo v toolbare)
+2. Zadajte vstupné slovo
+3. Použite tlačidlá na **krokovanie** simulácie (vpred/späť)
+4. Sledujte:
+   - Aktuálny stav (zvýraznený zelenou)
+   - Zostávajúci vstup
+   - Výsledok (akceptované / neakceptované)
+
+### Konzola
+
+V spodnej časti obrazovky sa zobrazujú správy:
+- Úspešné akcie (pridanie stavov, prechodov)
+- Upozornenia
+- Chyby
+
+## Architektúra projektu
 
 ```
-elm_proj/
-├── src/
-│   ├── Main.elm                      # Hlavný modul s logikou aplikácie
-│   ├── View.elm                      # Hlavný view modul
-│   ├── Components/                    # Komponenty UI
-│   │   ├── Toolbar.elm               # Horná lišta s nástrojmi
-│   │   ├── Canvas.elm                # Plátno na kreslenie automatu
-│   │   ├── Console.elm               # Konzola pre správy
-│   │   └── AutomatonDisplay.elm      # Formálny zápis automatu
-│   ├── Views/                         # Ďalšie views (pre budúce rozšírenie)
-│   └── Utils/                         # Pomocné funkcie
-│       └── AutomatonHelpers.elm       # Funkcie pre prácu s automatmi
-├── elm.json                           # Elm dependencies
-└── index.html                         # HTML súbor pre spustenie aplikácie
+src/
+├── Main.elm              # Hlavný modul, prepínanie Editor/Simulator
+├── Shared.elm            # Dátové typy (State, Transition, AutomatonState)
+├── Components/
+│   ├── Toolbar.elm       # Horná lišta s nástrojmi
+│   ├── Canvas.elm        # SVG plátno na kreslenie automatu
+│   ├── Console.elm       # Konzola so správami
+│   ├── AutomatonDisplay.elm  # Formálny zápis automatu
+│   ├── SimulateToolbar.elm   # Ovládanie simulácie
+│   └── SimulationStatus.elm  # Stav simulácie
+├── Pages/
+│   ├── Editor.elm        # Stránka editora
+│   └── Simulator.elm     # Stránka simulátora
+└── Utils/
+    └── AutomatonHelpers.elm  # Pomocné funkcie
 ```
 
-## Komponenty
+## Technológie a knižnice
 
-### 1. Toolbar (Horná lišta)
-Obsahuje nástroje na prácu s automatom:
-- **Výber** - Výber a posúvanie stavov
-- **Pridať stav** - Kliknutím na plátno pridáte nový stav
-- **Pridať prechod** - Kliknite na dva stavy pre vytvorenie prechodu
-- **Odstrániť** - Odstránenie stavov a prechodov
-- **Upraviť** - Úprava popisov stavov a symbolov prechodov
-- **Počiatočný stav** - Nastavenie počiatočného stavu
-- **Koncový stav** - Nastavenie koncového stavu (môže byť viacero)
+- **Elm 0.19.1** – funkcionálny jazyk pre frontend
+- **elm/svg** – SVG grafika (stavy, prechody)
+- **elm/html** – HTML rendering
+- **elm/json** – práca s JSON
+- **elm-community/undo-redo** – podpora undo/redo
+- **rundis/elm-bootstrap** – štýlovanie UI komponentov
 
-### 2. Canvas (Plátno)
-Interaktívne plátno na kreslenie automatu:
-- **Stavy** - Zobrazené ako kruhy
-- **Koncové stavy** - Dvojitý kruh (hrubší okraj)
-- **Počiatočný stav** - Šípka smerujúca do stavu
-- **Prechody** - Čiary so šípkami medzi stavmi
-- **Symboly** - Popisky na prechodoch
+---
 
-### 3. Console (Konzola)
-Spodný panel zobrazujúci správy o akciách:
-- Informácie o pridaných/odstránených stavoch
-- Informácie o pridaných/odstránených prechodoch
-- Upozornenia a chyby
+## Často kladené otázky
 
-### 4. Automaton Display (Zápis automatu)
-Pravý panel s formálnym zápisom automatu:
-- **Q** - Množina stavov
-- **q₀** - Počiatočný stav
-- **F** - Množina koncových stavov
-- **δ** - Prechodová funkcia (tabuľka prechodov)
+**Ako zmením symbol na prechode?**  
+Treba najprv vymazať prechod a následne vytvoriť nový s požadovaným symbolom .
 
-## Použitie
+**Môžem mať viac počiatočných stavov?**  
+Nie, DFA má len jeden počiatočný stav. Pri nastavení nového sa predošlý odstráni - presune sa.
 
-### Spustenie aplikácie
+**Môžem mať viac koncových stavov?**  
+Áno, kliknutím na „Koncový stav" môžete pridať/odobrať koncové stavy.
 
-1. Kompilácia:
-```bash
-elm make src/Main.elm --output=elm.js
-```
+**Ako vytvorím slučku (prechod do toho istého stavu)?**  
+Pri vytváraní prechodu kliknite dvakrát na ten istý stav.
 
-2. Otvorte `index.html` v prehliadači
+**Ako presuniem stavy?**  
+Vyberte nástroj „Výber" a ťahajte stav myšou (drag & drop).
 
-### Ako používať
-
-1. **Pridanie stavov**:
-   - Kliknite na tlačidlo "Pridať stav"
-   - Kliknite na plátno kde chcete stav vytvoriť
-   - Stavy sa automaticky označujú ako q0, q1, q2, ...
-
-2. **Vytvorenie prechodov**:
-   - Kliknite na tlačidlo "Pridať prechod"
-   - Kliknite na zdrojový stav
-   - Kliknite na cieľový stav
-   - Prechod sa vytvorí s predvoleným symbolom "a"
-
-3. **Nastavenie počiatočného stavu**:
-   - Kliknite na tlačidlo "Počiatočný stav"
-   - Kliknite na stav, ktorý má byť počiatočný
-   - Zobrazí sa šípka smerujúca do stavu
-
-4. **Nastavenie koncových stavov**:
-   - Kliknite na tlačidlo "Koncový stav"
-   - Kliknite na stav, ktorý má byť koncový
-   - Stav získa dvojitý okraj
-   - Môžete nastaviť viacero koncových stavov
-
-5. **Odstránenie**:
-   - Kliknite na tlačidlo "Odstrániť"
-   - Kliknite na stav alebo prechod, ktorý chcete odstrániť
-
-## Technológie
-
-- **Elm 0.19.1** - Funkcionálny jazyk pre frontend
-- **HTML/CSS** - Štýlovanie a rozloženie
-- **Pure Elm** - Žiadne JavaScript závislosti
-
-## Knižnice
-
-- `elm/browser` - Browser API
-- `elm/core` - Základné funkcie Elm
-- `elm/html` - HTML rendering
-- `elm/json` - JSON spracovanie
-- `MacCASOutreach/graphicsvg` - Grafická knižnica
-- `rundis/elm-bootstrap` - Bootstrap komponenty
-- `ianmackenzie/elm-units` - Jednotky merania
-
-## Budúce rozšírenia
-
-- Simulácia behu automatu na vstupnom reťazci
-- Export/import automatu (JSON)
-- Konverzia NFA -> DFA
-- Minimalizácia DFA
-- Testovanie ekvivalencie automatov
-- Regulárne výrazy -> NFA
-- Úprava symbolov na prechodoch
-- Úprava názvov stavov
-- Drag & drop pre stavy
-
-## Licencia
-
-Tento projekt bol vytvorený pre akademické účely.
+---
