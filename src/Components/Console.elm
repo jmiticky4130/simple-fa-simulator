@@ -57,10 +57,10 @@ viewMessage message =
         borderColor =
             case message.msgType of
                 Info ->
-                    "#3498db" -- Blue
+                    "#3498db"
 
                 Error ->
-                    "#e74c3c" -- Red
+                    "#e74c3c"
     in
     p
         [ style "margin" "2px 0"

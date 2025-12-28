@@ -55,12 +55,12 @@ type Msg
     | AutoRun
     | SwitchToEditor
     | SetInput String
-    | CanvasClick Float Float -- Ignored in simulator
-    | StateClick Int -- Ignored
-    | TransitionClick Int Int String -- Ignored
-    | StartDrag Int Float Float -- Ignored
-    | DragMove Float Float -- Ignored
-    | EndDrag -- Ignored
+    | CanvasClick Float Float
+    | StateClick Int
+    | TransitionClick Int Int String
+    | StartDrag Int Float Float
+    | DragMove Float Float
+    | EndDrag
 
 
 update : Msg -> Model -> Model
@@ -177,7 +177,7 @@ view model =
         , style "width" "100vw"
         , style "overflow" "hidden"
         ]
-        [ -- Toolbar
+        [
           SimulateToolbar.view
             { onStepBackward = StepBackward
             , onStepForward = StepForward
@@ -188,14 +188,14 @@ view model =
             , canStepForward = not (String.isEmpty model.remainingInput)
             , isAutoRunning = model.isAutoRunning
             }
-        , -- Main Area
+        ,
           div
             [ style "display" "flex"
             , style "flex-direction" "row"
             , style "flex" "1"
             , style "overflow" "hidden"
             ]
-            [ -- Canvas
+            [
               div
                 [ style "flex" "1"
                 , style "background-color" "#ecf0f1"
@@ -217,7 +217,7 @@ view model =
                     , height = 600
                     }
                 ]
-            , -- Right Panel (Input)
+            ,
               div
                 [ style "width" "300px"
                 , style "background-color" "white"
@@ -249,7 +249,7 @@ view model =
                     }
                 ]
             ]
-        , -- Console
+        ,
           Console.view { messages = model.consoleMessages }
         ]
 

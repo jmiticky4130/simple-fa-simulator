@@ -13,13 +13,10 @@ module Utils.AutomatonHelpers exposing
 import Shared exposing (State, Transition)
 
 
-{-| Check if the automaton is a DFA (Deterministic Finite Automaton)
-    A DFA must have deterministic transitions (no two transitions from the same state with the same symbol).
--}
+
 isDFA : List State -> List Transition -> Bool
 isDFA states transitions =
     let
-        -- Check for duplicate (from, symbol) pairs where 'to' is different
         hasNonDeterminism =
             List.any
                 (\t1 ->
@@ -34,8 +31,6 @@ isDFA states transitions =
     not hasNonDeterminism
 
 
-{-| Get a state by its ID
--}
 getStateById : Int -> List State -> Maybe State
 getStateById id states =
     List.filter (\s -> s.id == id) states
@@ -43,8 +38,6 @@ getStateById id states =
 
 
 
-{-| Get the label of a state by its ID
--}
 getStateLabel : Int -> List State -> String
 getStateLabel id states =
     getStateById id states
@@ -52,15 +45,11 @@ getStateLabel id states =
         |> Maybe.withDefault "?"
 
 
-{-| Check if a transition already exists
--}
 transitionExists : Int -> Int -> String -> List Transition -> Bool
 transitionExists from to symbol transitions =
     List.any (\t -> t.from == from && t.to == to && t.symbol == symbol) transitions
 
 
-{-| Update the position of a state
--}
 updateStatePosition : Int -> Float -> Float -> List State -> List State
 updateStatePosition stateId x y states =
     List.map
@@ -73,8 +62,6 @@ updateStatePosition stateId x y states =
         states
 
 
-{-| Update the label of a state
--}
 updateStateLabel : Int -> String -> List State -> List State
 updateStateLabel stateId newLabel states =
     List.map
@@ -87,8 +74,6 @@ updateStateLabel stateId newLabel states =
         states
 
 
-{-| Set a state as the start state (and unset others)
--}
 setStartState : Int -> List State -> List State
 setStartState stateId states =
     List.map
@@ -98,8 +83,6 @@ setStartState stateId states =
         states
 
 
-{-| Toggle whether a state is an end state
--}
 toggleEndState : Int -> List State -> List State
 toggleEndState stateId states =
     List.map
@@ -112,8 +95,6 @@ toggleEndState stateId states =
         states
 
 
-{-| Update the symbol of a transition
--}
 updateTransitionSymbol : Int -> Int -> String -> String -> List Transition -> List Transition
 updateTransitionSymbol from to oldSymbol newSymbol transitions =
     List.map

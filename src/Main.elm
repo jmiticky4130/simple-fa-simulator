@@ -30,7 +30,6 @@ init : () -> ( Model, Cmd Msg )
 init _ =
     let
         editorInit = Editor.init
-        -- Initialize simulator with empty automaton, it will be updated on switch
         simulatorInit = Simulator.init { states = [], transitions = [], nextStateId = 0 }
     in
     ( { currentPage = EditorPage
@@ -85,8 +84,6 @@ update msg model =
 
                 Simulator.ResetSimulation ->
                      let
-                        -- When resetting in simulator, we might want to keep the automaton but reset state
-                        -- But Simulator.update handles ResetSimulation by re-initing with current automaton
                         newSimulatorModel = Simulator.update simulatorMsg model.simulatorModel
                      in
                      ( { model | simulatorModel = newSimulatorModel }

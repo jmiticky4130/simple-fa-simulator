@@ -88,7 +88,7 @@ type Msg
     | Redo
     | CancelAction
     | NoOp
-    | SwitchToSimulator -- New message to signal parent
+    | SwitchToSimulator
 
 
 init : Model
@@ -380,13 +380,12 @@ update msg model =
                                     |> List.map String.trim
                                     |> List.filter (not << String.isEmpty)
                             
-                            -- Remove duplicates from input
                             symbols =
                                 Set.fromList rawSymbols
                                     |> Set.toList
                                     |> List.sort
 
-                            -- Check for duplicates before adding
+
                             duplicates =
                                 List.filter (\sym -> transitionExists from to sym currentAutomaton.transitions) symbols
 
@@ -507,10 +506,8 @@ handleStateClick stateId model =
                             case (fromState, toState) of
                                 (Just from, Just to) ->
                                     if fromId == stateId then
-                                        -- Self-loop: position above the state
                                         (from.x, from.y - 80)
                                     else
-                                        -- Normal transition: position at midpoint
                                         ((from.x + to.x) / 2, (from.y + to.y) / 2)
                                 _ ->
                                     (400, 300)
@@ -641,7 +638,7 @@ view model =
         , style "width" "100vw"
         , style "overflow" "hidden"
         ]
-        [ -- Toolbar at top
+        [
           div [ style "display" "flex", style "flex-direction" "column", style "width" "100%" ]
             [ Toolbar.view
                 { onResetTool = ResetAutomaton
@@ -661,14 +658,14 @@ view model =
                 , isSimulateEnabled = isSimulateEnabled
                 }
             ]
-        , -- Main content area
+        ,
           div
             [ style "display" "flex"
             , style "flex-direction" "row"
             , style "flex" "1"
             , style "overflow" "hidden"
             ]
-            [ -- Canvas in the middle
+            [
               div
                 [ style "flex" "1"
                 , style "overflow" "hidden"
@@ -691,7 +688,7 @@ view model =
                     , height = 600
                     }
                 ]
-            , -- Automaton display on the right
+            ,
               AutomatonDisplay.view
                 { states = states
                 , transitions = transitions
@@ -699,13 +696,13 @@ view model =
                 , onModeChange = SetTransitionDisplayMode
                 }
             ]
-        , -- Console at bottom
+        ,
           Console.view
             { messages = model.consoleMessages
             }
-        , -- Inline transition input
+        ,
           viewInlineTransitionInput model
-        , -- Inline state input
+        ,
           viewInlineStateInput model
         ]
 

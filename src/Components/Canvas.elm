@@ -39,7 +39,6 @@ view config =
         , SE.on "mouseup" (Decode.succeed config.onEndDrag)
         ]
         (
-            -- Draw edges first, then states so states appear on top
             List.map (viewGroupedTransition config) (groupTransitions config.transitions)
                 ++ List.map (svgState config) config.states
         )
@@ -73,7 +72,7 @@ svgState config state =
             else if isTransitionStart then
                 "#FFD700"
             else if isActive then
-                "#90EE90" -- Light green for active state
+                "#90EE90" 
             else
                 "#E8E8E8"
 
@@ -81,7 +80,7 @@ svgState config state =
             if isSelected then
                 "#00008B"
             else if isActive then
-                "#006400" -- Dark green for active state
+                "#006400"
             else
                 "#323232"
 
@@ -141,7 +140,6 @@ svgState config state =
                         lineY = state.y
                         lineX2 = state.x - toFloat r
 
-                        -- arrow at end of start marker
                         tipX = lineX2
                         tipY = lineY
                         baseX = tipX - 10
@@ -213,14 +211,11 @@ viewGroupedTransition config grouped =
     case ( maybeFromState, maybeToState ) of
         ( Just fromState, Just toState ) ->
             if fromState.id == toState.id then
-                -- Self-loop with ellipse
                 svgSelfLoop config fromState grouped.symbols isActive
             else
                 if hasReverseTransition then
-                    -- Curved edge for bidirectional transitions
                     svgCurvedEdge config fromState toState grouped.symbols isActive
                 else
-                    -- Normal transition
                     svgEdge config fromState toState grouped.symbols isActive
 
         _ ->
@@ -231,9 +226,7 @@ svgSelfLoop : Config msg -> State -> List String -> Bool -> Svg msg
 svgSelfLoop config state symbols isActive =
     let
         r = 30
-        -- Start at 10 o'clock (-150 degrees)
         startAngle = degrees -150
-        -- End at 2 o'clock (-30 degrees)
         endAngle = degrees -30
         
         sx = state.x + r * cos startAngle
@@ -242,7 +235,6 @@ svgSelfLoop config state symbols isActive =
         ex = state.x + r * cos endAngle
         ey = state.y + r * sin endAngle
         
-        -- Control points: Vertical lift to create a round arch
         loopHeight = 55
         
         c1x = sx
@@ -259,7 +251,6 @@ svgSelfLoop config state symbols isActive =
                 ++ String.fromFloat c2x ++ " " ++ String.fromFloat c2y ++ ", "
                 ++ String.fromFloat ex ++ " " ++ String.fromFloat ey
 
-        -- arrow at end
         vx = ex - c2x
         vy = ey - c2y
         len = sqrt (vx * vx + vy * vy)
@@ -289,7 +280,6 @@ svgSelfLoop config state symbols isActive =
             let
                 n = List.length symbols
                 spacing = 16
-                -- Label at the top of the loop
                 labelY = state.y - r - loopHeight + 5
                 startX = state.x - (toFloat (n - 1) * toFloat spacing) / 2
             in
@@ -308,7 +298,7 @@ svgSelfLoop config state symbols isActive =
                 symbols
         
         strokeWidth = if isActive then "4" else "2"
-        strokeColor = if isActive then "#e74c3c" else "#222" -- Red if active
+        strokeColor = if isActive then "#e74c3c" else "#222"
     in
     Svg.g []
         ([ Svg.path [ SA.d d, SA.fill "none", SA.stroke strokeColor, SA.strokeWidth strokeWidth, SA.strokeLinecap "round" ] []
@@ -337,7 +327,6 @@ svgEdge config a b symbols isActive =
             "M " ++ String.fromFloat sx ++ " " ++ String.fromFloat sy
                 ++ " L " ++ String.fromFloat ex ++ " " ++ String.fromFloat ey
 
-        -- arrow at end
         px = -uy
         py = ux
         al = 10
@@ -394,30 +383,23 @@ svgCurvedEdge config a b symbols isActive =
     let
         r = 30
         
-        -- Vector from a to b
         vx = b.x - a.x
         vy = b.y - a.y
         len = sqrt (vx * vx + vy * vy)
         
-        -- Normalized vector
         ux = if len == 0 then 1 else vx / len
         uy = if len == 0 then 0 else vy / len
         
-        -- Perpendicular vector (rotated 90 degrees counter-clockwise)
         px = -uy
         py = ux
         
-        -- Offset for curvature
         offset = 40
         
-        -- Control point
         midX = (a.x + b.x) / 2
         midY = (a.y + b.y) / 2
         cx = midX + offset * px
         cy = midY + offset * py
         
-        -- Start and end points on the circle border
-        -- Vector a -> c
         acX = cx - a.x
         acY = cy - a.y
         acLen = sqrt (acX * acX + acY * acY)
@@ -427,7 +409,6 @@ svgCurvedEdge config a b symbols isActive =
         sx = a.x + acUx * toFloat r
         sy = a.y + acUy * toFloat r
         
-        -- Vector b -> c (for end point, coming from c)
         bcX = cx - b.x
         bcY = cy - b.y
         bcLen = sqrt (bcX * bcX + bcY * bcY)
@@ -437,24 +418,19 @@ svgCurvedEdge config a b symbols isActive =
         ex = b.x + bcUx * toFloat r
         ey = b.y + bcUy * toFloat r
         
-        -- Path: Quadratic Bezier
         d = "M " ++ String.fromFloat sx ++ " " ++ String.fromFloat sy
             ++ " Q " ++ String.fromFloat cx ++ " " ++ String.fromFloat cy
             ++ " " ++ String.fromFloat ex ++ " " ++ String.fromFloat ey
             
-        -- Arrow at end
-        -- Tangent direction is vector from Control point to End point.
         tVx = ex - cx
         tVy = ey - cy
         tLen = sqrt (tVx * tVx + tVy * tVy)
         tUx = tVx / tLen
         tUy = tVy / tLen
         
-        -- Arrow geometry
         al = 10
         aw = 6
         
-        -- Perpendicular to tangent
         tPx = -tUy
         tPy = tUx
         
