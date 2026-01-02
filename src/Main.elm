@@ -11,9 +11,6 @@ import Pages.Simulator as Simulator
 import Shared exposing (AutomatonState)
 
 
--- MODEL
-
-
 type Page
     = EditorPage
     | SimulatorPage
@@ -38,9 +35,6 @@ init _ =
       }
     , Cmd.none
     )
-
-
--- UPDATE
 
 
 type Msg
@@ -82,14 +76,6 @@ update msg model =
                     , Cmd.none
                     )
 
-                Simulator.ResetSimulation ->
-                     let
-                        newSimulatorModel = Simulator.update simulatorMsg model.simulatorModel
-                     in
-                     ( { model | simulatorModel = newSimulatorModel }
-                     , Cmd.none
-                     )
-                
                 _ ->
                     let
                         newSimulatorModel =
@@ -103,9 +89,6 @@ update msg model =
             ( { model | currentPage = EditorPage }
             , Cmd.none
             )
-
-
--- SUBSCRIPTIONS
 
 
 subscriptions : Model -> Sub Msg
@@ -138,9 +121,6 @@ keyDecoder model =
     (Decode.field "shiftKey" Decode.bool)
 
 
--- VIEW
-
-
 view : Model -> Html Msg
 view model =
     case model.currentPage of
@@ -155,9 +135,6 @@ view model =
                 ]
                 [ Html.map SimulatorMsg (Simulator.view model.simulatorModel)
                 ]
-
-
--- MAIN
 
 
 main : Program () Model Msg

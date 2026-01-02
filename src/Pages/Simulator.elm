@@ -13,7 +13,6 @@ import Utils.AutomatonHelpers exposing (getStateLabel, getStateById)
 
 -- MODEL
 
-
 type alias Model =
     { automaton : AutomatonState
     , currentStateId : Maybe Int
@@ -21,7 +20,6 @@ type alias Model =
     , remainingInput : String
     , history : List (Maybe Int, String)
     , consoleMessages : List Console.Message
-    , isAutoRunning : Bool
     , activeTransition : Maybe { from : Int, to : Int, symbol : String }
     , verdict : Maybe { text : String, isAccepted : Bool }
     }
@@ -39,7 +37,6 @@ init automaton =
     , remainingInput = ""
     , history = []
     , consoleMessages = [ { text = "Simulátor pripravený. Zadajte vstupné slovo.", msgType = Console.Info } ]
-    , isAutoRunning = False
     , activeTransition = Nothing
     , verdict = Nothing
     }
@@ -47,12 +44,10 @@ init automaton =
 
 -- UPDATE
 
-
 type Msg
     = StepForward
     | StepBackward
     | ResetSimulation
-    | AutoRun
     | SwitchToEditor
     | SetInput String
     | CanvasClick Float Float
@@ -155,9 +150,6 @@ update msg model =
         ResetSimulation ->
             init model.automaton
 
-        AutoRun ->
-            { model | isAutoRunning = not model.isAutoRunning }
-
         SwitchToEditor ->
             model
 
@@ -166,7 +158,6 @@ update msg model =
 
 
 -- VIEW
-
 
 view : Model -> Html Msg
 view model =
@@ -181,12 +172,10 @@ view model =
           SimulateToolbar.view
             { onStepBackward = StepBackward
             , onStepForward = StepForward
-            , onAutoRun = AutoRun
             , onReset = ResetSimulation
             , onSwitchToEditor = SwitchToEditor
             , canStepBackward = not (List.isEmpty model.history)
             , canStepForward = not (String.isEmpty model.remainingInput)
-            , isAutoRunning = model.isAutoRunning
             }
         ,
           div

@@ -121,7 +121,6 @@ src/
 - **elm/html** – HTML rendering
 - **elm/json** – práca s JSON
 - **elm-community/undo-redo** – podpora undo/redo
-- **rundis/elm-bootstrap** – štýlovanie UI komponentov
 
 ---
 

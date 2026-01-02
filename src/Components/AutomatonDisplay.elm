@@ -45,9 +45,9 @@ view config =
 
         typeColor =
             if isNFA then
-                "#e67e22"
+                "#ec7c1aff"
             else
-                "#3498db"
+                "#358cc7ff"
     in
     div
         [ style "background-color" "#f8f9fa"
@@ -59,8 +59,8 @@ view config =
         ]
         [ h3
             [ style "margin-top" "0"
-            , style "color" "#2c3e50"
-            , style "border-bottom" "2px solid #3498db"
+            , style "color" "#273646ff"
+            , style "border-bottom" "2px solid #359ee4ff"
             , style "padding-bottom" "10px"
             ]
             [ text "Definícia automatu: "
@@ -93,8 +93,8 @@ viewModeButton : String -> TransitionDisplayMode -> Config msg -> Html msg
 viewModeButton label mode config =
     let
         isActive = config.displayMode == mode
-        bgColor = if isActive then "#3498db" else "#ecf0f1"
-        textColor = if isActive then "white" else "#2c3e50"
+        bgColor = if isActive then "#359ee4ff" else "#ecf0f2"
+        textColor = if isActive then "white" else "#263442ff"
     in
     button
         [ onClick (config.onModeChange mode)
@@ -125,7 +125,7 @@ viewFormalTransitions states transitions =
                 [ style "font-family" "monospace"
                 , style "background-color" "white"
                 , style "padding" "10px"
-                , style "border" "1px solid #ddd"
+                , style "border" "1px solid #ddddddff"
                 , style "border-radius" "4px"
                 ]
                 (List.map (viewFormalTransitionRow states) transitions)
@@ -226,7 +226,7 @@ viewTransitions states transitions =
     div []
         [ if List.isEmpty transitions then
             p
-                [ style "color" "#95a5a6"
+                [ style "color" "#97a9aaff"
                 , style "font-style" "italic"
                 ]
                 [ text "Žiadne prechody" ]
@@ -240,25 +240,25 @@ viewTransitions states transitions =
                 [ thead []
                     [ tr []
                         [ th
-                            [ style "border" "1px solid #ddd"
+                            [ style "border" "1px solid #dbd9d9ff"
                             , style "padding" "8px"
-                            , style "background-color" "#3498db"
+                            , style "background-color" "#358cc7ff"
                             , style "color" "white"
                             , style "text-align" "left"
                             ]
                             [ text "Z" ]
                         , th
-                            [ style "border" "1px solid #ddd"
+                            [ style "border" "1px solid #dbd9d9ff"
                             , style "padding" "8px"
-                            , style "background-color" "#3498db"
+                            , style "background-color" "#358cc7ff"
                             , style "color" "white"
                             , style "text-align" "left"
                             ]
                             [ text "Symbol" ]
                         , th
-                            [ style "border" "1px solid #ddd"
+                            [ style "border" "1px solid #dbd9d9ff"
                             , style "padding" "8px"
-                            , style "background-color" "#3498db"
+                            , style "background-color" "#358cc7ff"
                             , style "color" "white"
                             , style "text-align" "left"
                             ]
@@ -282,19 +282,19 @@ viewTransitionRow states transition =
     in
     tr []
         [ td
-            [ style "border" "1px solid #ddd"
+            [ style "border" "1px solid #dbd9d9ff"
             , style "padding" "8px"
             ]
             [ text fromLabel ]
         , td
-            [ style "border" "1px solid #ddd"
+            [ style "border" "1px solid #dbd9d9ff"
             , style "padding" "8px"
             , style "font-weight" "bold"
             , style "color" "#e74c3c"
             ]
             [ text transition.symbol ]
         , td
-            [ style "border" "1px solid #ddd"
+            [ style "border" "1px solid #dbd9d9ff"
             , style "padding" "8px"
             ]
             [ text toLabel ]

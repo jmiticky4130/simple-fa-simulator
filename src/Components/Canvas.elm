@@ -1,8 +1,8 @@
 module Components.Canvas exposing (view)
 
 import Html exposing (Html, div, span)
+import Utils.AutomatonHelpers exposing (calculateArrowHead)
 import Html.Attributes exposing (style)
-import Html.Attributes
 import Html.Events exposing (custom)
 import Json.Decode as Decode
 import Svg exposing (Svg)
@@ -68,25 +68,25 @@ svgState config state =
 
         fillColor =
             if isSelected then
-                "#6495ED"
+                "#80cbc4"
             else if isTransitionStart then
-                "#FFD700"
+                "#fff59d"
             else if isActive then
-                "#90EE90" 
+                "#a5d6a7"
             else
-                "#E8E8E8"
+                "#eceff1"
 
         borderColor =
             if isSelected then
-                "#00008B"
+                "#004d40"
             else if isActive then
-                "#006400"
+                "#1b5e20"
             else
-                "#323232"
+                "#455a64" 
 
-        borderWidth = 3
+        borderWidth = 2
 
-        r = 30
+        r = 35
     in
     Svg.g
         [ SE.custom "click"
@@ -221,11 +221,10 @@ viewGroupedTransition config grouped =
         _ ->
             Svg.g [] []
 
-
 svgSelfLoop : Config msg -> State -> List String -> Bool -> Svg msg
 svgSelfLoop config state symbols isActive =
     let
-        r = 30
+        r = 35
         startAngle = degrees -150
         endAngle = degrees -30
         
@@ -256,25 +255,8 @@ svgSelfLoop config state symbols isActive =
         len = sqrt (vx * vx + vy * vy)
         ux = if len == 0 then 1 else vx / len
         uy = if len == 0 then 0 else vy / len
-        px = -uy
-        py = ux
-        al = 10
-        aw = 6
-        tipX = ex
-        tipY = ey
-        baseX = tipX - al * ux
-        baseY = tipY - al * uy
-        leftX = baseX + (aw / 2) * px
-        leftY = baseY + (aw / 2) * py
-        rightX = baseX - (aw / 2) * px
-        rightY = baseY - (aw / 2) * py
 
-        arrowPts =
-            String.join " "
-                [ String.fromFloat tipX ++ "," ++ String.fromFloat tipY
-                , String.fromFloat leftX ++ "," ++ String.fromFloat leftY
-                , String.fromFloat rightX ++ "," ++ String.fromFloat rightY
-                ]
+        arrowPts = calculateArrowHead ex ey ux uy
 
         labels =
             let
@@ -311,7 +293,7 @@ svgSelfLoop config state symbols isActive =
 svgEdge : Config msg -> State -> State -> List String -> Bool -> Svg msg
 svgEdge config a b symbols isActive =
     let
-        r = 30
+        r = 35
         vx = b.x - a.x
         vy = b.y - a.y
         len = sqrt (vx * vx + vy * vy)
@@ -327,25 +309,7 @@ svgEdge config a b symbols isActive =
             "M " ++ String.fromFloat sx ++ " " ++ String.fromFloat sy
                 ++ " L " ++ String.fromFloat ex ++ " " ++ String.fromFloat ey
 
-        px = -uy
-        py = ux
-        al = 10
-        aw = 6
-        tipX = ex
-        tipY = ey
-        baseX = tipX - al * ux
-        baseY = tipY - al * uy
-        leftX = baseX + (aw / 2) * px
-        leftY = baseY + (aw / 2) * py
-        rightX = baseX - (aw / 2) * px
-        rightY = baseY - (aw / 2) * py
-
-        arrowPts =
-            String.join " "
-                [ String.fromFloat tipX ++ "," ++ String.fromFloat tipY
-                , String.fromFloat leftX ++ "," ++ String.fromFloat leftY
-                , String.fromFloat rightX ++ "," ++ String.fromFloat rightY
-                ]
+        arrowPts = calculateArrowHead ex ey ux uy
 
         n = List.length symbols
         spacing = 16
@@ -377,11 +341,10 @@ svgEdge config a b symbols isActive =
             ++ labels
         )
 
-
-svgCurvedEdge : Config msg -> State -> State -> List String -> Bool -> Svg msg
+-- TODO : improve curved edge logic so it is shorter
 svgCurvedEdge config a b symbols isActive =
     let
-        r = 30
+        r = 35
         
         vx = b.x - a.x
         vy = b.y - a.y
@@ -428,37 +391,22 @@ svgCurvedEdge config a b symbols isActive =
         tUx = tVx / tLen
         tUy = tVy / tLen
         
-        al = 10
-        aw = 6
-        
-        tPx = -tUy
-        tPy = tUx
-        
-        tipX = ex
-        tipY = ey
-        baseX = tipX - al * tUx
-        baseY = tipY - al * tUy
-        leftX = baseX + (aw / 2) * tPx
-        leftY = baseY + (aw / 2) * tPy
-        rightX = baseX - (aw / 2) * tPx
-        rightY = baseY - (aw / 2) * tPy
-        
-        arrowPts =
-            String.join " "
-                [ String.fromFloat tipX ++ "," ++ String.fromFloat tipY
-                , String.fromFloat leftX ++ "," ++ String.fromFloat leftY
-                , String.fromFloat rightX ++ "," ++ String.fromFloat rightY
-                ]
-                
+        arrowPts = calculateArrowHead ex ey tUx tUy
+
         n = List.length symbols
         spacing = 16
-        startX = cx - (toFloat (n - 1) * toFloat spacing) / 2
+        
+        curveMidX = 0.25 * sx + 0.5 * cx + 0.25 * ex
+        curveMidY = 0.25 * sy + 0.5 * cy + 0.25 * ey
+        
+        startX = curveMidX - (toFloat (n - 1) * toFloat spacing) / 2
+
         labels =
             List.indexedMap
                 (\i sym ->
                     Svg.text_
                         [ SA.x (String.fromFloat (startX + toFloat i * toFloat spacing))
-                        , SA.y (String.fromFloat cy)
+                        , SA.y (String.fromFloat curveMidY)
                         , SA.textAnchor "middle"
                         , SA.fontSize "12"
                         , SA.fill "blue"

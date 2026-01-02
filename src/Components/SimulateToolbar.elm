@@ -8,12 +8,10 @@ import Html.Events exposing (onClick, onInput)
 type alias Config msg =
     { onStepBackward : msg
     , onStepForward : msg
-    , onAutoRun : msg
     , onReset : msg
     , onSwitchToEditor : msg
     , canStepBackward : Bool
     , canStepForward : Bool
-    , isAutoRunning : Bool
     }
 
 
@@ -23,9 +21,9 @@ view config =
         [ style "display" "flex"
         , style "flex-direction" "row"
         , style "padding" "10px"
-        , style "background-color" "#2c3e50"
+        , style "background-color" "#37474f"
         , style "gap" "10px"
-        , style "border-bottom" "2px solid #34495e"
+        , style "border-bottom" "2px solid #263238"
         , style "align-items" "center"
         ]
         [ toolButton "Reset" config.onReset True False
@@ -41,7 +39,7 @@ toolButton label onClickMsg isEnabled isActive =
         [ onClick onClickMsg
         , Html.Attributes.disabled (not isEnabled)
         , style "padding" "10px 20px"
-        , style "background-color" (if isActive then "#3498db" else if isEnabled then "#34495e" else "#7f8c8d")
+        , style "background-color" (if isActive then "#00897b" else if isEnabled then "#546e7a" else "#b0bec5")
         , style "color" "white"
         , style "border" "none"
         , style "border-radius" "5px"
@@ -58,7 +56,7 @@ actionButton label onClickMsg isEnabled =
     button
         [ onClick onClickMsg
         , style "padding" "10px 20px"
-        , style "background-color" (if isEnabled then "#3498db" else "#95a5a6")
+        , style "background-color" (if isEnabled then "#0277bd" else "#b3e5fc")
         , style "color" "white"
         , style "border" "none"
         , style "border-radius" "5px"

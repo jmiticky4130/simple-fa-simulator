@@ -8,27 +8,52 @@ module Utils.AutomatonHelpers exposing
     , toggleEndState
     , updateTransitionSymbol
     , isDFA
+    , calculateArrowHead
     )
 
 import Shared exposing (State, Transition)
 
 
+calculateArrowHead : Float -> Float -> Float -> Float -> String
+calculateArrowHead tipX tipY ux uy =
+    let
+        px = -uy
+        py = ux
+        al = 10
+        aw = 6
+        baseX = tipX - al * ux
+        baseY = tipY - al * uy
+        leftX = baseX + (aw / 2) * px
+        leftY = baseY + (aw / 2) * py
+        rightX = baseX - (aw / 2) * px
+        rightY = baseY - (aw / 2) * py
+    in
+    String.join " "
+        [ String.fromFloat tipX ++ "," ++ String.fromFloat tipY
+        , String.fromFloat leftX ++ "," ++ String.fromFloat leftY
+        , String.fromFloat rightX ++ "," ++ String.fromFloat rightY
+        ]
+
 
 isDFA : List State -> List Transition -> Bool
 isDFA states transitions =
     let
-        hasNonDeterminism =
-            List.any
-                (\t1 ->
-                    List.any
-                        (\t2 ->
-                            t1.from == t2.from && t1.symbol == t2.symbol && t1.to /= t2.to
-                        )
-                        transitions
-                )
-                transitions
+
+        key t = String.fromInt t.from ++ "|" ++ t.symbol
+
+        checkDuplicates transList seenKeys =
+            case transList of
+                [] -> False
+                t :: rest ->
+                    let
+                        k = key t
+                    in
+                    if List.member k seenKeys then
+                        True
+                    else
+                        checkDuplicates rest (k :: seenKeys)
     in
-    not hasNonDeterminism
+    not (checkDuplicates transitions [])
 
 
 getStateById : Int -> List State -> Maybe State

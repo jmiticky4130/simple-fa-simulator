@@ -5249,7 +5249,6 @@ var $author$project$Pages$Simulator$init = function (automaton) {
 		currentStateId: startState,
 		history: _List_Nil,
 		inputString: '',
-		isAutoRunning: false,
 		remainingInput: '',
 		verdict: $elm$core$Maybe$Nothing
 	};
@@ -6033,20 +6032,43 @@ var $author$project$Pages$Editor$handleStateClick = F2(
 				return _Utils_Tuple2(model, $elm$core$Platform$Cmd$none);
 		}
 	});
+var $elm$core$List$member = F2(
+	function (x, xs) {
+		return A2(
+			$elm$core$List$any,
+			function (a) {
+				return _Utils_eq(a, x);
+			},
+			xs);
+	});
 var $author$project$Utils$AutomatonHelpers$isDFA = F2(
 	function (states, transitions) {
-		var hasNonDeterminism = A2(
-			$elm$core$List$any,
-			function (t1) {
-				return A2(
-					$elm$core$List$any,
-					function (t2) {
-						return _Utils_eq(t1.from, t2.from) && (_Utils_eq(t1.symbol, t2.symbol) && (!_Utils_eq(t1.to, t2.to)));
-					},
-					transitions);
-			},
-			transitions);
-		return !hasNonDeterminism;
+		var key = function (t) {
+			return $elm$core$String$fromInt(t.from) + ('|' + t.symbol);
+		};
+		var checkDuplicates = F2(
+			function (transList, seenKeys) {
+				checkDuplicates:
+				while (true) {
+					if (!transList.b) {
+						return false;
+					} else {
+						var t = transList.a;
+						var rest = transList.b;
+						var k = key(t);
+						if (A2($elm$core$List$member, k, seenKeys)) {
+							return true;
+						} else {
+							var $temp$transList = rest,
+								$temp$seenKeys = A2($elm$core$List$cons, k, seenKeys);
+							transList = $temp$transList;
+							seenKeys = $temp$seenKeys;
+							continue checkDuplicates;
+						}
+					}
+				}
+			});
+		return !A2(checkDuplicates, transitions, _List_Nil);
 	});
 var $elm$core$List$isEmpty = function (xs) {
 	if (!xs.b) {
@@ -6791,10 +6813,6 @@ var $author$project$Pages$Simulator$update = F2(
 				}
 			case 'ResetSimulation':
 				return $author$project$Pages$Simulator$init(model.automaton);
-			case 'AutoRun':
-				return _Utils_update(
-					model,
-					{isAutoRunning: !model.isAutoRunning});
 			case 'SwitchToEditor':
 				return model;
 			default:
@@ -6826,27 +6844,19 @@ var $author$project$Main$update = F2(
 				}
 			case 'SimulatorMsg':
 				var simulatorMsg = msg.a;
-				switch (simulatorMsg.$) {
-					case 'SwitchToEditor':
-						return _Utils_Tuple2(
-							_Utils_update(
-								model,
-								{currentPage: $author$project$Main$EditorPage}),
-							$elm$core$Platform$Cmd$none);
-					case 'ResetSimulation':
-						var newSimulatorModel = A2($author$project$Pages$Simulator$update, simulatorMsg, model.simulatorModel);
-						return _Utils_Tuple2(
-							_Utils_update(
-								model,
-								{simulatorModel: newSimulatorModel}),
-							$elm$core$Platform$Cmd$none);
-					default:
-						var newSimulatorModel = A2($author$project$Pages$Simulator$update, simulatorMsg, model.simulatorModel);
-						return _Utils_Tuple2(
-							_Utils_update(
-								model,
-								{simulatorModel: newSimulatorModel}),
-							$elm$core$Platform$Cmd$none);
+				if (simulatorMsg.$ === 'SwitchToEditor') {
+					return _Utils_Tuple2(
+						_Utils_update(
+							model,
+							{currentPage: $author$project$Main$EditorPage}),
+						$elm$core$Platform$Cmd$none);
+				} else {
+					var newSimulatorModel = A2($author$project$Pages$Simulator$update, simulatorMsg, model.simulatorModel);
+					return _Utils_Tuple2(
+						_Utils_update(
+							model,
+							{simulatorModel: newSimulatorModel}),
+						$elm$core$Platform$Cmd$none);
 				}
 			default:
 				return _Utils_Tuple2(
@@ -7126,7 +7136,7 @@ var $author$project$Components$AutomatonDisplay$viewFormalTransitions = F2(
 							A2($elm$html$Html$Attributes$style, 'font-family', 'monospace'),
 							A2($elm$html$Html$Attributes$style, 'background-color', 'white'),
 							A2($elm$html$Html$Attributes$style, 'padding', '10px'),
-							A2($elm$html$Html$Attributes$style, 'border', '1px solid #ddd'),
+							A2($elm$html$Html$Attributes$style, 'border', '1px solid #ddddddff'),
 							A2($elm$html$Html$Attributes$style, 'border-radius', '4px')
 						]),
 					A2(
@@ -7157,8 +7167,8 @@ var $elm$html$Html$Events$onClick = function (msg) {
 var $author$project$Components$AutomatonDisplay$viewModeButton = F3(
 	function (label, mode, config) {
 		var isActive = _Utils_eq(config.displayMode, mode);
-		var textColor = isActive ? 'white' : '#2c3e50';
-		var bgColor = isActive ? '#3498db' : '#ecf0f1';
+		var textColor = isActive ? 'white' : '#263442ff';
+		var bgColor = isActive ? '#359ee4ff' : '#ecf0f2';
 		return A2(
 			$elm$html$Html$button,
 			_List_fromArray(
@@ -7213,7 +7223,7 @@ var $author$project$Components$AutomatonDisplay$viewTransitionRow = F2(
 					$elm$html$Html$td,
 					_List_fromArray(
 						[
-							A2($elm$html$Html$Attributes$style, 'border', '1px solid #ddd'),
+							A2($elm$html$Html$Attributes$style, 'border', '1px solid #dbd9d9ff'),
 							A2($elm$html$Html$Attributes$style, 'padding', '8px')
 						]),
 					_List_fromArray(
@@ -7224,7 +7234,7 @@ var $author$project$Components$AutomatonDisplay$viewTransitionRow = F2(
 					$elm$html$Html$td,
 					_List_fromArray(
 						[
-							A2($elm$html$Html$Attributes$style, 'border', '1px solid #ddd'),
+							A2($elm$html$Html$Attributes$style, 'border', '1px solid #dbd9d9ff'),
 							A2($elm$html$Html$Attributes$style, 'padding', '8px'),
 							A2($elm$html$Html$Attributes$style, 'font-weight', 'bold'),
 							A2($elm$html$Html$Attributes$style, 'color', '#e74c3c')
@@ -7237,7 +7247,7 @@ var $author$project$Components$AutomatonDisplay$viewTransitionRow = F2(
 					$elm$html$Html$td,
 					_List_fromArray(
 						[
-							A2($elm$html$Html$Attributes$style, 'border', '1px solid #ddd'),
+							A2($elm$html$Html$Attributes$style, 'border', '1px solid #dbd9d9ff'),
 							A2($elm$html$Html$Attributes$style, 'padding', '8px')
 						]),
 					_List_fromArray(
@@ -7257,7 +7267,7 @@ var $author$project$Components$AutomatonDisplay$viewTransitions = F2(
 					$elm$html$Html$p,
 					_List_fromArray(
 						[
-							A2($elm$html$Html$Attributes$style, 'color', '#95a5a6'),
+							A2($elm$html$Html$Attributes$style, 'color', '#97a9aaff'),
 							A2($elm$html$Html$Attributes$style, 'font-style', 'italic')
 						]),
 					_List_fromArray(
@@ -7287,9 +7297,9 @@ var $author$project$Components$AutomatonDisplay$viewTransitions = F2(
 											$elm$html$Html$th,
 											_List_fromArray(
 												[
-													A2($elm$html$Html$Attributes$style, 'border', '1px solid #ddd'),
+													A2($elm$html$Html$Attributes$style, 'border', '1px solid #dbd9d9ff'),
 													A2($elm$html$Html$Attributes$style, 'padding', '8px'),
-													A2($elm$html$Html$Attributes$style, 'background-color', '#3498db'),
+													A2($elm$html$Html$Attributes$style, 'background-color', '#358cc7ff'),
 													A2($elm$html$Html$Attributes$style, 'color', 'white'),
 													A2($elm$html$Html$Attributes$style, 'text-align', 'left')
 												]),
@@ -7301,9 +7311,9 @@ var $author$project$Components$AutomatonDisplay$viewTransitions = F2(
 											$elm$html$Html$th,
 											_List_fromArray(
 												[
-													A2($elm$html$Html$Attributes$style, 'border', '1px solid #ddd'),
+													A2($elm$html$Html$Attributes$style, 'border', '1px solid #dbd9d9ff'),
 													A2($elm$html$Html$Attributes$style, 'padding', '8px'),
-													A2($elm$html$Html$Attributes$style, 'background-color', '#3498db'),
+													A2($elm$html$Html$Attributes$style, 'background-color', '#358cc7ff'),
 													A2($elm$html$Html$Attributes$style, 'color', 'white'),
 													A2($elm$html$Html$Attributes$style, 'text-align', 'left')
 												]),
@@ -7315,9 +7325,9 @@ var $author$project$Components$AutomatonDisplay$viewTransitions = F2(
 											$elm$html$Html$th,
 											_List_fromArray(
 												[
-													A2($elm$html$Html$Attributes$style, 'border', '1px solid #ddd'),
+													A2($elm$html$Html$Attributes$style, 'border', '1px solid #dbd9d9ff'),
 													A2($elm$html$Html$Attributes$style, 'padding', '8px'),
-													A2($elm$html$Html$Attributes$style, 'background-color', '#3498db'),
+													A2($elm$html$Html$Attributes$style, 'background-color', '#358cc7ff'),
 													A2($elm$html$Html$Attributes$style, 'color', 'white'),
 													A2($elm$html$Html$Attributes$style, 'text-align', 'left')
 												]),
@@ -7368,7 +7378,7 @@ var $author$project$Components$AutomatonDisplay$view = function (config) {
 			});
 		return A2(check, config.transitions, $elm$core$Set$empty);
 	}();
-	var typeColor = isNFA ? '#e67e22' : '#3498db';
+	var typeColor = isNFA ? '#ec7c1aff' : '#358cc7ff';
 	var typeLabel = isNFA ? 'NFA' : 'DFA';
 	return A2(
 		$elm$html$Html$div,
@@ -7388,8 +7398,8 @@ var $author$project$Components$AutomatonDisplay$view = function (config) {
 				_List_fromArray(
 					[
 						A2($elm$html$Html$Attributes$style, 'margin-top', '0'),
-						A2($elm$html$Html$Attributes$style, 'color', '#2c3e50'),
-						A2($elm$html$Html$Attributes$style, 'border-bottom', '2px solid #3498db'),
+						A2($elm$html$Html$Attributes$style, 'color', '#273646ff'),
+						A2($elm$html$Html$Attributes$style, 'border-bottom', '2px solid #359ee4ff'),
 						A2($elm$html$Html$Attributes$style, 'padding-bottom', '10px')
 					]),
 				_List_fromArray(
@@ -7505,7 +7515,7 @@ var $elm$svg$Svg$Attributes$y1 = _VirtualDom_attribute('y1');
 var $elm$svg$Svg$Attributes$y2 = _VirtualDom_attribute('y2');
 var $author$project$Components$Canvas$svgState = F2(
 	function (config, state) {
-		var r = 30;
+		var r = 35;
 		var isTransitionStart = _Utils_eq(
 			config.transitionFrom,
 			$elm$core$Maybe$Just(state.id));
@@ -7515,9 +7525,9 @@ var $author$project$Components$Canvas$svgState = F2(
 		var isActive = _Utils_eq(
 			config.activeStateId,
 			$elm$core$Maybe$Just(state.id));
-		var fillColor = isSelected ? '#6495ED' : (isTransitionStart ? '#FFD700' : (isActive ? '#90EE90' : '#E8E8E8'));
-		var borderWidth = 3;
-		var borderColor = isSelected ? '#00008B' : (isActive ? '#006400' : '#323232');
+		var fillColor = isSelected ? '#80cbc4' : (isTransitionStart ? '#fff59d' : (isActive ? '#a5d6a7' : '#eceff1'));
+		var borderWidth = 2;
+		var borderColor = isSelected ? '#004d40' : (isActive ? '#1b5e20' : '#455a64');
 		return A2(
 			$elm$svg$Svg$g,
 			_List_fromArray(
@@ -7659,19 +7669,32 @@ var $author$project$Components$Canvas$svgState = F2(
 							}
 						}()))));
 	});
-var $elm$core$List$member = F2(
-	function (x, xs) {
-		return A2(
-			$elm$core$List$any,
-			function (a) {
-				return _Utils_eq(a, x);
-			},
-			xs);
-	});
-var $elm$svg$Svg$Attributes$d = _VirtualDom_attribute('d');
 var $elm$core$Basics$negate = function (n) {
 	return -n;
 };
+var $author$project$Utils$AutomatonHelpers$calculateArrowHead = F4(
+	function (tipX, tipY, ux, uy) {
+		var py = ux;
+		var px = -uy;
+		var aw = 6;
+		var al = 10;
+		var baseX = tipX - (al * ux);
+		var leftX = baseX + ((aw / 2) * px);
+		var rightX = baseX - ((aw / 2) * px);
+		var baseY = tipY - (al * uy);
+		var leftY = baseY + ((aw / 2) * py);
+		var rightY = baseY - ((aw / 2) * py);
+		return A2(
+			$elm$core$String$join,
+			' ',
+			_List_fromArray(
+				[
+					$elm$core$String$fromFloat(tipX) + (',' + $elm$core$String$fromFloat(tipY)),
+					$elm$core$String$fromFloat(leftX) + (',' + $elm$core$String$fromFloat(leftY)),
+					$elm$core$String$fromFloat(rightX) + (',' + $elm$core$String$fromFloat(rightY))
+				]));
+	});
+var $elm$svg$Svg$Attributes$d = _VirtualDom_attribute('d');
 var $elm$svg$Svg$path = $elm$svg$Svg$trustedNode('path');
 var $elm$core$Basics$sqrt = _Basics_sqrt;
 var $author$project$Components$Canvas$svgCurvedEdge = F5(
@@ -7681,7 +7704,7 @@ var $author$project$Components$Canvas$svgCurvedEdge = F5(
 		var strokeWidth = isActive ? '4' : '2';
 		var strokeColor = isActive ? '#e74c3c' : '#222';
 		var spacing = 16;
-		var r = 30;
+		var r = 35;
 		var offset = 40;
 		var n = $elm$core$List$length(symbols);
 		var midY = (a.y + b.y) / 2;
@@ -7693,7 +7716,29 @@ var $author$project$Components$Canvas$svgCurvedEdge = F5(
 		var px = -uy;
 		var cy = midY + (offset * py);
 		var cx = midX + (offset * px);
-		var startX = cx - (((n - 1) * spacing) / 2);
+		var bcY = cy - b.y;
+		var bcX = cx - b.x;
+		var bcLen = $elm$core$Basics$sqrt((bcX * bcX) + (bcY * bcY));
+		var bcUx = bcX / bcLen;
+		var ex = b.x + (bcUx * r);
+		var tVx = ex - cx;
+		var bcUy = bcY / bcLen;
+		var ey = b.y + (bcUy * r);
+		var tVy = ey - cy;
+		var tLen = $elm$core$Basics$sqrt((tVx * tVx) + (tVy * tVy));
+		var tUx = tVx / tLen;
+		var tUy = tVy / tLen;
+		var arrowPts = A4($author$project$Utils$AutomatonHelpers$calculateArrowHead, ex, ey, tUx, tUy);
+		var acY = cy - a.y;
+		var acX = cx - a.x;
+		var acLen = $elm$core$Basics$sqrt((acX * acX) + (acY * acY));
+		var acUx = acX / acLen;
+		var sx = a.x + (acUx * r);
+		var curveMidX = ((0.25 * sx) + (0.5 * cx)) + (0.25 * ex);
+		var startX = curveMidX - (((n - 1) * spacing) / 2);
+		var acUy = acY / acLen;
+		var sy = a.y + (acUy * r);
+		var curveMidY = ((0.25 * sy) + (0.5 * cy)) + (0.25 * ey);
 		var labels = A2(
 			$elm$core$List$indexedMap,
 			F2(
@@ -7705,7 +7750,7 @@ var $author$project$Components$Canvas$svgCurvedEdge = F5(
 								$elm$svg$Svg$Attributes$x(
 								$elm$core$String$fromFloat(startX + (i * spacing))),
 								$elm$svg$Svg$Attributes$y(
-								$elm$core$String$fromFloat(cy)),
+								$elm$core$String$fromFloat(curveMidY)),
 								$elm$svg$Svg$Attributes$textAnchor('middle'),
 								$elm$svg$Svg$Attributes$fontSize('12'),
 								$elm$svg$Svg$Attributes$fill('blue'),
@@ -7721,46 +7766,6 @@ var $author$project$Components$Canvas$svgCurvedEdge = F5(
 							]));
 				}),
 			symbols);
-		var bcY = cy - b.y;
-		var bcX = cx - b.x;
-		var bcLen = $elm$core$Basics$sqrt((bcX * bcX) + (bcY * bcY));
-		var bcUx = bcX / bcLen;
-		var ex = b.x + (bcUx * r);
-		var tVx = ex - cx;
-		var tipX = ex;
-		var bcUy = bcY / bcLen;
-		var ey = b.y + (bcUy * r);
-		var tVy = ey - cy;
-		var tLen = $elm$core$Basics$sqrt((tVx * tVx) + (tVy * tVy));
-		var tUx = tVx / tLen;
-		var tPy = tUx;
-		var tUy = tVy / tLen;
-		var tPx = -tUy;
-		var tipY = ey;
-		var aw = 6;
-		var al = 10;
-		var baseX = tipX - (al * tUx);
-		var leftX = baseX + ((aw / 2) * tPx);
-		var rightX = baseX - ((aw / 2) * tPx);
-		var baseY = tipY - (al * tUy);
-		var leftY = baseY + ((aw / 2) * tPy);
-		var rightY = baseY - ((aw / 2) * tPy);
-		var arrowPts = A2(
-			$elm$core$String$join,
-			' ',
-			_List_fromArray(
-				[
-					$elm$core$String$fromFloat(tipX) + (',' + $elm$core$String$fromFloat(tipY)),
-					$elm$core$String$fromFloat(leftX) + (',' + $elm$core$String$fromFloat(leftY)),
-					$elm$core$String$fromFloat(rightX) + (',' + $elm$core$String$fromFloat(rightY))
-				]));
-		var acY = cy - a.y;
-		var acX = cx - a.x;
-		var acLen = $elm$core$Basics$sqrt((acX * acX) + (acY * acY));
-		var acUx = acX / acLen;
-		var sx = a.x + (acUx * r);
-		var acUy = acY / acLen;
-		var sy = a.y + (acUy * r);
 		var d = 'M ' + ($elm$core$String$fromFloat(sx) + (' ' + ($elm$core$String$fromFloat(sy) + (' Q ' + ($elm$core$String$fromFloat(cx) + (' ' + ($elm$core$String$fromFloat(cy) + (' ' + ($elm$core$String$fromFloat(ex) + (' ' + $elm$core$String$fromFloat(ey)))))))))));
 		return A2(
 			$elm$svg$Svg$g,
@@ -7797,18 +7802,15 @@ var $author$project$Components$Canvas$svgEdge = F5(
 		var strokeWidth = isActive ? '4' : '2';
 		var strokeColor = isActive ? '#e74c3c' : '#222';
 		var spacing = 16;
-		var r = 30;
+		var r = 35;
 		var n = $elm$core$List$length(symbols);
 		var len = $elm$core$Basics$sqrt((vx * vx) + (vy * vy));
 		var ux = (!len) ? 1 : (vx / len);
-		var py = ux;
 		var sx = a.x + (ux * r);
 		var uy = (!len) ? 0 : (vy / len);
-		var px = -uy;
 		var sy = a.y + (uy * r);
 		var ey = b.y - (uy * r);
 		var midY = ((sy + ey) / 2) - 6;
-		var tipY = ey;
 		var ex = b.x - (ux * r);
 		var midX = (sx + ex) / 2;
 		var startX = midX - (((n - 1) * spacing) / 2);
@@ -7839,25 +7841,8 @@ var $author$project$Components$Canvas$svgEdge = F5(
 							]));
 				}),
 			symbols);
-		var tipX = ex;
 		var d = 'M ' + ($elm$core$String$fromFloat(sx) + (' ' + ($elm$core$String$fromFloat(sy) + (' L ' + ($elm$core$String$fromFloat(ex) + (' ' + $elm$core$String$fromFloat(ey)))))));
-		var aw = 6;
-		var al = 10;
-		var baseX = tipX - (al * ux);
-		var leftX = baseX + ((aw / 2) * px);
-		var rightX = baseX - ((aw / 2) * px);
-		var baseY = tipY - (al * uy);
-		var leftY = baseY + ((aw / 2) * py);
-		var rightY = baseY - ((aw / 2) * py);
-		var arrowPts = A2(
-			$elm$core$String$join,
-			' ',
-			_List_fromArray(
-				[
-					$elm$core$String$fromFloat(tipX) + (',' + $elm$core$String$fromFloat(tipY)),
-					$elm$core$String$fromFloat(leftX) + (',' + $elm$core$String$fromFloat(leftY)),
-					$elm$core$String$fromFloat(rightX) + (',' + $elm$core$String$fromFloat(rightY))
-				]));
+		var arrowPts = A4($author$project$Utils$AutomatonHelpers$calculateArrowHead, ex, ey, ux, uy);
 		return A2(
 			$elm$svg$Svg$g,
 			_List_Nil,
@@ -7897,7 +7882,7 @@ var $author$project$Components$Canvas$svgSelfLoop = F4(
 		var strokeWidth = isActive ? '4' : '2';
 		var strokeColor = isActive ? '#e74c3c' : '#222';
 		var startAngle = $elm$core$Basics$degrees(-150);
-		var r = 30;
+		var r = 35;
 		var sx = state.x + (r * $elm$core$Basics$cos(startAngle));
 		var sy = state.y + (r * $elm$core$Basics$sin(startAngle));
 		var loopHeight = 55;
@@ -7936,38 +7921,18 @@ var $author$project$Components$Canvas$svgSelfLoop = F4(
 		}();
 		var endAngle = $elm$core$Basics$degrees(-30);
 		var ex = state.x + (r * $elm$core$Basics$cos(endAngle));
-		var tipX = ex;
 		var ey = state.y + (r * $elm$core$Basics$sin(endAngle));
-		var tipY = ey;
 		var c2y = ey - loopHeight;
 		var vy = ey - c2y;
 		var c2x = ex;
 		var vx = ex - c2x;
 		var len = $elm$core$Basics$sqrt((vx * vx) + (vy * vy));
 		var uy = (!len) ? 0 : (vy / len);
-		var px = -uy;
 		var ux = (!len) ? 1 : (vx / len);
-		var py = ux;
 		var c1y = sy - loopHeight;
 		var c1x = sx;
 		var d = 'M ' + ($elm$core$String$fromFloat(sx) + (' ' + ($elm$core$String$fromFloat(sy) + (' C ' + ($elm$core$String$fromFloat(c1x) + (' ' + ($elm$core$String$fromFloat(c1y) + (', ' + ($elm$core$String$fromFloat(c2x) + (' ' + ($elm$core$String$fromFloat(c2y) + (', ' + ($elm$core$String$fromFloat(ex) + (' ' + $elm$core$String$fromFloat(ey)))))))))))))));
-		var aw = 6;
-		var al = 10;
-		var baseX = tipX - (al * ux);
-		var leftX = baseX + ((aw / 2) * px);
-		var rightX = baseX - ((aw / 2) * px);
-		var baseY = tipY - (al * uy);
-		var leftY = baseY + ((aw / 2) * py);
-		var rightY = baseY - ((aw / 2) * py);
-		var arrowPts = A2(
-			$elm$core$String$join,
-			' ',
-			_List_fromArray(
-				[
-					$elm$core$String$fromFloat(tipX) + (',' + $elm$core$String$fromFloat(tipY)),
-					$elm$core$String$fromFloat(leftX) + (',' + $elm$core$String$fromFloat(leftY)),
-					$elm$core$String$fromFloat(rightX) + (',' + $elm$core$String$fromFloat(rightY))
-				]));
+		var arrowPts = A4($author$project$Utils$AutomatonHelpers$calculateArrowHead, ex, ey, ux, uy);
 		return A2(
 			$elm$svg$Svg$g,
 			_List_Nil,
@@ -8153,7 +8118,7 @@ var $author$project$Components$Toolbar$actionButton = F4(
 					A2(
 					$elm$html$Html$Attributes$style,
 					'background-color',
-					isEnabled ? bgColor : '#95a5a6'),
+					isEnabled ? bgColor : '#b0bec5'),
 					A2($elm$html$Html$Attributes$style, 'color', 'white'),
 					A2($elm$html$Html$Attributes$style, 'border', 'none'),
 					A2($elm$html$Html$Attributes$style, 'border-radius', '5px'),
@@ -8182,7 +8147,7 @@ var $author$project$Components$Toolbar$toolButton = F4(
 					A2(
 					$elm$html$Html$Attributes$style,
 					'background-color',
-					isActive ? '#3498db' : '#34495e'),
+					isActive ? '#00897b' : '#546e7a'),
 					A2($elm$html$Html$Attributes$style, 'color', 'white'),
 					A2($elm$html$Html$Attributes$style, 'border', 'none'),
 					A2($elm$html$Html$Attributes$style, 'border-radius', '5px'),
@@ -8210,11 +8175,11 @@ var $author$project$Components$Toolbar$undoRedoButton = F3(
 					A2(
 					$elm$html$Html$Attributes$style,
 					'background-color',
-					isEnabled ? '#34495e' : '#7f8c8d'),
+					isEnabled ? '#546e7a' : '#b0bec5'),
 					A2(
 					$elm$html$Html$Attributes$style,
 					'color',
-					isEnabled ? 'white' : '#bdc3c7'),
+					isEnabled ? 'white' : '#eceff1'),
 					A2($elm$html$Html$Attributes$style, 'border', 'none'),
 					A2($elm$html$Html$Attributes$style, 'border-radius', '5px'),
 					A2(
@@ -8236,9 +8201,9 @@ var $author$project$Components$Toolbar$view = function (config) {
 				A2($elm$html$Html$Attributes$style, 'display', 'flex'),
 				A2($elm$html$Html$Attributes$style, 'flex-direction', 'row'),
 				A2($elm$html$Html$Attributes$style, 'padding', '10px'),
-				A2($elm$html$Html$Attributes$style, 'background-color', '#2c3e50'),
+				A2($elm$html$Html$Attributes$style, 'background-color', '#37474f'),
 				A2($elm$html$Html$Attributes$style, 'gap', '10px'),
-				A2($elm$html$Html$Attributes$style, 'border-bottom', '2px solid #34495e'),
+				A2($elm$html$Html$Attributes$style, 'border-bottom', '2px solid #263238'),
 				A2($elm$html$Html$Attributes$style, 'align-items', 'center')
 			]),
 		_List_fromArray(
@@ -8253,7 +8218,7 @@ var $author$project$Components$Toolbar$view = function (config) {
 				A4($author$project$Components$Toolbar$toolButton, 'Premenovať', 'RenameTool', config.onRenameTool, config.currentTool === 'RenameTool'),
 				A4($author$project$Components$Toolbar$toolButton, 'Počiatočný stav', 'SetStartStateTool', config.onSetStartStateTool, config.currentTool === 'SetStartStateTool'),
 				A4($author$project$Components$Toolbar$toolButton, 'Koncový stav', 'SetEndStateTool', config.onSetEndStateTool, config.currentTool === 'SetEndStateTool'),
-				A4($author$project$Components$Toolbar$actionButton, 'Simulovať', config.onSwitchToSimulator, config.isSimulateEnabled, '#27ae60')
+				A4($author$project$Components$Toolbar$actionButton, 'Simulovať', config.onSwitchToSimulator, config.isSimulateEnabled, '#0277bd')
 			]));
 };
 var $author$project$Pages$Editor$ConfirmStateLabel = {$: 'ConfirmStateLabel'};
@@ -8538,7 +8503,6 @@ var $author$project$Pages$Editor$view = function (model) {
 				$author$project$Pages$Editor$viewInlineStateInput(model)
 			]));
 };
-var $author$project$Pages$Simulator$AutoRun = {$: 'AutoRun'};
 var $author$project$Pages$Simulator$CanvasClick = F2(
 	function (a, b) {
 		return {$: 'CanvasClick', a: a, b: b};
@@ -8578,7 +8542,7 @@ var $author$project$Components$SimulateToolbar$actionButton = F3(
 					A2(
 					$elm$html$Html$Attributes$style,
 					'background-color',
-					isEnabled ? '#3498db' : '#95a5a6'),
+					isEnabled ? '#0277bd' : '#b3e5fc'),
 					A2($elm$html$Html$Attributes$style, 'color', 'white'),
 					A2($elm$html$Html$Attributes$style, 'border', 'none'),
 					A2($elm$html$Html$Attributes$style, 'border-radius', '5px'),
@@ -8608,7 +8572,7 @@ var $author$project$Components$SimulateToolbar$toolButton = F4(
 					A2(
 					$elm$html$Html$Attributes$style,
 					'background-color',
-					isActive ? '#3498db' : (isEnabled ? '#34495e' : '#7f8c8d')),
+					isActive ? '#00897b' : (isEnabled ? '#546e7a' : '#b0bec5')),
 					A2($elm$html$Html$Attributes$style, 'color', 'white'),
 					A2($elm$html$Html$Attributes$style, 'border', 'none'),
 					A2($elm$html$Html$Attributes$style, 'border-radius', '5px'),
@@ -8636,9 +8600,9 @@ var $author$project$Components$SimulateToolbar$view = function (config) {
 				A2($elm$html$Html$Attributes$style, 'display', 'flex'),
 				A2($elm$html$Html$Attributes$style, 'flex-direction', 'row'),
 				A2($elm$html$Html$Attributes$style, 'padding', '10px'),
-				A2($elm$html$Html$Attributes$style, 'background-color', '#2c3e50'),
+				A2($elm$html$Html$Attributes$style, 'background-color', '#37474f'),
 				A2($elm$html$Html$Attributes$style, 'gap', '10px'),
-				A2($elm$html$Html$Attributes$style, 'border-bottom', '2px solid #34495e'),
+				A2($elm$html$Html$Attributes$style, 'border-bottom', '2px solid #263238'),
 				A2($elm$html$Html$Attributes$style, 'align-items', 'center')
 			]),
 		_List_fromArray(
@@ -8749,8 +8713,6 @@ var $author$project$Pages$Simulator$view = function (model) {
 				{
 					canStepBackward: !$elm$core$List$isEmpty(model.history),
 					canStepForward: !$elm$core$String$isEmpty(model.remainingInput),
-					isAutoRunning: model.isAutoRunning,
-					onAutoRun: $author$project$Pages$Simulator$AutoRun,
 					onReset: $author$project$Pages$Simulator$ResetSimulation,
 					onStepBackward: $author$project$Pages$Simulator$StepBackward,
 					onStepForward: $author$project$Pages$Simulator$StepForward,
