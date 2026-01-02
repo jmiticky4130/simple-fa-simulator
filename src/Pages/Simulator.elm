@@ -10,9 +10,6 @@ import Components.SimulateToolbar as SimulateToolbar
 import Components.SimulationStatus as SimulationStatus
 import Utils.AutomatonHelpers exposing (getStateLabel, getStateById)
 
-
--- MODEL
-
 type alias Model =
     { automaton : AutomatonState
     , currentStateId : Maybe Int
@@ -40,9 +37,6 @@ init automaton =
     , activeTransition = Nothing
     , verdict = Nothing
     }
-
-
--- UPDATE
 
 type Msg
     = StepForward
@@ -156,8 +150,6 @@ update msg model =
         _ ->
             model
 
-
--- VIEW
 
 view : Model -> Html Msg
 view model =

@@ -566,9 +566,6 @@ handleStateClick stateId model =
             ( model, Cmd.none )
 
 
--- HELPER FUNCTIONS
-
-
 getToolMessage : Tool -> String
 getToolMessage tool =
     case tool of

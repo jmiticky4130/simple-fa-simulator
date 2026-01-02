@@ -341,7 +341,6 @@ svgEdge config a b symbols isActive =
             ++ labels
         )
 
--- TODO : improve curved edge logic so it is shorter
 svgCurvedEdge config a b symbols isActive =
     let
         r = 35
