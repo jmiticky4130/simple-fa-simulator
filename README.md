@@ -11,8 +11,8 @@ Webový editor a simulátor deterministických (DFA) a nedeterministických (NFA
 
 1. **Naklonujte repozitár**:
    ```bash
-   git clone https://github.com/<username>/elm-automaton-simulator.git
-   cd elm-automaton-simulator
+	git clone https://github.com/jmiticky4130/simple-fa-simulator.git
+	cd simple-fa-simulator
    ```
 
 2. **Skompilujte projekt**:
@@ -75,7 +75,7 @@ Webový editor a simulátor deterministických (DFA) a nedeterministických (NFA
    - Kliknite na stav → získa dvojitý kruh
 
 5. **Skontrolujte formálny zápis**:
-   - Pravý panel zobrazuje Q, q₀, F a prechodovú tabuľku δ
+   - Pravý panel zobrazuje Q, q₀, F, Σ a prechodovú tabuľku δ
 
 ### Simulácia
 
