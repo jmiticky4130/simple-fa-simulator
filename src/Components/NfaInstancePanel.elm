@@ -1,0 +1,107 @@
+module Components.NfaInstancePanel exposing (Config, view)
+
+import Html exposing (Html, div, span, text)
+import Html.Attributes exposing (style)
+import Html.Events exposing (onClick)
+import Shared exposing (NfaInstance, State)
+
+
+type alias Config msg =
+    { instances : List NfaInstance
+    , selectedId : Maybe Int
+    , onSelect : Int -> msg
+    , states : List State
+    }
+
+
+view : Config msg -> Html msg
+view config =
+    div
+        [ style "overflow-y" "auto"
+        , style "flex" "1"
+        , style "padding" "0 2px"
+        ]
+        (List.indexedMap (\idx inst -> viewInstance config (idx + 1) inst) config.instances)
+
+
+viewInstance : Config msg -> Int -> NfaInstance -> Html msg
+viewInstance config displayIdx instance =
+    let
+        isSelected =
+            config.selectedId == Just instance.id
+
+        stateLabel =
+            case instance.currentStateId of
+                Just sid ->
+                    config.states
+                        |> List.filter (\s -> s.id == sid)
+                        |> List.head
+                        |> Maybe.map .label
+                        |> Maybe.withDefault "?"
+
+                Nothing ->
+                    "Mŕtva vetva"
+
+        ( statusText, statusBg, borderColor ) =
+            case instance.verdict of
+                Nothing ->
+                    ( "Beží", "#2196F3", if isSelected then "#1565C0" else "#2196F3" )
+
+                Just v ->
+                    if v.isAccepted then
+                        ( "Akceptované", "#4CAF50", if isSelected then "#2E7D32" else "#4CAF50" )
+
+                    else
+                        ( "Zamietnuté", "#F44336", if isSelected then "#B71C1C" else "#F44336" )
+
+        borderWidth =
+            if isSelected then
+                "3px"
+
+            else
+                "2px"
+    in
+    div
+        [ style "border" (borderWidth ++ " solid " ++ borderColor)
+        , style "border-radius" "6px"
+        , style "padding" "8px"
+        , style "margin-bottom" "8px"
+        , style "cursor" "pointer"
+        , style "background-color" (if isSelected then "#f0f8ff" else "white")
+        , onClick (config.onSelect instance.id)
+        ]
+        [ div
+            [ style "display" "flex"
+            , style "justify-content" "space-between"
+            , style "align-items" "center"
+            , style "margin-bottom" "4px"
+            ]
+            [ span
+                [ style "font-weight" "bold"
+                , style "font-size" "13px"
+                ]
+                [ text ("Inštancia #" ++ String.fromInt displayIdx) ]
+            , span
+                [ style "background-color" statusBg
+                , style "color" "white"
+                , style "padding" "2px 6px"
+                , style "border-radius" "4px"
+                , style "font-size" "11px"
+                ]
+                [ text statusText ]
+            ]
+        , div [ style "font-size" "12px", style "margin-bottom" "2px" ]
+            [ span [ style "font-weight" "bold" ] [ text "Stav: " ]
+            , text stateLabel
+            ]
+        , div [ style "font-size" "12px" ]
+            [ span [ style "font-weight" "bold" ] [ text "Zostatok: " ]
+            , text
+                (if String.isEmpty instance.remainingInput then
+                    "(prázdny)"
+
+                 else
+                    instance.remainingInput
+                )
+            ]
+        ]

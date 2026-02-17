@@ -1,4 +1,4 @@
-module Pages.Editor exposing (Model, Msg(..), Tool(..), init, update, view)
+module Pages.Editor exposing (Model, Msg(..), Tool(..), init, initWith, update, view)
 
 import Html exposing (Html, div, input, button, text)
 import Html.Attributes exposing (style, placeholder, value, autofocus, type_)
@@ -10,7 +10,7 @@ import Components.Console as Console
 import Components.AutomatonDisplay as AutomatonDisplay
 import UndoList exposing (UndoList)
 import Shared exposing (State, Transition, AutomatonState)
-import Utils.AutomatonHelpers exposing 
+import Utils.AutomatonHelpers exposing
     ( getStateById
     , transitionExists
     , updateStatePosition
@@ -18,11 +18,14 @@ import Utils.AutomatonHelpers exposing
     , setStartState
     , toggleEndState
     , updateTransitionSymbol
-    , isDFA
     )
 import Browser.Dom
 import Task
 import Set
+import File
+import File.Download
+import File.Select
+import Utils.AutomatonCodec
 
 
 onEnterKey : msg -> Html.Attribute msg
@@ -63,6 +66,11 @@ type alias Model =
     , editingStateId : Maybe Int
     , stateLabelInput : String
     , transitionDisplayMode : AutomatonDisplay.TransitionDisplayMode
+    , showLoadModal : Bool
+    , showSaveModal : Bool
+    , saveNameInput : String
+    , showStorageSelectModal : Bool
+    , storedAutomata : List { name : String, data : String }
     }
 
 
@@ -89,6 +97,21 @@ type Msg
     | CancelAction
     | NoOp
     | SwitchToSimulator
+    | ExportJson
+    | ImportJsonRequested
+    | ImportJsonLoaded File.File
+    | ImportJsonContent String
+    | ShareUrl
+    | SaveRequested
+    | UpdateSaveNameInput String
+    | ConfirmSave
+    | DismissSaveModal
+    | LoadRequested
+    | LoadFromStorage
+    | StorageAutomataLoaded (List { name : String, data : String })
+    | SelectStoredAutomaton String
+    | DismissLoadModal
+    | DismissStorageSelectModal
 
 
 init : Model
@@ -105,7 +128,25 @@ init =
     , editingStateId = Nothing
     , stateLabelInput = ""
     , transitionDisplayMode = AutomatonDisplay.Table
+    , showLoadModal = False
+    , showSaveModal = False
+    , saveNameInput = ""
+    , showStorageSelectModal = False
+    , storedAutomata = []
     }
+
+
+initWith : Maybe AutomatonState -> Model
+initWith maybeAutomaton =
+    case maybeAutomaton of
+        Nothing ->
+            init
+
+        Just automaton ->
+            { init
+                | automaton = UndoList.fresh automaton
+                , consoleMessages = [ { text = "Automat načítaný z URL.", msgType = Console.Info } ]
+            }
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
@@ -115,12 +156,104 @@ update msg model =
     in
     case msg of
         SwitchToSimulator ->
-            if isDFA currentAutomaton.states currentAutomaton.transitions then
-                ( model, Cmd.none )
-            else
-                ( { model | consoleMessages = { text = "Automat nie je DFA (obsahuje nedeterministické prechody).", msgType = Console.Error } :: model.consoleMessages }
+            ( model, Cmd.none )
+
+        ExportJson ->
+            ( model, File.Download.string "automaton.json" "application/json"
+                (Utils.AutomatonCodec.encode model.automaton.present) )
+
+        ImportJsonRequested ->
+            ( { model | showLoadModal = False }, File.Select.file [ "application/json" ] ImportJsonLoaded )
+
+        ImportJsonLoaded file ->
+            ( model, Task.perform ImportJsonContent (File.toString file) )
+
+        ImportJsonContent content ->
+            case Decode.decodeString Utils.AutomatonCodec.decoder content of
+                Ok automaton ->
+                    ( { model
+                        | automaton = UndoList.fresh automaton
+                        , consoleMessages = { text = "Automat importovaný zo súboru.", msgType = Console.Info } :: model.consoleMessages
+                      }
+                    , Cmd.none
+                    )
+
+                Err err ->
+                    ( { model
+                        | consoleMessages = { text = "Chyba importu: " ++ Decode.errorToString err, msgType = Console.Error } :: model.consoleMessages
+                      }
+                    , Cmd.none
+                    )
+
+        ShareUrl ->
+            ( model, Cmd.none )
+
+        SaveRequested ->
+            ( { model | showSaveModal = True, saveNameInput = "" }, Cmd.none )
+
+        UpdateSaveNameInput s ->
+            ( { model | saveNameInput = s }, Cmd.none )
+
+        ConfirmSave ->
+            if String.isEmpty (String.trim model.saveNameInput) then
+                ( { model | consoleMessages = { text = "Zadajte názov automatu.", msgType = Console.Error } :: model.consoleMessages }
                 , Cmd.none
                 )
+            else
+                ( { model
+                    | showSaveModal = False
+                    , saveNameInput = ""
+                    , consoleMessages = { text = "Automat uložený: " ++ model.saveNameInput, msgType = Console.Info } :: model.consoleMessages
+                  }
+                , Cmd.none
+                )
+
+        DismissSaveModal ->
+            ( { model | showSaveModal = False, saveNameInput = "" }, Cmd.none )
+
+        LoadRequested ->
+            ( { model | showLoadModal = True }, Cmd.none )
+
+        LoadFromStorage ->
+            ( { model | showLoadModal = False }, Cmd.none )
+
+        StorageAutomataLoaded list ->
+            ( { model | storedAutomata = list, showStorageSelectModal = True }, Cmd.none )
+
+        SelectStoredAutomaton name ->
+            let
+                maybeEntry =
+                    List.filter (\e -> e.name == name) model.storedAutomata |> List.head
+            in
+            case maybeEntry of
+                Nothing ->
+                    ( { model | showStorageSelectModal = False }, Cmd.none )
+
+                Just entry ->
+                    case Decode.decodeString Utils.AutomatonCodec.decoder entry.data of
+                        Ok automaton ->
+                            ( { model
+                                | automaton = UndoList.fresh automaton
+                                , showStorageSelectModal = False
+                                , storedAutomata = []
+                                , consoleMessages = { text = "Automat načítaný: " ++ name, msgType = Console.Info } :: model.consoleMessages
+                              }
+                            , Cmd.none
+                            )
+
+                        Err err ->
+                            ( { model
+                                | showStorageSelectModal = False
+                                , consoleMessages = { text = "Chyba: " ++ Decode.errorToString err, msgType = Console.Error } :: model.consoleMessages
+                              }
+                            , Cmd.none
+                            )
+
+        DismissLoadModal ->
+            ( { model | showLoadModal = False }, Cmd.none )
+
+        DismissStorageSelectModal ->
+            ( { model | showStorageSelectModal = False, storedAutomata = [] }, Cmd.none )
 
         Undo ->
             ( { model | automaton = UndoList.undo model.automaton }, Cmd.none )
@@ -626,7 +759,7 @@ view : Model -> Html Msg
 view model =
     let
         { states, transitions } = model.automaton.present
-        isSimulateEnabled = isDFA states transitions
+        isSimulateEnabled = not (List.isEmpty states)
     in
     div
         [ style "display" "flex"
@@ -653,6 +786,10 @@ view model =
                 , canRedo = UndoList.hasFuture model.automaton
                 , currentTool = toolToString model.currentTool
                 , isSimulateEnabled = isSimulateEnabled
+                , onExport = ExportJson
+                , onSave = SaveRequested
+                , onLoad = LoadRequested
+                , onShare = ShareUrl
                 }
             ]
         ,
@@ -701,6 +838,12 @@ view model =
           viewInlineTransitionInput model
         ,
           viewInlineStateInput model
+        ,
+          viewLoadModal model
+        ,
+          viewSaveModal model
+        ,
+          viewStorageSelectModal model
         ]
 
 
@@ -794,3 +937,216 @@ viewInlineStateInput model =
                     div [] []
         Nothing ->
             div [] []
+
+
+viewLoadModal : Model -> Html Msg
+viewLoadModal model =
+    if model.showLoadModal then
+        div
+            [ style "position" "fixed"
+            , style "top" "0"
+            , style "left" "0"
+            , style "width" "100%"
+            , style "height" "100%"
+            , style "background-color" "rgba(0,0,0,0.5)"
+            , style "z-index" "2000"
+            , style "display" "flex"
+            , style "align-items" "center"
+            , style "justify-content" "center"
+            ]
+            [ div
+                [ style "background" "white"
+                , style "padding" "24px"
+                , style "border-radius" "8px"
+                , style "display" "flex"
+                , style "flex-direction" "column"
+                , style "gap" "12px"
+                , style "min-width" "220px"
+                ]
+                [ div
+                    [ style "font-weight" "bold"
+                    , style "font-size" "16px"
+                    , style "margin-bottom" "4px"
+                    ]
+                    [ text "Načítať automat" ]
+                , button
+                    [ onClick LoadFromStorage
+                    , style "padding" "10px"
+                    , style "background-color" "#546e7a"
+                    , style "color" "white"
+                    , style "border" "none"
+                    , style "border-radius" "5px"
+                    , style "cursor" "pointer"
+                    , style "font-size" "14px"
+                    ]
+                    [ text "Z prehliadača" ]
+                , button
+                    [ onClick ImportJsonRequested
+                    , style "padding" "10px"
+                    , style "background-color" "#546e7a"
+                    , style "color" "white"
+                    , style "border" "none"
+                    , style "border-radius" "5px"
+                    , style "cursor" "pointer"
+                    , style "font-size" "14px"
+                    ]
+                    [ text "Zo súboru (.json)" ]
+                , button
+                    [ onClick DismissLoadModal
+                    , style "padding" "8px"
+                    , style "background-color" "#b0bec5"
+                    , style "color" "white"
+                    , style "border" "none"
+                    , style "border-radius" "5px"
+                    , style "cursor" "pointer"
+                    , style "font-size" "13px"
+                    ]
+                    [ text "Zrušiť" ]
+                ]
+            ]
+    else
+        div [] []
+
+
+viewSaveModal : Model -> Html Msg
+viewSaveModal model =
+    if model.showSaveModal then
+        div
+            [ style "position" "fixed"
+            , style "top" "0"
+            , style "left" "0"
+            , style "width" "100%"
+            , style "height" "100%"
+            , style "background-color" "rgba(0,0,0,0.5)"
+            , style "z-index" "2000"
+            , style "display" "flex"
+            , style "align-items" "center"
+            , style "justify-content" "center"
+            ]
+            [ div
+                [ style "background" "white"
+                , style "padding" "24px"
+                , style "border-radius" "8px"
+                , style "display" "flex"
+                , style "flex-direction" "column"
+                , style "gap" "12px"
+                , style "min-width" "260px"
+                ]
+                [ div [ style "font-weight" "bold", style "font-size" "16px" ]
+                    [ text "Uložiť automat" ]
+                , input
+                    [ type_ "text"
+                    , placeholder "Názov automatu"
+                    , value model.saveNameInput
+                    , onInput UpdateSaveNameInput
+                    , autofocus True
+                    , onEnterKey ConfirmSave
+                    , style "padding" "8px"
+                    , style "border" "1px solid #ccc"
+                    , style "border-radius" "5px"
+                    , style "font-size" "14px"
+                    ]
+                    []
+                , button
+                    [ onClick ConfirmSave
+                    , style "padding" "10px"
+                    , style "background-color" "#546e7a"
+                    , style "color" "white"
+                    , style "border" "none"
+                    , style "border-radius" "5px"
+                    , style "cursor" "pointer"
+                    , style "font-size" "14px"
+                    ]
+                    [ text "Uložiť" ]
+                , button
+                    [ onClick DismissSaveModal
+                    , style "padding" "8px"
+                    , style "background-color" "#b0bec5"
+                    , style "color" "white"
+                    , style "border" "none"
+                    , style "border-radius" "5px"
+                    , style "cursor" "pointer"
+                    , style "font-size" "13px"
+                    ]
+                    [ text "Zrušiť" ]
+                ]
+            ]
+    else
+        div [] []
+
+
+viewStorageSelectModal : Model -> Html Msg
+viewStorageSelectModal model =
+    if model.showStorageSelectModal then
+        div
+            [ style "position" "fixed"
+            , style "top" "0"
+            , style "left" "0"
+            , style "width" "100%"
+            , style "height" "100%"
+            , style "background-color" "rgba(0,0,0,0.5)"
+            , style "z-index" "2000"
+            , style "display" "flex"
+            , style "align-items" "center"
+            , style "justify-content" "center"
+            ]
+            [ div
+                [ style "background" "white"
+                , style "padding" "24px"
+                , style "border-radius" "8px"
+                , style "display" "flex"
+                , style "flex-direction" "column"
+                , style "gap" "10px"
+                , style "min-width" "280px"
+                , style "max-height" "70vh"
+                , style "overflow-y" "auto"
+                ]
+                ([ div [ style "font-weight" "bold", style "font-size" "16px", style "margin-bottom" "4px" ]
+                    [ text "Uložené automaty" ]
+                ]
+                ++ (if List.isEmpty model.storedAutomata then
+                        [ div [ style "color" "#888", style "font-size" "14px" ]
+                            [ text "Žiadne uložené automaty." ]
+                        ]
+                    else
+                        List.map
+                            (\entry ->
+                                div
+                                    [ style "display" "flex"
+                                    , style "align-items" "center"
+                                    , style "justify-content" "space-between"
+                                    , style "gap" "8px"
+                                    ]
+                                    [ div [ style "font-size" "14px", style "flex" "1" ] [ text entry.name ]
+                                    , button
+                                        [ onClick (SelectStoredAutomaton entry.name)
+                                        , style "padding" "6px 14px"
+                                        , style "background-color" "#546e7a"
+                                        , style "color" "white"
+                                        , style "border" "none"
+                                        , style "border-radius" "5px"
+                                        , style "cursor" "pointer"
+                                        , style "font-size" "13px"
+                                        ]
+                                        [ text "Načítať" ]
+                                    ]
+                            )
+                            model.storedAutomata
+                   )
+                ++ [ button
+                        [ onClick DismissStorageSelectModal
+                        , style "padding" "8px"
+                        , style "background-color" "#b0bec5"
+                        , style "color" "white"
+                        , style "border" "none"
+                        , style "border-radius" "5px"
+                        , style "cursor" "pointer"
+                        , style "font-size" "13px"
+                        , style "margin-top" "4px"
+                        ]
+                        [ text "Zrušiť" ]
+                   ]
+                )
+            ]
+    else
+        div [] []

@@ -21,6 +21,10 @@ type alias Config msg =
     , canRedo : Bool
     , currentTool : String
     , isSimulateEnabled : Bool
+    , onExport : msg
+    , onSave : msg
+    , onLoad : msg
+    , onShare : msg
     }
 
 
@@ -45,6 +49,10 @@ view config =
         , toolButton "Premenovať" "RenameTool" config.onRenameTool (config.currentTool == "RenameTool")
         , toolButton "Počiatočný stav" "SetStartStateTool" config.onSetStartStateTool (config.currentTool == "SetStartStateTool")
         , toolButton "Koncový stav" "SetEndStateTool" config.onSetEndStateTool (config.currentTool == "SetEndStateTool")
+        , undoRedoButton "Export" config.onExport True
+        , undoRedoButton "Uložiť" config.onSave True
+        , undoRedoButton "Načítať" config.onLoad True
+        , undoRedoButton "Zdieľať" config.onShare True
         , actionButton "Simulovať" config.onSwitchToSimulator config.isSimulateEnabled "#0277bd"
         ]
 

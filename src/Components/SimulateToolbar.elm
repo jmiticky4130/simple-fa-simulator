@@ -12,6 +12,7 @@ type alias Config msg =
     , onSwitchToEditor : msg
     , canStepBackward : Bool
     , canStepForward : Bool
+    , nextSymbol : Maybe String
     }
 
 
@@ -28,7 +29,17 @@ view config =
         ]
         [ toolButton "Reset" config.onReset True False
         , toolButton "Krok späť" config.onStepBackward config.canStepBackward False
-        , toolButton "Krok vpred" config.onStepForward config.canStepForward False
+        , toolButton
+            (case config.nextSymbol of
+                Nothing ->
+                    "Krok vpred"
+
+                Just s ->
+                    "Krok vpred  '" ++ s ++ "'"
+            )
+            config.onStepForward
+            config.canStepForward
+            False
         , actionButton "Späť do editora" config.onSwitchToEditor True
         ]
 

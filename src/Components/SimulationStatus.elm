@@ -21,10 +21,6 @@ view config =
         , style "gap" "10px"
         ]
         [ div []
-            [ span [ style "font-weight" "bold" ] [ text "Zostávajúci vstup: " ]
-            , text (if String.isEmpty config.remainingInput then "(prázdny)" else config.remainingInput)
-            ]
-        , div []
             [ span [ style "font-weight" "bold" ] [ text "Aktuálny stav: " ]
             , text (Maybe.map .label config.currentState |> Maybe.withDefault "-")
             ]

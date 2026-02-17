@@ -23,8 +23,37 @@
   <div id="elm"></div>
   <script src="elm.js"></script>
   <script>
+    var hash = window.location.hash;
+    var hashData = hash.startsWith('#data=')
+      ? decodeURIComponent(hash.slice(6))
+      : null;
+
     var app = Elm.Main.init({
-      node: document.getElementById('elm')
+      node: document.getElementById('elm'),
+      flags: hashData
+    });
+
+    app.ports.setUrlHash.subscribe(function(json) {
+      window.location.hash = 'data=' + encodeURIComponent(json);
+      navigator.clipboard.writeText(window.location.href).catch(function() {});
+    });
+
+    var STORAGE_KEY = 'automata_list';
+
+    function getStoredList() {
+      try { return JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]'); }
+      catch(e) { return []; }
+    }
+
+    app.ports.saveNamedAutomaton.subscribe(function(entry) {
+      var list = getStoredList();
+      var idx = list.findIndex(function(e) { return e.name === entry.name; });
+      if (idx >= 0) { list[idx] = entry; } else { list.push(entry); }
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(list));
+    });
+
+    app.ports.requestStoredAutomata.subscribe(function() {
+      app.ports.storedAutomataLoaded.send(getStoredList());
     });
   </script>
 </body>

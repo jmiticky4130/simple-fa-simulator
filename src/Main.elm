@@ -1,4 +1,4 @@
-module Main exposing (..)
+port module Main exposing (..)
 
 import Browser
 import Browser.Events
@@ -9,6 +9,16 @@ import Json.Decode as Decode
 import Pages.Editor as Editor
 import Pages.Simulator as Simulator
 import Shared exposing (AutomatonState)
+import Utils.AutomatonCodec
+
+
+port setUrlHash : String -> Cmd msg
+
+port saveNamedAutomaton : { name : String, data : String } -> Cmd msg
+
+port requestStoredAutomata : () -> Cmd msg
+
+port storedAutomataLoaded : (List { name : String, data : String } -> msg) -> Sub msg
 
 
 type Page
@@ -23,11 +33,18 @@ type alias Model =
     }
 
 
-init : () -> ( Model, Cmd Msg )
-init _ =
+init : Maybe String -> ( Model, Cmd Msg )
+init maybeJson =
     let
-        editorInit = Editor.init
-        simulatorInit = Simulator.init { states = [], transitions = [], nextStateId = 0 }
+        loadedAutomaton =
+            maybeJson
+                |> Maybe.andThen (Decode.decodeString Utils.AutomatonCodec.decoder >> Result.toMaybe)
+
+        editorInit =
+            Editor.initWith loadedAutomaton
+
+        simulatorInit =
+            Simulator.init { states = [], transitions = [], nextStateId = 0 }
     in
     ( { currentPage = EditorPage
       , editorModel = editorInit
@@ -58,6 +75,36 @@ update msg model =
                         , simulatorModel = simulatorInit
                       }
                     , Cmd.none
+                    )
+
+                Editor.ShareUrl ->
+                    ( model, setUrlHash (Utils.AutomatonCodec.encode model.editorModel.automaton.present) )
+
+                Editor.ConfirmSave ->
+                    let
+                        name = String.trim model.editorModel.saveNameInput
+                        ( newEditorModel, editorCmd ) =
+                            Editor.update editorMsg model.editorModel
+                    in
+                    if String.isEmpty name then
+                        ( { model | editorModel = newEditorModel }
+                        , Cmd.map EditorMsg editorCmd
+                        )
+                    else
+                        ( { model | editorModel = newEditorModel }
+                        , Cmd.batch
+                            [ Cmd.map EditorMsg editorCmd
+                            , saveNamedAutomaton { name = name, data = Utils.AutomatonCodec.encode model.editorModel.automaton.present }
+                            ]
+                        )
+
+                Editor.LoadFromStorage ->
+                    let
+                        ( newEditorModel, editorCmd ) =
+                            Editor.update editorMsg model.editorModel
+                    in
+                    ( { model | editorModel = newEditorModel }
+                    , Cmd.batch [ Cmd.map EditorMsg editorCmd, requestStoredAutomata () ]
                     )
 
                 _ ->
@@ -95,7 +142,10 @@ subscriptions : Model -> Sub Msg
 subscriptions model =
     case model.currentPage of
         EditorPage ->
-            Browser.Events.onKeyDown (keyDecoder model)
+            Sub.batch
+                [ Browser.Events.onKeyDown (keyDecoder model)
+                , storedAutomataLoaded (\list -> EditorMsg (Editor.StorageAutomataLoaded list))
+                ]
 
         SimulatorPage ->
             Sub.none
@@ -103,7 +153,7 @@ subscriptions model =
 
 keyDecoder : Model -> Decode.Decoder Msg
 keyDecoder model =
-    Decode.map3 (\key ctrl shift -> 
+    Decode.map3 (\key ctrl shift ->
         if ctrl && (key == "z" || key == "Z") then EditorMsg Editor.Undo
         else if ctrl && (key == "y" || key == "Y") then EditorMsg Editor.Redo
         else if shift && (key == "s" || key == "S") then EditorMsg (Editor.ChangeTool Editor.AddStateTool)
@@ -137,7 +187,7 @@ view model =
                 ]
 
 
-main : Program () Model Msg
+main : Program (Maybe String) Model Msg
 main =
     Browser.element
         { init = init

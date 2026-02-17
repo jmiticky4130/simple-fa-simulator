@@ -4378,6 +4378,188 @@ function _Browser_load(url)
 		}
 	}));
 }
+
+
+
+// DECODER
+
+var _File_decoder = _Json_decodePrim(function(value) {
+	// NOTE: checks if `File` exists in case this is run on node
+	return (typeof File !== 'undefined' && value instanceof File)
+		? $elm$core$Result$Ok(value)
+		: _Json_expecting('a FILE', value);
+});
+
+
+// METADATA
+
+function _File_name(file) { return file.name; }
+function _File_mime(file) { return file.type; }
+function _File_size(file) { return file.size; }
+
+function _File_lastModified(file)
+{
+	return $elm$time$Time$millisToPosix(file.lastModified);
+}
+
+
+// DOWNLOAD
+
+var _File_downloadNode;
+
+function _File_getDownloadNode()
+{
+	return _File_downloadNode || (_File_downloadNode = document.createElement('a'));
+}
+
+var _File_download = F3(function(name, mime, content)
+{
+	return _Scheduler_binding(function(callback)
+	{
+		var blob = new Blob([content], {type: mime});
+
+		// for IE10+
+		if (navigator.msSaveOrOpenBlob)
+		{
+			navigator.msSaveOrOpenBlob(blob, name);
+			return;
+		}
+
+		// for HTML5
+		var node = _File_getDownloadNode();
+		var objectUrl = URL.createObjectURL(blob);
+		node.href = objectUrl;
+		node.download = name;
+		_File_click(node);
+		URL.revokeObjectURL(objectUrl);
+	});
+});
+
+function _File_downloadUrl(href)
+{
+	return _Scheduler_binding(function(callback)
+	{
+		var node = _File_getDownloadNode();
+		node.href = href;
+		node.download = '';
+		node.origin === location.origin || (node.target = '_blank');
+		_File_click(node);
+	});
+}
+
+
+// IE COMPATIBILITY
+
+function _File_makeBytesSafeForInternetExplorer(bytes)
+{
+	// only needed by IE10 and IE11 to fix https://github.com/elm/file/issues/10
+	// all other browsers can just run `new Blob([bytes])` directly with no problem
+	//
+	return new Uint8Array(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+}
+
+function _File_click(node)
+{
+	// only needed by IE10 and IE11 to fix https://github.com/elm/file/issues/11
+	// all other browsers have MouseEvent and do not need this conditional stuff
+	//
+	if (typeof MouseEvent === 'function')
+	{
+		node.dispatchEvent(new MouseEvent('click'));
+	}
+	else
+	{
+		var event = document.createEvent('MouseEvents');
+		event.initMouseEvent('click', true, true, window, 0, 0, 0, 0, 0, false, false, false, false, 0, null);
+		document.body.appendChild(node);
+		node.dispatchEvent(event);
+		document.body.removeChild(node);
+	}
+}
+
+
+// UPLOAD
+
+var _File_node;
+
+function _File_uploadOne(mimes)
+{
+	return _Scheduler_binding(function(callback)
+	{
+		_File_node = document.createElement('input');
+		_File_node.type = 'file';
+		_File_node.accept = A2($elm$core$String$join, ',', mimes);
+		_File_node.addEventListener('change', function(event)
+		{
+			callback(_Scheduler_succeed(event.target.files[0]));
+		});
+		_File_click(_File_node);
+	});
+}
+
+function _File_uploadOneOrMore(mimes)
+{
+	return _Scheduler_binding(function(callback)
+	{
+		_File_node = document.createElement('input');
+		_File_node.type = 'file';
+		_File_node.multiple = true;
+		_File_node.accept = A2($elm$core$String$join, ',', mimes);
+		_File_node.addEventListener('change', function(event)
+		{
+			var elmFiles = _List_fromArray(event.target.files);
+			callback(_Scheduler_succeed(_Utils_Tuple2(elmFiles.a, elmFiles.b)));
+		});
+		_File_click(_File_node);
+	});
+}
+
+
+// CONTENT
+
+function _File_toString(blob)
+{
+	return _Scheduler_binding(function(callback)
+	{
+		var reader = new FileReader();
+		reader.addEventListener('loadend', function() {
+			callback(_Scheduler_succeed(reader.result));
+		});
+		reader.readAsText(blob);
+		return function() { reader.abort(); };
+	});
+}
+
+function _File_toBytes(blob)
+{
+	return _Scheduler_binding(function(callback)
+	{
+		var reader = new FileReader();
+		reader.addEventListener('loadend', function() {
+			callback(_Scheduler_succeed(new DataView(reader.result)));
+		});
+		reader.readAsArrayBuffer(blob);
+		return function() { reader.abort(); };
+	});
+}
+
+function _File_toUrl(blob)
+{
+	return _Scheduler_binding(function(callback)
+	{
+		var reader = new FileReader();
+		reader.addEventListener('loadend', function() {
+			callback(_Scheduler_succeed(reader.result));
+		});
+		reader.readAsDataURL(blob);
+		return function() { reader.abort(); };
+	});
+}
+
+var $elm$core$Maybe$Just = function (a) {
+	return {$: 'Just', a: a};
+};
+var $elm$core$Maybe$Nothing = {$: 'Nothing'};
 var $elm$core$Basics$EQ = {$: 'EQ'};
 var $elm$core$Basics$GT = {$: 'GT'};
 var $elm$core$Basics$LT = {$: 'LT'};
@@ -4481,10 +4663,6 @@ var $elm$json$Json$Decode$OneOf = function (a) {
 };
 var $elm$core$Basics$False = {$: 'False'};
 var $elm$core$Basics$add = _Basics_add;
-var $elm$core$Maybe$Just = function (a) {
-	return {$: 'Just', a: a};
-};
-var $elm$core$Maybe$Nothing = {$: 'Nothing'};
 var $elm$core$String$all = _String_all;
 var $elm$core$Basics$and = _Basics_and;
 var $elm$core$Basics$append = _Utils_append;
@@ -5168,34 +5346,72 @@ var $elm$core$Task$perform = F2(
 	});
 var $elm$browser$Browser$element = _Browser_element;
 var $author$project$Main$EditorPage = {$: 'EditorPage'};
-var $author$project$Components$Console$Info = {$: 'Info'};
-var $author$project$Pages$Editor$ResetTool = {$: 'ResetTool'};
-var $author$project$Components$AutomatonDisplay$Table = {$: 'Table'};
-var $elm_community$undo_redo$UndoList$UndoList = F3(
-	function (past, present, future) {
-		return {future: future, past: past, present: present};
+var $elm$core$Maybe$andThen = F2(
+	function (callback, maybeValue) {
+		if (maybeValue.$ === 'Just') {
+			var value = maybeValue.a;
+			return callback(value);
+		} else {
+			return $elm$core$Maybe$Nothing;
+		}
 	});
-var $elm_community$undo_redo$UndoList$fresh = function (state) {
-	return A3($elm_community$undo_redo$UndoList$UndoList, _List_Nil, state, _List_Nil);
-};
-var $author$project$Pages$Editor$init = {
-	automaton: $elm_community$undo_redo$UndoList$fresh(
-		{nextStateId: 0, states: _List_Nil, transitions: _List_Nil}),
-	consoleMessages: _List_fromArray(
-		[
-			{msgType: $author$project$Components$Console$Info, text: 'Vítajte v simulátore DFA/NFA. Začnite pridaním stavov.'}
-		]),
-	currentTool: $author$project$Pages$Editor$ResetTool,
-	draggedState: $elm$core$Maybe$Nothing,
-	editingStateId: $elm$core$Maybe$Nothing,
-	editingTransition: $elm$core$Maybe$Nothing,
-	isDragging: false,
-	selectedState: $elm$core$Maybe$Nothing,
-	stateLabelInput: '',
-	transitionDisplayMode: $author$project$Components$AutomatonDisplay$Table,
-	transitionFrom: $elm$core$Maybe$Nothing,
-	transitionInput: ''
-};
+var $elm$core$Basics$composeR = F3(
+	function (f, g, x) {
+		return g(
+			f(x));
+	});
+var $elm$json$Json$Decode$decodeString = _Json_runOnString;
+var $author$project$Shared$AutomatonState = F3(
+	function (states, transitions, nextStateId) {
+		return {nextStateId: nextStateId, states: states, transitions: transitions};
+	});
+var $elm$json$Json$Decode$field = _Json_decodeField;
+var $elm$json$Json$Decode$int = _Json_decodeInt;
+var $elm$json$Json$Decode$list = _Json_decodeList;
+var $elm$json$Json$Decode$map3 = _Json_map3;
+var $author$project$Shared$State = F6(
+	function (id, x, y, label, isStart, isEnd) {
+		return {id: id, isEnd: isEnd, isStart: isStart, label: label, x: x, y: y};
+	});
+var $elm$json$Json$Decode$bool = _Json_decodeBool;
+var $elm$json$Json$Decode$float = _Json_decodeFloat;
+var $elm$json$Json$Decode$map6 = _Json_map6;
+var $elm$json$Json$Decode$string = _Json_decodeString;
+var $author$project$Utils$AutomatonCodec$stateDecoder = A7(
+	$elm$json$Json$Decode$map6,
+	$author$project$Shared$State,
+	A2($elm$json$Json$Decode$field, 'id', $elm$json$Json$Decode$int),
+	A2($elm$json$Json$Decode$field, 'x', $elm$json$Json$Decode$float),
+	A2($elm$json$Json$Decode$field, 'y', $elm$json$Json$Decode$float),
+	A2($elm$json$Json$Decode$field, 'label', $elm$json$Json$Decode$string),
+	A2($elm$json$Json$Decode$field, 'isStart', $elm$json$Json$Decode$bool),
+	A2($elm$json$Json$Decode$field, 'isEnd', $elm$json$Json$Decode$bool));
+var $author$project$Shared$Transition = F3(
+	function (from, to, symbol) {
+		return {from: from, symbol: symbol, to: to};
+	});
+var $author$project$Utils$AutomatonCodec$transitionDecoder = A4(
+	$elm$json$Json$Decode$map3,
+	$author$project$Shared$Transition,
+	A2($elm$json$Json$Decode$field, 'from', $elm$json$Json$Decode$int),
+	A2($elm$json$Json$Decode$field, 'to', $elm$json$Json$Decode$int),
+	A2($elm$json$Json$Decode$field, 'symbol', $elm$json$Json$Decode$string));
+var $author$project$Utils$AutomatonCodec$decoder = A4(
+	$elm$json$Json$Decode$map3,
+	$author$project$Shared$AutomatonState,
+	A2(
+		$elm$json$Json$Decode$field,
+		'states',
+		$elm$json$Json$Decode$list($author$project$Utils$AutomatonCodec$stateDecoder)),
+	A2(
+		$elm$json$Json$Decode$field,
+		'transitions',
+		$elm$json$Json$Decode$list($author$project$Utils$AutomatonCodec$transitionDecoder)),
+	A2($elm$json$Json$Decode$field, 'nextStateId', $elm$json$Json$Decode$int));
+var $author$project$Pages$Simulator$CanvasView = {$: 'CanvasView'};
+var $author$project$Pages$Simulator$DfaMode = {$: 'DfaMode'};
+var $author$project$Components$Console$Info = {$: 'Info'};
+var $author$project$Pages$Simulator$NfaMode = {$: 'NfaMode'};
 var $elm$core$List$filter = F2(
 	function (isGood, list) {
 		return A3(
@@ -5216,6 +5432,66 @@ var $elm$core$List$head = function (list) {
 		return $elm$core$Maybe$Nothing;
 	}
 };
+var $elm$core$List$any = F2(
+	function (isOkay, list) {
+		any:
+		while (true) {
+			if (!list.b) {
+				return false;
+			} else {
+				var x = list.a;
+				var xs = list.b;
+				if (isOkay(x)) {
+					return true;
+				} else {
+					var $temp$isOkay = isOkay,
+						$temp$list = xs;
+					isOkay = $temp$isOkay;
+					list = $temp$list;
+					continue any;
+				}
+			}
+		}
+	});
+var $elm$core$List$member = F2(
+	function (x, xs) {
+		return A2(
+			$elm$core$List$any,
+			function (a) {
+				return _Utils_eq(a, x);
+			},
+			xs);
+	});
+var $elm$core$Basics$not = _Basics_not;
+var $author$project$Utils$AutomatonHelpers$isDFA = F2(
+	function (states, transitions) {
+		var key = function (t) {
+			return $elm$core$String$fromInt(t.from) + ('|' + t.symbol);
+		};
+		var checkDuplicates = F2(
+			function (transList, seenKeys) {
+				checkDuplicates:
+				while (true) {
+					if (!transList.b) {
+						return false;
+					} else {
+						var t = transList.a;
+						var rest = transList.b;
+						var k = key(t);
+						if (A2($elm$core$List$member, k, seenKeys)) {
+							return true;
+						} else {
+							var $temp$transList = rest,
+								$temp$seenKeys = A2($elm$core$List$cons, k, seenKeys);
+							transList = $temp$transList;
+							seenKeys = $temp$seenKeys;
+							continue checkDuplicates;
+						}
+					}
+				}
+			});
+		return !A2(checkDuplicates, transitions, _List_Nil);
+	});
 var $elm$core$Maybe$map = F2(
 	function (f, maybe) {
 		if (maybe.$ === 'Just') {
@@ -5239,6 +5515,9 @@ var $author$project$Pages$Simulator$init = function (automaton) {
 					return $.isStart;
 				},
 				automaton.states)));
+	var mode = A2($author$project$Utils$AutomatonHelpers$isDFA, automaton.states, automaton.transitions) ? $author$project$Pages$Simulator$DfaMode : $author$project$Pages$Simulator$NfaMode;
+	var initNode = {id: 0, parentId: $elm$core$Maybe$Nothing, stateId: startState, symbol: $elm$core$Maybe$Nothing};
+	var initInstance = {currentStateId: startState, id: 0, parentId: $elm$core$Maybe$Nothing, remainingInput: '', symbolTaken: $elm$core$Maybe$Nothing, verdict: $elm$core$Maybe$Nothing};
 	return {
 		activeTransition: $elm$core$Maybe$Nothing,
 		automaton: automaton,
@@ -5249,20 +5528,103 @@ var $author$project$Pages$Simulator$init = function (automaton) {
 		currentStateId: startState,
 		history: _List_Nil,
 		inputString: '',
+		mergeEnabled: false,
+		mode: mode,
+		nextInstanceId: 1,
+		nfaHistory: _List_Nil,
+		nfaInstances: _List_fromArray(
+			[initInstance]),
+		nfaMergedEdges: _List_Nil,
+		nfaTree: _List_fromArray(
+			[initNode]),
 		remainingInput: '',
-		verdict: $elm$core$Maybe$Nothing
+		selectedInstanceId: $elm$core$Maybe$Nothing,
+		verdict: $elm$core$Maybe$Nothing,
+		viewMode: $author$project$Pages$Simulator$CanvasView
 	};
+};
+var $elm_community$undo_redo$UndoList$UndoList = F3(
+	function (past, present, future) {
+		return {future: future, past: past, present: present};
+	});
+var $elm_community$undo_redo$UndoList$fresh = function (state) {
+	return A3($elm_community$undo_redo$UndoList$UndoList, _List_Nil, state, _List_Nil);
+};
+var $author$project$Pages$Editor$ResetTool = {$: 'ResetTool'};
+var $author$project$Components$AutomatonDisplay$Table = {$: 'Table'};
+var $author$project$Pages$Editor$init = {
+	automaton: $elm_community$undo_redo$UndoList$fresh(
+		{nextStateId: 0, states: _List_Nil, transitions: _List_Nil}),
+	consoleMessages: _List_fromArray(
+		[
+			{msgType: $author$project$Components$Console$Info, text: 'Vítajte v simulátore DFA/NFA. Začnite pridaním stavov.'}
+		]),
+	currentTool: $author$project$Pages$Editor$ResetTool,
+	draggedState: $elm$core$Maybe$Nothing,
+	editingStateId: $elm$core$Maybe$Nothing,
+	editingTransition: $elm$core$Maybe$Nothing,
+	isDragging: false,
+	saveNameInput: '',
+	selectedState: $elm$core$Maybe$Nothing,
+	showLoadModal: false,
+	showSaveModal: false,
+	showStorageSelectModal: false,
+	stateLabelInput: '',
+	storedAutomata: _List_Nil,
+	transitionDisplayMode: $author$project$Components$AutomatonDisplay$Table,
+	transitionFrom: $elm$core$Maybe$Nothing,
+	transitionInput: ''
+};
+var $author$project$Pages$Editor$initWith = function (maybeAutomaton) {
+	if (maybeAutomaton.$ === 'Nothing') {
+		return $author$project$Pages$Editor$init;
+	} else {
+		var automaton = maybeAutomaton.a;
+		return _Utils_update(
+			$author$project$Pages$Editor$init,
+			{
+				automaton: $elm_community$undo_redo$UndoList$fresh(automaton),
+				consoleMessages: _List_fromArray(
+					[
+						{msgType: $author$project$Components$Console$Info, text: 'Automat načítaný z URL.'}
+					])
+			});
+	}
 };
 var $elm$core$Platform$Cmd$batch = _Platform_batch;
 var $elm$core$Platform$Cmd$none = $elm$core$Platform$Cmd$batch(_List_Nil);
-var $author$project$Main$init = function (_v0) {
+var $elm$core$Result$toMaybe = function (result) {
+	if (result.$ === 'Ok') {
+		var v = result.a;
+		return $elm$core$Maybe$Just(v);
+	} else {
+		return $elm$core$Maybe$Nothing;
+	}
+};
+var $author$project$Main$init = function (maybeJson) {
 	var simulatorInit = $author$project$Pages$Simulator$init(
 		{nextStateId: 0, states: _List_Nil, transitions: _List_Nil});
-	var editorInit = $author$project$Pages$Editor$init;
+	var loadedAutomaton = A2(
+		$elm$core$Maybe$andThen,
+		A2(
+			$elm$core$Basics$composeR,
+			$elm$json$Json$Decode$decodeString($author$project$Utils$AutomatonCodec$decoder),
+			$elm$core$Result$toMaybe),
+		maybeJson);
+	var editorInit = $author$project$Pages$Editor$initWith(loadedAutomaton);
 	return _Utils_Tuple2(
 		{currentPage: $author$project$Main$EditorPage, editorModel: editorInit, simulatorModel: simulatorInit},
 		$elm$core$Platform$Cmd$none);
 };
+var $elm$json$Json$Decode$null = _Json_decodeNull;
+var $elm$json$Json$Decode$oneOf = _Json_oneOf;
+var $author$project$Main$EditorMsg = function (a) {
+	return {$: 'EditorMsg', a: a};
+};
+var $author$project$Pages$Editor$StorageAutomataLoaded = function (a) {
+	return {$: 'StorageAutomataLoaded', a: a};
+};
+var $elm$core$Platform$Sub$batch = _Platform_batch;
 var $author$project$Pages$Editor$AddStateTool = {$: 'AddStateTool'};
 var $author$project$Pages$Editor$AddTransitionTool = {$: 'AddTransitionTool'};
 var $author$project$Pages$Editor$CancelAction = {$: 'CancelAction'};
@@ -5270,9 +5632,6 @@ var $author$project$Pages$Editor$ChangeTool = function (a) {
 	return {$: 'ChangeTool', a: a};
 };
 var $author$project$Pages$Editor$DeleteTool = {$: 'DeleteTool'};
-var $author$project$Main$EditorMsg = function (a) {
-	return {$: 'EditorMsg', a: a};
-};
 var $author$project$Pages$Editor$MoveTool = {$: 'MoveTool'};
 var $author$project$Pages$Editor$NoOp = {$: 'NoOp'};
 var $author$project$Pages$Editor$Redo = {$: 'Redo'};
@@ -5280,10 +5639,6 @@ var $author$project$Pages$Editor$RenameTool = {$: 'RenameTool'};
 var $author$project$Pages$Editor$SetEndStateTool = {$: 'SetEndStateTool'};
 var $author$project$Pages$Editor$SetStartStateTool = {$: 'SetStartStateTool'};
 var $author$project$Pages$Editor$Undo = {$: 'Undo'};
-var $elm$json$Json$Decode$bool = _Json_decodeBool;
-var $elm$json$Json$Decode$field = _Json_decodeField;
-var $elm$json$Json$Decode$map3 = _Json_map3;
-var $elm$json$Json$Decode$string = _Json_decodeString;
 var $author$project$Main$keyDecoder = function (model) {
 	return A4(
 		$elm$json$Json$Decode$map3,
@@ -5302,7 +5657,6 @@ var $author$project$Main$keyDecoder = function (model) {
 		A2($elm$json$Json$Decode$field, 'ctrlKey', $elm$json$Json$Decode$bool),
 		A2($elm$json$Json$Decode$field, 'shiftKey', $elm$json$Json$Decode$bool));
 };
-var $elm$core$Platform$Sub$batch = _Platform_batch;
 var $elm$core$Platform$Sub$none = $elm$core$Platform$Sub$batch(_List_Nil);
 var $elm$browser$Browser$Events$Document = {$: 'Document'};
 var $elm$browser$Browser$Events$MySub = F3(
@@ -5705,43 +6059,172 @@ var $elm$browser$Browser$Events$on = F3(
 			A3($elm$browser$Browser$Events$MySub, node, name, decoder));
 	});
 var $elm$browser$Browser$Events$onKeyDown = A2($elm$browser$Browser$Events$on, $elm$browser$Browser$Events$Document, 'keydown');
+var $elm$json$Json$Decode$andThen = _Json_andThen;
+var $author$project$Main$storedAutomataLoaded = _Platform_incomingPort(
+	'storedAutomataLoaded',
+	$elm$json$Json$Decode$list(
+		A2(
+			$elm$json$Json$Decode$andThen,
+			function (name) {
+				return A2(
+					$elm$json$Json$Decode$andThen,
+					function (data) {
+						return $elm$json$Json$Decode$succeed(
+							{data: data, name: name});
+					},
+					A2($elm$json$Json$Decode$field, 'data', $elm$json$Json$Decode$string));
+			},
+			A2($elm$json$Json$Decode$field, 'name', $elm$json$Json$Decode$string))));
 var $author$project$Main$subscriptions = function (model) {
 	var _v0 = model.currentPage;
 	if (_v0.$ === 'EditorPage') {
-		return $elm$browser$Browser$Events$onKeyDown(
-			$author$project$Main$keyDecoder(model));
+		return $elm$core$Platform$Sub$batch(
+			_List_fromArray(
+				[
+					$elm$browser$Browser$Events$onKeyDown(
+					$author$project$Main$keyDecoder(model)),
+					$author$project$Main$storedAutomataLoaded(
+					function (list) {
+						return $author$project$Main$EditorMsg(
+							$author$project$Pages$Editor$StorageAutomataLoaded(list));
+					})
+				]));
 	} else {
 		return $elm$core$Platform$Sub$none;
 	}
 };
 var $author$project$Main$SimulatorPage = {$: 'SimulatorPage'};
-var $elm$core$Platform$Cmd$map = _Platform_map;
-var $author$project$Components$Console$Error = {$: 'Error'};
-var $elm$core$List$any = F2(
-	function (isOkay, list) {
-		any:
-		while (true) {
-			if (!list.b) {
-				return false;
-			} else {
-				var x = list.a;
-				var xs = list.b;
-				if (isOkay(x)) {
-					return true;
-				} else {
-					var $temp$isOkay = isOkay,
-						$temp$list = xs;
-					isOkay = $temp$isOkay;
-					list = $temp$list;
-					continue any;
-				}
-			}
-		}
+var $elm$json$Json$Encode$bool = _Json_wrap;
+var $elm$json$Json$Encode$float = _Json_wrap;
+var $elm$json$Json$Encode$int = _Json_wrap;
+var $elm$json$Json$Encode$object = function (pairs) {
+	return _Json_wrap(
+		A3(
+			$elm$core$List$foldl,
+			F2(
+				function (_v0, obj) {
+					var k = _v0.a;
+					var v = _v0.b;
+					return A3(_Json_addField, k, v, obj);
+				}),
+			_Json_emptyObject(_Utils_Tuple0),
+			pairs));
+};
+var $elm$json$Json$Encode$string = _Json_wrap;
+var $author$project$Utils$AutomatonCodec$encodeState = function (s) {
+	return $elm$json$Json$Encode$object(
+		_List_fromArray(
+			[
+				_Utils_Tuple2(
+				'id',
+				$elm$json$Json$Encode$int(s.id)),
+				_Utils_Tuple2(
+				'x',
+				$elm$json$Json$Encode$float(s.x)),
+				_Utils_Tuple2(
+				'y',
+				$elm$json$Json$Encode$float(s.y)),
+				_Utils_Tuple2(
+				'label',
+				$elm$json$Json$Encode$string(s.label)),
+				_Utils_Tuple2(
+				'isStart',
+				$elm$json$Json$Encode$bool(s.isStart)),
+				_Utils_Tuple2(
+				'isEnd',
+				$elm$json$Json$Encode$bool(s.isEnd))
+			]));
+};
+var $author$project$Utils$AutomatonCodec$encodeTransition = function (t) {
+	return $elm$json$Json$Encode$object(
+		_List_fromArray(
+			[
+				_Utils_Tuple2(
+				'from',
+				$elm$json$Json$Encode$int(t.from)),
+				_Utils_Tuple2(
+				'to',
+				$elm$json$Json$Encode$int(t.to)),
+				_Utils_Tuple2(
+				'symbol',
+				$elm$json$Json$Encode$string(t.symbol))
+			]));
+};
+var $elm$json$Json$Encode$list = F2(
+	function (func, entries) {
+		return _Json_wrap(
+			A3(
+				$elm$core$List$foldl,
+				_Json_addEntry(func),
+				_Json_emptyArray(_Utils_Tuple0),
+				entries));
 	});
+var $author$project$Utils$AutomatonCodec$encodeValue = function (a) {
+	return $elm$json$Json$Encode$object(
+		_List_fromArray(
+			[
+				_Utils_Tuple2(
+				'states',
+				A2($elm$json$Json$Encode$list, $author$project$Utils$AutomatonCodec$encodeState, a.states)),
+				_Utils_Tuple2(
+				'transitions',
+				A2($elm$json$Json$Encode$list, $author$project$Utils$AutomatonCodec$encodeTransition, a.transitions)),
+				_Utils_Tuple2(
+				'nextStateId',
+				$elm$json$Json$Encode$int(a.nextStateId))
+			]));
+};
+var $author$project$Utils$AutomatonCodec$encode = function (a) {
+	return A2(
+		$elm$json$Json$Encode$encode,
+		0,
+		$author$project$Utils$AutomatonCodec$encodeValue(a));
+};
+var $elm$core$Platform$Cmd$map = _Platform_map;
+var $elm$json$Json$Encode$null = _Json_encodeNull;
+var $author$project$Main$requestStoredAutomata = _Platform_outgoingPort(
+	'requestStoredAutomata',
+	function ($) {
+		return $elm$json$Json$Encode$null;
+	});
+var $author$project$Main$saveNamedAutomaton = _Platform_outgoingPort(
+	'saveNamedAutomaton',
+	function ($) {
+		return $elm$json$Json$Encode$object(
+			_List_fromArray(
+				[
+					_Utils_Tuple2(
+					'data',
+					$elm$json$Json$Encode$string($.data)),
+					_Utils_Tuple2(
+					'name',
+					$elm$json$Json$Encode$string($.name))
+				]));
+	});
+var $author$project$Main$setUrlHash = _Platform_outgoingPort('setUrlHash', $elm$json$Json$Encode$string);
+var $elm$core$String$trim = _String_trim;
+var $author$project$Components$Console$Error = {$: 'Error'};
+var $author$project$Pages$Editor$ImportJsonContent = function (a) {
+	return {$: 'ImportJsonContent', a: a};
+};
+var $author$project$Pages$Editor$ImportJsonLoaded = function (a) {
+	return {$: 'ImportJsonLoaded', a: a};
+};
 var $elm$core$Basics$composeL = F3(
 	function (g, f, x) {
 		return g(
 			f(x));
+	});
+var $elm$time$Time$Posix = function (a) {
+	return {$: 'Posix', a: a};
+};
+var $elm$time$Time$millisToPosix = $elm$time$Time$Posix;
+var $elm$file$File$Select$file = F2(
+	function (mimes, toMsg) {
+		return A2(
+			$elm$core$Task$perform,
+			toMsg,
+			_File_uploadOne(mimes));
 	});
 var $elm$core$Set$Set_elm_builtin = function (a) {
 	return {$: 'Set_elm_builtin', a: a};
@@ -5830,7 +6313,6 @@ var $author$project$Utils$AutomatonHelpers$setStartState = F2(
 			},
 			states);
 	});
-var $elm$core$Basics$not = _Basics_not;
 var $author$project$Utils$AutomatonHelpers$toggleEndState = F2(
 	function (stateId, states) {
 		return A2(
@@ -6032,44 +6514,6 @@ var $author$project$Pages$Editor$handleStateClick = F2(
 				return _Utils_Tuple2(model, $elm$core$Platform$Cmd$none);
 		}
 	});
-var $elm$core$List$member = F2(
-	function (x, xs) {
-		return A2(
-			$elm$core$List$any,
-			function (a) {
-				return _Utils_eq(a, x);
-			},
-			xs);
-	});
-var $author$project$Utils$AutomatonHelpers$isDFA = F2(
-	function (states, transitions) {
-		var key = function (t) {
-			return $elm$core$String$fromInt(t.from) + ('|' + t.symbol);
-		};
-		var checkDuplicates = F2(
-			function (transList, seenKeys) {
-				checkDuplicates:
-				while (true) {
-					if (!transList.b) {
-						return false;
-					} else {
-						var t = transList.a;
-						var rest = transList.b;
-						var k = key(t);
-						if (A2($elm$core$List$member, k, seenKeys)) {
-							return true;
-						} else {
-							var $temp$transList = rest,
-								$temp$seenKeys = A2($elm$core$List$cons, k, seenKeys);
-							transList = $temp$transList;
-							seenKeys = $temp$seenKeys;
-							continue checkDuplicates;
-						}
-					}
-				}
-			});
-		return !A2(checkDuplicates, transitions, _List_Nil);
-	});
 var $elm$core$List$isEmpty = function (xs) {
 	if (!xs.b) {
 		return true;
@@ -6097,6 +6541,14 @@ var $elm$core$List$sortBy = _List_sortBy;
 var $elm$core$List$sort = function (xs) {
 	return A2($elm$core$List$sortBy, $elm$core$Basics$identity, xs);
 };
+var $elm$file$File$Download$string = F3(
+	function (name, mime, content) {
+		return A2(
+			$elm$core$Task$perform,
+			$elm$core$Basics$never,
+			A3(_File_download, name, mime, content));
+	});
+var $elm$file$File$toString = _File_toString;
 var $author$project$Utils$AutomatonHelpers$transitionExists = F4(
 	function (from, to, symbol, transitions) {
 		return A2(
@@ -6106,7 +6558,6 @@ var $author$project$Utils$AutomatonHelpers$transitionExists = F4(
 			},
 			transitions);
 	});
-var $elm$core$String$trim = _String_trim;
 var $elm_community$undo_redo$UndoList$undo = function (_v0) {
 	var past = _v0.past;
 	var present = _v0.present;
@@ -6161,15 +6612,190 @@ var $author$project$Pages$Editor$update = F2(
 		var currentAutomaton = model.automaton.present;
 		switch (msg.$) {
 			case 'SwitchToSimulator':
-				return A2($author$project$Utils$AutomatonHelpers$isDFA, currentAutomaton.states, currentAutomaton.transitions) ? _Utils_Tuple2(model, $elm$core$Platform$Cmd$none) : _Utils_Tuple2(
+				return _Utils_Tuple2(model, $elm$core$Platform$Cmd$none);
+			case 'ExportJson':
+				return _Utils_Tuple2(
+					model,
+					A3(
+						$elm$file$File$Download$string,
+						'automaton.json',
+						'application/json',
+						$author$project$Utils$AutomatonCodec$encode(model.automaton.present)));
+			case 'ImportJsonRequested':
+				return _Utils_Tuple2(
+					_Utils_update(
+						model,
+						{showLoadModal: false}),
+					A2(
+						$elm$file$File$Select$file,
+						_List_fromArray(
+							['application/json']),
+						$author$project$Pages$Editor$ImportJsonLoaded));
+			case 'ImportJsonLoaded':
+				var file = msg.a;
+				return _Utils_Tuple2(
+					model,
+					A2(
+						$elm$core$Task$perform,
+						$author$project$Pages$Editor$ImportJsonContent,
+						$elm$file$File$toString(file)));
+			case 'ImportJsonContent':
+				var content = msg.a;
+				var _v1 = A2($elm$json$Json$Decode$decodeString, $author$project$Utils$AutomatonCodec$decoder, content);
+				if (_v1.$ === 'Ok') {
+					var automaton = _v1.a;
+					return _Utils_Tuple2(
+						_Utils_update(
+							model,
+							{
+								automaton: $elm_community$undo_redo$UndoList$fresh(automaton),
+								consoleMessages: A2(
+									$elm$core$List$cons,
+									{msgType: $author$project$Components$Console$Info, text: 'Automat importovaný zo súboru.'},
+									model.consoleMessages)
+							}),
+						$elm$core$Platform$Cmd$none);
+				} else {
+					var err = _v1.a;
+					return _Utils_Tuple2(
+						_Utils_update(
+							model,
+							{
+								consoleMessages: A2(
+									$elm$core$List$cons,
+									{
+										msgType: $author$project$Components$Console$Error,
+										text: 'Chyba importu: ' + $elm$json$Json$Decode$errorToString(err)
+									},
+									model.consoleMessages)
+							}),
+						$elm$core$Platform$Cmd$none);
+				}
+			case 'ShareUrl':
+				return _Utils_Tuple2(model, $elm$core$Platform$Cmd$none);
+			case 'SaveRequested':
+				return _Utils_Tuple2(
+					_Utils_update(
+						model,
+						{saveNameInput: '', showSaveModal: true}),
+					$elm$core$Platform$Cmd$none);
+			case 'UpdateSaveNameInput':
+				var s = msg.a;
+				return _Utils_Tuple2(
+					_Utils_update(
+						model,
+						{saveNameInput: s}),
+					$elm$core$Platform$Cmd$none);
+			case 'ConfirmSave':
+				return $elm$core$String$isEmpty(
+					$elm$core$String$trim(model.saveNameInput)) ? _Utils_Tuple2(
 					_Utils_update(
 						model,
 						{
 							consoleMessages: A2(
 								$elm$core$List$cons,
-								{msgType: $author$project$Components$Console$Error, text: 'Automat nie je DFA (obsahuje nedeterministické prechody).'},
+								{msgType: $author$project$Components$Console$Error, text: 'Zadajte názov automatu.'},
 								model.consoleMessages)
 						}),
+					$elm$core$Platform$Cmd$none) : _Utils_Tuple2(
+					_Utils_update(
+						model,
+						{
+							consoleMessages: A2(
+								$elm$core$List$cons,
+								{msgType: $author$project$Components$Console$Info, text: 'Automat uložený: ' + model.saveNameInput},
+								model.consoleMessages),
+							saveNameInput: '',
+							showSaveModal: false
+						}),
+					$elm$core$Platform$Cmd$none);
+			case 'DismissSaveModal':
+				return _Utils_Tuple2(
+					_Utils_update(
+						model,
+						{saveNameInput: '', showSaveModal: false}),
+					$elm$core$Platform$Cmd$none);
+			case 'LoadRequested':
+				return _Utils_Tuple2(
+					_Utils_update(
+						model,
+						{showLoadModal: true}),
+					$elm$core$Platform$Cmd$none);
+			case 'LoadFromStorage':
+				return _Utils_Tuple2(
+					_Utils_update(
+						model,
+						{showLoadModal: false}),
+					$elm$core$Platform$Cmd$none);
+			case 'StorageAutomataLoaded':
+				var list = msg.a;
+				return _Utils_Tuple2(
+					_Utils_update(
+						model,
+						{showStorageSelectModal: true, storedAutomata: list}),
+					$elm$core$Platform$Cmd$none);
+			case 'SelectStoredAutomaton':
+				var name = msg.a;
+				var maybeEntry = $elm$core$List$head(
+					A2(
+						$elm$core$List$filter,
+						function (e) {
+							return _Utils_eq(e.name, name);
+						},
+						model.storedAutomata));
+				if (maybeEntry.$ === 'Nothing') {
+					return _Utils_Tuple2(
+						_Utils_update(
+							model,
+							{showStorageSelectModal: false}),
+						$elm$core$Platform$Cmd$none);
+				} else {
+					var entry = maybeEntry.a;
+					var _v3 = A2($elm$json$Json$Decode$decodeString, $author$project$Utils$AutomatonCodec$decoder, entry.data);
+					if (_v3.$ === 'Ok') {
+						var automaton = _v3.a;
+						return _Utils_Tuple2(
+							_Utils_update(
+								model,
+								{
+									automaton: $elm_community$undo_redo$UndoList$fresh(automaton),
+									consoleMessages: A2(
+										$elm$core$List$cons,
+										{msgType: $author$project$Components$Console$Info, text: 'Automat načítaný: ' + name},
+										model.consoleMessages),
+									showStorageSelectModal: false,
+									storedAutomata: _List_Nil
+								}),
+							$elm$core$Platform$Cmd$none);
+					} else {
+						var err = _v3.a;
+						return _Utils_Tuple2(
+							_Utils_update(
+								model,
+								{
+									consoleMessages: A2(
+										$elm$core$List$cons,
+										{
+											msgType: $author$project$Components$Console$Error,
+											text: 'Chyba: ' + $elm$json$Json$Decode$errorToString(err)
+										},
+										model.consoleMessages),
+									showStorageSelectModal: false
+								}),
+							$elm$core$Platform$Cmd$none);
+					}
+				}
+			case 'DismissLoadModal':
+				return _Utils_Tuple2(
+					_Utils_update(
+						model,
+						{showLoadModal: false}),
+					$elm$core$Platform$Cmd$none);
+			case 'DismissStorageSelectModal':
+				return _Utils_Tuple2(
+					_Utils_update(
+						model,
+						{showStorageSelectModal: false, storedAutomata: _List_Nil}),
 					$elm$core$Platform$Cmd$none);
 			case 'Undo':
 				return _Utils_Tuple2(
@@ -6226,8 +6852,8 @@ var $author$project$Pages$Editor$update = F2(
 			case 'CanvasClick':
 				var x = msg.a;
 				var y = msg.b;
-				var _v1 = model.currentTool;
-				if (_v1.$ === 'AddStateTool') {
+				var _v4 = model.currentTool;
+				if (_v4.$ === 'AddStateTool') {
 					var newState = {
 						id: currentAutomaton.nextStateId,
 						isEnd: false,
@@ -6281,9 +6907,9 @@ var $author$project$Pages$Editor$update = F2(
 			case 'DragMove':
 				var x = msg.a;
 				var y = msg.b;
-				var _v2 = model.draggedState;
-				if (_v2.$ === 'Just') {
-					var stateId = _v2.a;
+				var _v5 = model.draggedState;
+				if (_v5.$ === 'Just') {
+					var stateId = _v5.a;
 					var undoList = model.automaton;
 					var newStates = A4($author$project$Utils$AutomatonHelpers$updateStatePosition, stateId, x, y, currentAutomaton.states);
 					var newAutomaton = _Utils_update(
@@ -6414,9 +7040,9 @@ var $author$project$Pages$Editor$update = F2(
 						{stateLabelInput: input}),
 					$elm$core$Platform$Cmd$none);
 			case 'ConfirmStateLabel':
-				var _v3 = model.editingStateId;
-				if (_v3.$ === 'Just') {
-					var stateId = _v3.a;
+				var _v6 = model.editingStateId;
+				if (_v6.$ === 'Just') {
+					var stateId = _v6.a;
 					if ($elm$core$String$isEmpty(
 						$elm$core$String$trim(model.stateLabelInput))) {
 						return _Utils_Tuple2(
@@ -6513,10 +7139,10 @@ var $author$project$Pages$Editor$update = F2(
 						{transitionInput: input}),
 					$elm$core$Platform$Cmd$none);
 			case 'ConfirmTransitionSymbol':
-				var _v4 = model.editingTransition;
-				if (_v4.$ === 'Just') {
-					var from = _v4.a.from;
-					var to = _v4.a.to;
+				var _v7 = model.editingTransition;
+				if (_v7.$ === 'Just') {
+					var from = _v7.a.from;
+					var to = _v7.a.to;
 					if ($elm$core$String$isEmpty(
 						$elm$core$String$trim(model.transitionInput))) {
 						return _Utils_Tuple2(
@@ -6638,6 +7264,53 @@ var $author$project$Pages$Editor$update = F2(
 				return _Utils_Tuple2(model, $elm$core$Platform$Cmd$none);
 		}
 	});
+var $author$project$Pages$Simulator$stepBackwardDfa = function (model) {
+	var _v0 = model.history;
+	if (_v0.b) {
+		var _v1 = _v0.a;
+		var prevState = _v1.a;
+		var prevInput = _v1.b;
+		var restHistory = _v0.b;
+		return _Utils_update(
+			model,
+			{
+				activeTransition: $elm$core$Maybe$Nothing,
+				consoleMessages: A2(
+					$elm$core$List$cons,
+					{msgType: $author$project$Components$Console$Info, text: 'Krok späť.'},
+					model.consoleMessages),
+				currentStateId: prevState,
+				history: restHistory,
+				remainingInput: prevInput,
+				verdict: $elm$core$Maybe$Nothing
+			});
+	} else {
+		return model;
+	}
+};
+var $author$project$Pages$Simulator$stepBackwardNfa = function (model) {
+	var _v0 = model.nfaHistory;
+	if (_v0.b) {
+		var snapshot = _v0.a;
+		var restHistory = _v0.b;
+		return _Utils_update(
+			model,
+			{
+				consoleMessages: A2(
+					$elm$core$List$cons,
+					{msgType: $author$project$Components$Console$Info, text: 'Krok späť.'},
+					model.consoleMessages),
+				nextInstanceId: snapshot.nextId,
+				nfaHistory: restHistory,
+				nfaInstances: snapshot.instances,
+				nfaMergedEdges: snapshot.mergedEdges,
+				nfaTree: snapshot.tree,
+				selectedInstanceId: $elm$core$Maybe$Nothing
+			});
+	} else {
+		return model;
+	}
+};
 var $elm$core$String$cons = _String_cons;
 var $elm$core$String$fromChar = function (_char) {
 	return A2($elm$core$String$cons, _char, '');
@@ -6654,6 +7327,407 @@ var $author$project$Utils$AutomatonHelpers$getStateLabel = F2(
 				},
 				A2($author$project$Utils$AutomatonHelpers$getStateById, id, states)));
 	});
+var $author$project$Pages$Simulator$stepForwardDfa = function (model) {
+	var _v0 = _Utils_Tuple2(
+		model.currentStateId,
+		$elm$core$String$uncons(model.remainingInput));
+	if (_v0.a.$ === 'Just') {
+		if (_v0.b.$ === 'Just') {
+			var currentId = _v0.a.a;
+			var _v1 = _v0.b.a;
+			var _char = _v1.a;
+			var rest = _v1.b;
+			var symbol = $elm$core$String$fromChar(_char);
+			var maybeTransition = $elm$core$List$head(
+				A2(
+					$elm$core$List$filter,
+					function (t) {
+						return _Utils_eq(t.from, currentId) && _Utils_eq(t.symbol, symbol);
+					},
+					model.automaton.transitions));
+			if (maybeTransition.$ === 'Just') {
+				var t = maybeTransition.a;
+				var nextStateId = t.to;
+				var nextRemaining = rest;
+				var isEnd = A2(
+					$elm$core$Maybe$withDefault,
+					false,
+					A2(
+						$elm$core$Maybe$map,
+						function ($) {
+							return $.isEnd;
+						},
+						A2($author$project$Utils$AutomatonHelpers$getStateById, nextStateId, model.automaton.states)));
+				var nextVerdict = $elm$core$String$isEmpty(nextRemaining) ? (isEnd ? $elm$core$Maybe$Just(
+					{isAccepted: true, text: 'Slovo je akceptované'}) : $elm$core$Maybe$Just(
+					{isAccepted: false, text: 'Slovo nie je akceptované'})) : $elm$core$Maybe$Nothing;
+				return _Utils_update(
+					model,
+					{
+						activeTransition: $elm$core$Maybe$Just(
+							{from: t.from, symbol: t.symbol, to: t.to}),
+						consoleMessages: A2(
+							$elm$core$List$cons,
+							{
+								msgType: $author$project$Components$Console$Info,
+								text: 'Prechod cez \'' + (symbol + ('\' do stavu ' + A2($author$project$Utils$AutomatonHelpers$getStateLabel, nextStateId, model.automaton.states)))
+							},
+							model.consoleMessages),
+						currentStateId: $elm$core$Maybe$Just(nextStateId),
+						history: A2(
+							$elm$core$List$cons,
+							_Utils_Tuple2(model.currentStateId, model.remainingInput),
+							model.history),
+						remainingInput: nextRemaining,
+						verdict: nextVerdict
+					});
+			} else {
+				return _Utils_update(
+					model,
+					{
+						activeTransition: $elm$core$Maybe$Nothing,
+						consoleMessages: A2(
+							$elm$core$List$cons,
+							{
+								msgType: $author$project$Components$Console$Error,
+								text: 'Chyba: Neexistuje prechod pre symbol \'' + ($elm$core$String$fromChar(_char) + '\'')
+							},
+							model.consoleMessages),
+						verdict: $elm$core$Maybe$Just(
+							{isAccepted: false, text: 'Slovo nie je akceptované'})
+					});
+			}
+		} else {
+			var currentId = _v0.a.a;
+			var _v3 = _v0.b;
+			var isEnd = A2(
+				$elm$core$Maybe$withDefault,
+				false,
+				A2(
+					$elm$core$Maybe$map,
+					function ($) {
+						return $.isEnd;
+					},
+					A2($author$project$Utils$AutomatonHelpers$getStateById, currentId, model.automaton.states)));
+			var v = isEnd ? $elm$core$Maybe$Just(
+				{isAccepted: true, text: 'Slovo je akceptované'}) : $elm$core$Maybe$Just(
+				{isAccepted: false, text: 'Slovo nie je akceptované'});
+			return _Utils_update(
+				model,
+				{
+					consoleMessages: A2(
+						$elm$core$List$cons,
+						{msgType: $author$project$Components$Console$Info, text: 'Koniec vstupu.'},
+						model.consoleMessages),
+					verdict: v
+				});
+		}
+	} else {
+		var _v4 = _v0.a;
+		return _Utils_update(
+			model,
+			{
+				consoleMessages: A2(
+					$elm$core$List$cons,
+					{msgType: $author$project$Components$Console$Error, text: 'Chyba: Nie je nastavený aktuálny stav.'},
+					model.consoleMessages)
+			});
+	}
+};
+var $author$project$Pages$Simulator$mergeIfEnabled = F4(
+	function (enabled, done, newInsts, newNodes) {
+		if (!enabled) {
+			return _Utils_Tuple3(
+				_Utils_ap(done, newInsts),
+				newNodes,
+				_List_Nil);
+		} else {
+			var foldResult = A3(
+				$elm$core$List$foldl,
+				F2(
+					function (inst, acc) {
+						var key = _Utils_Tuple2(inst.currentStateId, inst.remainingInput);
+						var doneMatch = $elm$core$List$head(
+							A2(
+								$elm$core$List$filter,
+								function (i) {
+									return _Utils_eq(
+										_Utils_Tuple2(i.currentStateId, i.remainingInput),
+										key);
+								},
+								done));
+						var accMatch = $elm$core$List$head(
+							A2(
+								$elm$core$List$filter,
+								function (i) {
+									return _Utils_eq(
+										_Utils_Tuple2(i.currentStateId, i.remainingInput),
+										key);
+								},
+								acc.kept));
+						var keptMatch = function () {
+							if (doneMatch.$ === 'Just') {
+								var k = doneMatch.a;
+								return $elm$core$Maybe$Just(k);
+							} else {
+								return accMatch;
+							}
+						}();
+						if (keptMatch.$ === 'Just') {
+							var kept = keptMatch.a;
+							var droppedParentId = A2(
+								$elm$core$Maybe$andThen,
+								function ($) {
+									return $.parentId;
+								},
+								$elm$core$List$head(
+									A2(
+										$elm$core$List$filter,
+										function (n) {
+											return _Utils_eq(n.id, inst.id);
+										},
+										newNodes)));
+							if (droppedParentId.$ === 'Just') {
+								var pid = droppedParentId.a;
+								return _Utils_update(
+									acc,
+									{
+										mergeEdges: _Utils_ap(
+											acc.mergeEdges,
+											_List_fromArray(
+												[
+													{from: pid, to: kept.id}
+												]))
+									});
+							} else {
+								return acc;
+							}
+						} else {
+							return _Utils_update(
+								acc,
+								{
+									kept: _Utils_ap(
+										acc.kept,
+										_List_fromArray(
+											[inst]))
+								});
+						}
+					}),
+				{kept: _List_Nil, mergeEdges: _List_Nil},
+				newInsts);
+			var keptIds = A2(
+				$elm$core$List$map,
+				function ($) {
+					return $.id;
+				},
+				foldResult.kept);
+			var filteredNodes = A2(
+				$elm$core$List$filter,
+				function (n) {
+					return A2($elm$core$List$member, n.id, keptIds);
+				},
+				newNodes);
+			return _Utils_Tuple3(
+				_Utils_ap(done, foldResult.kept),
+				filteredNodes,
+				foldResult.mergeEdges);
+		}
+	});
+var $elm$core$List$partition = F2(
+	function (pred, list) {
+		var step = F2(
+			function (x, _v0) {
+				var trues = _v0.a;
+				var falses = _v0.b;
+				return pred(x) ? _Utils_Tuple2(
+					A2($elm$core$List$cons, x, trues),
+					falses) : _Utils_Tuple2(
+					trues,
+					A2($elm$core$List$cons, x, falses));
+			});
+		return A3(
+			$elm$core$List$foldr,
+			step,
+			_Utils_Tuple2(_List_Nil, _List_Nil),
+			list);
+	});
+var $author$project$Pages$Simulator$processInstance = F3(
+	function (automaton, instance, acc) {
+		var _v0 = $elm$core$String$uncons(instance.remainingInput);
+		if (_v0.$ === 'Nothing') {
+			var isEnd = function () {
+				var _v1 = instance.currentStateId;
+				if (_v1.$ === 'Just') {
+					var sid = _v1.a;
+					return A2(
+						$elm$core$Maybe$withDefault,
+						false,
+						A2(
+							$elm$core$Maybe$map,
+							function ($) {
+								return $.isEnd;
+							},
+							A2($author$project$Utils$AutomatonHelpers$getStateById, sid, automaton.states)));
+				} else {
+					return false;
+				}
+			}();
+			var newVerdict = isEnd ? $elm$core$Maybe$Just(
+				{isAccepted: true, text: 'Akceptované'}) : $elm$core$Maybe$Just(
+				{isAccepted: false, text: 'Zamietnuté'});
+			return _Utils_update(
+				acc,
+				{
+					instances: A2(
+						$elm$core$List$cons,
+						_Utils_update(
+							instance,
+							{verdict: newVerdict}),
+						acc.instances)
+				});
+		} else {
+			var _v2 = _v0.a;
+			var _char = _v2.a;
+			var rest = _v2.b;
+			var symbol = $elm$core$String$fromChar(_char);
+			var matchingTransitions = function () {
+				var _v4 = instance.currentStateId;
+				if (_v4.$ === 'Just') {
+					var sid = _v4.a;
+					return A2(
+						$elm$core$List$filter,
+						function (t) {
+							return _Utils_eq(t.from, sid) && _Utils_eq(t.symbol, symbol);
+						},
+						automaton.transitions);
+				} else {
+					return _List_Nil;
+				}
+			}();
+			if (!matchingTransitions.b) {
+				return _Utils_update(
+					acc,
+					{
+						instances: A2(
+							$elm$core$List$cons,
+							_Utils_update(
+								instance,
+								{
+									verdict: $elm$core$Maybe$Just(
+										{isAccepted: false, text: 'Zamietnuté'})
+								}),
+							acc.instances)
+					});
+			} else {
+				return A3(
+					$elm$core$List$foldl,
+					F2(
+						function (t, innerAcc) {
+							var childNode = {
+								id: innerAcc.nextId,
+								parentId: $elm$core$Maybe$Just(instance.id),
+								stateId: $elm$core$Maybe$Just(t.to),
+								symbol: $elm$core$Maybe$Just(symbol)
+							};
+							var childIsEnd = A2(
+								$elm$core$Maybe$withDefault,
+								false,
+								A2(
+									$elm$core$Maybe$map,
+									function ($) {
+										return $.isEnd;
+									},
+									A2($author$project$Utils$AutomatonHelpers$getStateById, t.to, automaton.states)));
+							var childVerdict = $elm$core$String$isEmpty(rest) ? (childIsEnd ? $elm$core$Maybe$Just(
+								{isAccepted: true, text: 'Akceptované'}) : $elm$core$Maybe$Just(
+								{isAccepted: false, text: 'Zamietnuté'})) : $elm$core$Maybe$Nothing;
+							var childInstance = {
+								currentStateId: $elm$core$Maybe$Just(t.to),
+								id: innerAcc.nextId,
+								parentId: $elm$core$Maybe$Just(instance.id),
+								remainingInput: rest,
+								symbolTaken: $elm$core$Maybe$Just(symbol),
+								verdict: childVerdict
+							};
+							return _Utils_update(
+								innerAcc,
+								{
+									instances: A2($elm$core$List$cons, childInstance, innerAcc.instances),
+									nextId: innerAcc.nextId + 1,
+									nodes: A2($elm$core$List$cons, childNode, innerAcc.nodes)
+								});
+						}),
+					acc,
+					matchingTransitions);
+			}
+		}
+	});
+var $author$project$Pages$Simulator$stepForwardNfa = function (model) {
+	var snapshot = {instances: model.nfaInstances, mergedEdges: model.nfaMergedEdges, nextId: model.nextInstanceId, tree: model.nfaTree};
+	var newHistory = A2($elm$core$List$cons, snapshot, model.nfaHistory);
+	var initAcc = {instances: _List_Nil, nextId: model.nextInstanceId, nodes: _List_Nil};
+	var _v0 = A2(
+		$elm$core$List$partition,
+		function (i) {
+			return !_Utils_eq(i.verdict, $elm$core$Maybe$Nothing);
+		},
+		model.nfaInstances);
+	var done = _v0.a;
+	var alive = _v0.b;
+	var finalAcc = A3(
+		$elm$core$List$foldl,
+		$author$project$Pages$Simulator$processInstance(model.automaton),
+		initAcc,
+		alive);
+	var newNodes = $elm$core$List$reverse(finalAcc.nodes);
+	var processedInstances = $elm$core$List$reverse(finalAcc.instances);
+	var _v1 = A4($author$project$Pages$Simulator$mergeIfEnabled, model.mergeEnabled, done, processedInstances, newNodes);
+	var finalInstances = _v1.a;
+	var filteredNodes = _v1.b;
+	var newMergedEdges = _v1.c;
+	var finalTree = _Utils_ap(model.nfaTree, filteredNodes);
+	var newSelectedId = function () {
+		var _v2 = model.selectedInstanceId;
+		if (_v2.$ === 'Nothing') {
+			return $elm$core$Maybe$Nothing;
+		} else {
+			var sid = _v2.a;
+			return A2(
+				$elm$core$List$any,
+				function (i) {
+					return _Utils_eq(i.id, sid);
+				},
+				finalInstances) ? $elm$core$Maybe$Just(sid) : A2(
+				$elm$core$Maybe$map,
+				function ($) {
+					return $.id;
+				},
+				$elm$core$List$head(
+					A2(
+						$elm$core$List$filter,
+						function (i) {
+							return _Utils_eq(
+								i.parentId,
+								$elm$core$Maybe$Just(sid));
+						},
+						finalInstances)));
+		}
+	}();
+	return _Utils_update(
+		model,
+		{
+			consoleMessages: A2(
+				$elm$core$List$cons,
+				{msgType: $author$project$Components$Console$Info, text: 'Krok vpred (NFA).'},
+				model.consoleMessages),
+			nextInstanceId: finalAcc.nextId,
+			nfaHistory: newHistory,
+			nfaInstances: finalInstances,
+			nfaMergedEdges: _Utils_ap(model.nfaMergedEdges, newMergedEdges),
+			nfaTree: finalTree,
+			selectedInstanceId: newSelectedId
+		});
+};
 var $author$project$Pages$Simulator$update = F2(
 	function (msg, model) {
 		switch (msg.$) {
@@ -6671,6 +7745,8 @@ var $author$project$Pages$Simulator$update = F2(
 								return $.isStart;
 							},
 							model.automaton.states)));
+				var initNode = {id: 0, parentId: $elm$core$Maybe$Nothing, stateId: startState, symbol: $elm$core$Maybe$Nothing};
+				var initInstance = {currentStateId: startState, id: 0, parentId: $elm$core$Maybe$Nothing, remainingInput: str, symbolTaken: $elm$core$Maybe$Nothing, verdict: $elm$core$Maybe$Nothing};
 				return _Utils_update(
 					model,
 					{
@@ -6682,139 +7758,54 @@ var $author$project$Pages$Simulator$update = F2(
 						currentStateId: startState,
 						history: _List_Nil,
 						inputString: str,
+						nextInstanceId: 1,
+						nfaHistory: _List_Nil,
+						nfaInstances: _List_fromArray(
+							[initInstance]),
+						nfaMergedEdges: _List_Nil,
+						nfaTree: _List_fromArray(
+							[initNode]),
 						remainingInput: str,
+						selectedInstanceId: $elm$core$Maybe$Nothing,
 						verdict: $elm$core$Maybe$Nothing
 					});
 			case 'StepForward':
-				var _v1 = _Utils_Tuple2(
-					model.currentStateId,
-					$elm$core$String$uncons(model.remainingInput));
-				if (_v1.a.$ === 'Just') {
-					if (_v1.b.$ === 'Just') {
-						var currentId = _v1.a.a;
-						var _v2 = _v1.b.a;
-						var _char = _v2.a;
-						var rest = _v2.b;
-						var symbol = $elm$core$String$fromChar(_char);
-						var maybeTransition = $elm$core$List$head(
-							A2(
-								$elm$core$List$filter,
-								function (t) {
-									return _Utils_eq(t.from, currentId) && _Utils_eq(t.symbol, symbol);
-								},
-								model.automaton.transitions));
-						if (maybeTransition.$ === 'Just') {
-							var t = maybeTransition.a;
-							var nextStateId = t.to;
-							var nextRemaining = rest;
-							var isEnd = A2(
-								$elm$core$Maybe$withDefault,
-								false,
-								A2(
-									$elm$core$Maybe$map,
-									function ($) {
-										return $.isEnd;
-									},
-									A2($author$project$Utils$AutomatonHelpers$getStateById, nextStateId, model.automaton.states)));
-							var nextVerdict = $elm$core$String$isEmpty(nextRemaining) ? (isEnd ? $elm$core$Maybe$Just(
-								{isAccepted: true, text: 'Slovo je akceptované'}) : $elm$core$Maybe$Just(
-								{isAccepted: false, text: 'Slovo nie je akceptované'})) : $elm$core$Maybe$Nothing;
-							return _Utils_update(
-								model,
-								{
-									activeTransition: $elm$core$Maybe$Just(
-										{from: t.from, symbol: t.symbol, to: t.to}),
-									consoleMessages: A2(
-										$elm$core$List$cons,
-										{
-											msgType: $author$project$Components$Console$Info,
-											text: 'Prechod cez \'' + (symbol + ('\' do stavu ' + A2($author$project$Utils$AutomatonHelpers$getStateLabel, nextStateId, model.automaton.states)))
-										},
-										model.consoleMessages),
-									currentStateId: $elm$core$Maybe$Just(nextStateId),
-									history: A2(
-										$elm$core$List$cons,
-										_Utils_Tuple2(model.currentStateId, model.remainingInput),
-										model.history),
-									remainingInput: nextRemaining,
-									verdict: nextVerdict
-								});
-						} else {
-							return _Utils_update(
-								model,
-								{
-									activeTransition: $elm$core$Maybe$Nothing,
-									consoleMessages: A2(
-										$elm$core$List$cons,
-										{msgType: $author$project$Components$Console$Error, text: 'Chyba: Neexistuje prechod pre symbol \'' + (symbol + '\'')},
-										model.consoleMessages),
-									verdict: $elm$core$Maybe$Just(
-										{isAccepted: false, text: 'Slovo nie je akceptované'})
-								});
-						}
-					} else {
-						var currentId = _v1.a.a;
-						var _v4 = _v1.b;
-						var isEnd = A2(
-							$elm$core$Maybe$withDefault,
-							false,
-							A2(
-								$elm$core$Maybe$map,
-								function ($) {
-									return $.isEnd;
-								},
-								A2($author$project$Utils$AutomatonHelpers$getStateById, currentId, model.automaton.states)));
-						var v = isEnd ? $elm$core$Maybe$Just(
-							{isAccepted: true, text: 'Slovo je akceptované'}) : $elm$core$Maybe$Just(
-							{isAccepted: false, text: 'Slovo nie je akceptované'});
-						return _Utils_update(
-							model,
-							{
-								consoleMessages: A2(
-									$elm$core$List$cons,
-									{msgType: $author$project$Components$Console$Info, text: 'Koniec vstupu.'},
-									model.consoleMessages),
-								verdict: v
-							});
-					}
+				var _v1 = model.mode;
+				if (_v1.$ === 'DfaMode') {
+					return $author$project$Pages$Simulator$stepForwardDfa(model);
 				} else {
-					var _v5 = _v1.a;
-					return _Utils_update(
-						model,
-						{
-							consoleMessages: A2(
-								$elm$core$List$cons,
-								{msgType: $author$project$Components$Console$Error, text: 'Chyba: Nie je nastavený aktuálny stav.'},
-								model.consoleMessages)
-						});
+					return $author$project$Pages$Simulator$stepForwardNfa(model);
 				}
 			case 'StepBackward':
-				var _v6 = model.history;
-				if (_v6.b) {
-					var _v7 = _v6.a;
-					var prevState = _v7.a;
-					var prevInput = _v7.b;
-					var restHistory = _v6.b;
-					return _Utils_update(
-						model,
-						{
-							activeTransition: $elm$core$Maybe$Nothing,
-							consoleMessages: A2(
-								$elm$core$List$cons,
-								{msgType: $author$project$Components$Console$Info, text: 'Krok späť.'},
-								model.consoleMessages),
-							currentStateId: prevState,
-							history: restHistory,
-							remainingInput: prevInput,
-							verdict: $elm$core$Maybe$Nothing
-						});
+				var _v2 = model.mode;
+				if (_v2.$ === 'DfaMode') {
+					return $author$project$Pages$Simulator$stepBackwardDfa(model);
 				} else {
-					return model;
+					return $author$project$Pages$Simulator$stepBackwardNfa(model);
 				}
 			case 'ResetSimulation':
-				return $author$project$Pages$Simulator$init(model.automaton);
+				var fresh = $author$project$Pages$Simulator$init(model.automaton);
+				return _Utils_update(
+					fresh,
+					{mergeEnabled: model.mergeEnabled, viewMode: model.viewMode});
 			case 'SwitchToEditor':
 				return model;
+			case 'SelectNfaInstance':
+				var id = msg.a;
+				return _Utils_update(
+					model,
+					{
+						selectedInstanceId: $elm$core$Maybe$Just(id)
+					});
+			case 'SetViewMode':
+				var mode = msg.a;
+				return _Utils_update(
+					model,
+					{viewMode: mode});
+			case 'ToggleMerge':
+				return _Utils_update(
+					model,
+					{mergeEnabled: !model.mergeEnabled});
 			default:
 				return model;
 		}
@@ -6824,23 +7815,66 @@ var $author$project$Main$update = F2(
 		switch (msg.$) {
 			case 'EditorMsg':
 				var editorMsg = msg.a;
-				if (editorMsg.$ === 'SwitchToSimulator') {
-					var currentAutomaton = model.editorModel.automaton.present;
-					var simulatorInit = $author$project$Pages$Simulator$init(currentAutomaton);
-					return _Utils_Tuple2(
-						_Utils_update(
+				switch (editorMsg.$) {
+					case 'SwitchToSimulator':
+						var currentAutomaton = model.editorModel.automaton.present;
+						var simulatorInit = $author$project$Pages$Simulator$init(currentAutomaton);
+						return _Utils_Tuple2(
+							_Utils_update(
+								model,
+								{currentPage: $author$project$Main$SimulatorPage, simulatorModel: simulatorInit}),
+							$elm$core$Platform$Cmd$none);
+					case 'ShareUrl':
+						return _Utils_Tuple2(
 							model,
-							{currentPage: $author$project$Main$SimulatorPage, simulatorModel: simulatorInit}),
-						$elm$core$Platform$Cmd$none);
-				} else {
-					var _v2 = A2($author$project$Pages$Editor$update, editorMsg, model.editorModel);
-					var newEditorModel = _v2.a;
-					var editorCmd = _v2.b;
-					return _Utils_Tuple2(
-						_Utils_update(
-							model,
-							{editorModel: newEditorModel}),
-						A2($elm$core$Platform$Cmd$map, $author$project$Main$EditorMsg, editorCmd));
+							$author$project$Main$setUrlHash(
+								$author$project$Utils$AutomatonCodec$encode(model.editorModel.automaton.present)));
+					case 'ConfirmSave':
+						var name = $elm$core$String$trim(model.editorModel.saveNameInput);
+						var _v2 = A2($author$project$Pages$Editor$update, editorMsg, model.editorModel);
+						var newEditorModel = _v2.a;
+						var editorCmd = _v2.b;
+						return $elm$core$String$isEmpty(name) ? _Utils_Tuple2(
+							_Utils_update(
+								model,
+								{editorModel: newEditorModel}),
+							A2($elm$core$Platform$Cmd$map, $author$project$Main$EditorMsg, editorCmd)) : _Utils_Tuple2(
+							_Utils_update(
+								model,
+								{editorModel: newEditorModel}),
+							$elm$core$Platform$Cmd$batch(
+								_List_fromArray(
+									[
+										A2($elm$core$Platform$Cmd$map, $author$project$Main$EditorMsg, editorCmd),
+										$author$project$Main$saveNamedAutomaton(
+										{
+											data: $author$project$Utils$AutomatonCodec$encode(model.editorModel.automaton.present),
+											name: name
+										})
+									])));
+					case 'LoadFromStorage':
+						var _v3 = A2($author$project$Pages$Editor$update, editorMsg, model.editorModel);
+						var newEditorModel = _v3.a;
+						var editorCmd = _v3.b;
+						return _Utils_Tuple2(
+							_Utils_update(
+								model,
+								{editorModel: newEditorModel}),
+							$elm$core$Platform$Cmd$batch(
+								_List_fromArray(
+									[
+										A2($elm$core$Platform$Cmd$map, $author$project$Main$EditorMsg, editorCmd),
+										$author$project$Main$requestStoredAutomata(_Utils_Tuple0)
+									])));
+					default:
+						var _v4 = A2($author$project$Pages$Editor$update, editorMsg, model.editorModel);
+						var newEditorModel = _v4.a;
+						var editorCmd = _v4.b;
+						return _Utils_Tuple2(
+							_Utils_update(
+								model,
+								{editorModel: newEditorModel}),
+							A2($elm$core$Platform$Cmd$map, $author$project$Main$EditorMsg, editorCmd));
 				}
 			case 'SimulatorMsg':
 				var simulatorMsg = msg.a;
@@ -6883,10 +7917,14 @@ var $author$project$Pages$Editor$DragMove = F2(
 		return {$: 'DragMove', a: a, b: b};
 	});
 var $author$project$Pages$Editor$EndDrag = {$: 'EndDrag'};
+var $author$project$Pages$Editor$ExportJson = {$: 'ExportJson'};
+var $author$project$Pages$Editor$LoadRequested = {$: 'LoadRequested'};
 var $author$project$Pages$Editor$ResetAutomaton = {$: 'ResetAutomaton'};
+var $author$project$Pages$Editor$SaveRequested = {$: 'SaveRequested'};
 var $author$project$Pages$Editor$SetTransitionDisplayMode = function (a) {
 	return {$: 'SetTransitionDisplayMode', a: a};
 };
+var $author$project$Pages$Editor$ShareUrl = {$: 'ShareUrl'};
 var $author$project$Pages$Editor$StartDrag = F3(
 	function (a, b, c) {
 		return {$: 'StartDrag', a: a, b: b, c: c};
@@ -7472,7 +8510,6 @@ var $author$project$Components$Canvas$groupTransitions = function (transitions) 
 		transitions);
 };
 var $elm$svg$Svg$Attributes$height = _VirtualDom_attribute('height');
-var $elm$json$Json$Decode$float = _Json_decodeFloat;
 var $author$project$Components$Canvas$offsetX = A2($elm$json$Json$Decode$field, 'offsetX', $elm$json$Json$Decode$float);
 var $author$project$Components$Canvas$offsetY = A2($elm$json$Json$Decode$field, 'offsetY', $elm$json$Json$Decode$float);
 var $elm$svg$Svg$Events$on = $elm$html$Html$Events$on;
@@ -8098,7 +9135,6 @@ var $author$project$Components$Console$view = function (config) {
 				A2($elm$core$List$map, $author$project$Components$Console$viewMessage, config.messages))
 			]));
 };
-var $elm$json$Json$Encode$bool = _Json_wrap;
 var $elm$html$Html$Attributes$boolProperty = F2(
 	function (key, bool) {
 		return A2(
@@ -8218,6 +9254,10 @@ var $author$project$Components$Toolbar$view = function (config) {
 				A4($author$project$Components$Toolbar$toolButton, 'Premenovať', 'RenameTool', config.onRenameTool, config.currentTool === 'RenameTool'),
 				A4($author$project$Components$Toolbar$toolButton, 'Počiatočný stav', 'SetStartStateTool', config.onSetStartStateTool, config.currentTool === 'SetStartStateTool'),
 				A4($author$project$Components$Toolbar$toolButton, 'Koncový stav', 'SetEndStateTool', config.onSetEndStateTool, config.currentTool === 'SetEndStateTool'),
+				A3($author$project$Components$Toolbar$undoRedoButton, 'Export', config.onExport, true),
+				A3($author$project$Components$Toolbar$undoRedoButton, 'Uložiť', config.onSave, true),
+				A3($author$project$Components$Toolbar$undoRedoButton, 'Načítať', config.onLoad, true),
+				A3($author$project$Components$Toolbar$undoRedoButton, 'Zdieľať', config.onShare, true),
 				A4($author$project$Components$Toolbar$actionButton, 'Simulovať', config.onSwitchToSimulator, config.isSimulateEnabled, '#0277bd')
 			]));
 };
@@ -8226,7 +9266,6 @@ var $author$project$Pages$Editor$UpdateStateLabelInput = function (a) {
 	return {$: 'UpdateStateLabelInput', a: a};
 };
 var $elm$html$Html$Attributes$autofocus = $elm$html$Html$Attributes$boolProperty('autofocus');
-var $elm$json$Json$Encode$string = _Json_wrap;
 var $elm$html$Html$Attributes$stringProperty = F2(
 	function (key, string) {
 		return A2(
@@ -8236,7 +9275,6 @@ var $elm$html$Html$Attributes$stringProperty = F2(
 	});
 var $elm$html$Html$Attributes$id = $elm$html$Html$Attributes$stringProperty('id');
 var $elm$html$Html$input = _VirtualDom_node('input');
-var $elm$json$Json$Decode$andThen = _Json_andThen;
 var $elm$json$Json$Decode$fail = _Json_fail;
 var $author$project$Pages$Editor$onEnterKey = function (msg) {
 	return A2(
@@ -8424,11 +9462,348 @@ var $author$project$Pages$Editor$viewInlineTransitionInput = function (model) {
 		return A2($elm$html$Html$div, _List_Nil, _List_Nil);
 	}
 };
+var $author$project$Pages$Editor$DismissLoadModal = {$: 'DismissLoadModal'};
+var $author$project$Pages$Editor$ImportJsonRequested = {$: 'ImportJsonRequested'};
+var $author$project$Pages$Editor$LoadFromStorage = {$: 'LoadFromStorage'};
+var $author$project$Pages$Editor$viewLoadModal = function (model) {
+	return model.showLoadModal ? A2(
+		$elm$html$Html$div,
+		_List_fromArray(
+			[
+				A2($elm$html$Html$Attributes$style, 'position', 'fixed'),
+				A2($elm$html$Html$Attributes$style, 'top', '0'),
+				A2($elm$html$Html$Attributes$style, 'left', '0'),
+				A2($elm$html$Html$Attributes$style, 'width', '100%'),
+				A2($elm$html$Html$Attributes$style, 'height', '100%'),
+				A2($elm$html$Html$Attributes$style, 'background-color', 'rgba(0,0,0,0.5)'),
+				A2($elm$html$Html$Attributes$style, 'z-index', '2000'),
+				A2($elm$html$Html$Attributes$style, 'display', 'flex'),
+				A2($elm$html$Html$Attributes$style, 'align-items', 'center'),
+				A2($elm$html$Html$Attributes$style, 'justify-content', 'center')
+			]),
+		_List_fromArray(
+			[
+				A2(
+				$elm$html$Html$div,
+				_List_fromArray(
+					[
+						A2($elm$html$Html$Attributes$style, 'background', 'white'),
+						A2($elm$html$Html$Attributes$style, 'padding', '24px'),
+						A2($elm$html$Html$Attributes$style, 'border-radius', '8px'),
+						A2($elm$html$Html$Attributes$style, 'display', 'flex'),
+						A2($elm$html$Html$Attributes$style, 'flex-direction', 'column'),
+						A2($elm$html$Html$Attributes$style, 'gap', '12px'),
+						A2($elm$html$Html$Attributes$style, 'min-width', '220px')
+					]),
+				_List_fromArray(
+					[
+						A2(
+						$elm$html$Html$div,
+						_List_fromArray(
+							[
+								A2($elm$html$Html$Attributes$style, 'font-weight', 'bold'),
+								A2($elm$html$Html$Attributes$style, 'font-size', '16px'),
+								A2($elm$html$Html$Attributes$style, 'margin-bottom', '4px')
+							]),
+						_List_fromArray(
+							[
+								$elm$html$Html$text('Načítať automat')
+							])),
+						A2(
+						$elm$html$Html$button,
+						_List_fromArray(
+							[
+								$elm$html$Html$Events$onClick($author$project$Pages$Editor$LoadFromStorage),
+								A2($elm$html$Html$Attributes$style, 'padding', '10px'),
+								A2($elm$html$Html$Attributes$style, 'background-color', '#546e7a'),
+								A2($elm$html$Html$Attributes$style, 'color', 'white'),
+								A2($elm$html$Html$Attributes$style, 'border', 'none'),
+								A2($elm$html$Html$Attributes$style, 'border-radius', '5px'),
+								A2($elm$html$Html$Attributes$style, 'cursor', 'pointer'),
+								A2($elm$html$Html$Attributes$style, 'font-size', '14px')
+							]),
+						_List_fromArray(
+							[
+								$elm$html$Html$text('Z prehliadača')
+							])),
+						A2(
+						$elm$html$Html$button,
+						_List_fromArray(
+							[
+								$elm$html$Html$Events$onClick($author$project$Pages$Editor$ImportJsonRequested),
+								A2($elm$html$Html$Attributes$style, 'padding', '10px'),
+								A2($elm$html$Html$Attributes$style, 'background-color', '#546e7a'),
+								A2($elm$html$Html$Attributes$style, 'color', 'white'),
+								A2($elm$html$Html$Attributes$style, 'border', 'none'),
+								A2($elm$html$Html$Attributes$style, 'border-radius', '5px'),
+								A2($elm$html$Html$Attributes$style, 'cursor', 'pointer'),
+								A2($elm$html$Html$Attributes$style, 'font-size', '14px')
+							]),
+						_List_fromArray(
+							[
+								$elm$html$Html$text('Zo súboru (.json)')
+							])),
+						A2(
+						$elm$html$Html$button,
+						_List_fromArray(
+							[
+								$elm$html$Html$Events$onClick($author$project$Pages$Editor$DismissLoadModal),
+								A2($elm$html$Html$Attributes$style, 'padding', '8px'),
+								A2($elm$html$Html$Attributes$style, 'background-color', '#b0bec5'),
+								A2($elm$html$Html$Attributes$style, 'color', 'white'),
+								A2($elm$html$Html$Attributes$style, 'border', 'none'),
+								A2($elm$html$Html$Attributes$style, 'border-radius', '5px'),
+								A2($elm$html$Html$Attributes$style, 'cursor', 'pointer'),
+								A2($elm$html$Html$Attributes$style, 'font-size', '13px')
+							]),
+						_List_fromArray(
+							[
+								$elm$html$Html$text('Zrušiť')
+							]))
+					]))
+			])) : A2($elm$html$Html$div, _List_Nil, _List_Nil);
+};
+var $author$project$Pages$Editor$ConfirmSave = {$: 'ConfirmSave'};
+var $author$project$Pages$Editor$DismissSaveModal = {$: 'DismissSaveModal'};
+var $author$project$Pages$Editor$UpdateSaveNameInput = function (a) {
+	return {$: 'UpdateSaveNameInput', a: a};
+};
+var $author$project$Pages$Editor$viewSaveModal = function (model) {
+	return model.showSaveModal ? A2(
+		$elm$html$Html$div,
+		_List_fromArray(
+			[
+				A2($elm$html$Html$Attributes$style, 'position', 'fixed'),
+				A2($elm$html$Html$Attributes$style, 'top', '0'),
+				A2($elm$html$Html$Attributes$style, 'left', '0'),
+				A2($elm$html$Html$Attributes$style, 'width', '100%'),
+				A2($elm$html$Html$Attributes$style, 'height', '100%'),
+				A2($elm$html$Html$Attributes$style, 'background-color', 'rgba(0,0,0,0.5)'),
+				A2($elm$html$Html$Attributes$style, 'z-index', '2000'),
+				A2($elm$html$Html$Attributes$style, 'display', 'flex'),
+				A2($elm$html$Html$Attributes$style, 'align-items', 'center'),
+				A2($elm$html$Html$Attributes$style, 'justify-content', 'center')
+			]),
+		_List_fromArray(
+			[
+				A2(
+				$elm$html$Html$div,
+				_List_fromArray(
+					[
+						A2($elm$html$Html$Attributes$style, 'background', 'white'),
+						A2($elm$html$Html$Attributes$style, 'padding', '24px'),
+						A2($elm$html$Html$Attributes$style, 'border-radius', '8px'),
+						A2($elm$html$Html$Attributes$style, 'display', 'flex'),
+						A2($elm$html$Html$Attributes$style, 'flex-direction', 'column'),
+						A2($elm$html$Html$Attributes$style, 'gap', '12px'),
+						A2($elm$html$Html$Attributes$style, 'min-width', '260px')
+					]),
+				_List_fromArray(
+					[
+						A2(
+						$elm$html$Html$div,
+						_List_fromArray(
+							[
+								A2($elm$html$Html$Attributes$style, 'font-weight', 'bold'),
+								A2($elm$html$Html$Attributes$style, 'font-size', '16px')
+							]),
+						_List_fromArray(
+							[
+								$elm$html$Html$text('Uložiť automat')
+							])),
+						A2(
+						$elm$html$Html$input,
+						_List_fromArray(
+							[
+								$elm$html$Html$Attributes$type_('text'),
+								$elm$html$Html$Attributes$placeholder('Názov automatu'),
+								$elm$html$Html$Attributes$value(model.saveNameInput),
+								$elm$html$Html$Events$onInput($author$project$Pages$Editor$UpdateSaveNameInput),
+								$elm$html$Html$Attributes$autofocus(true),
+								$author$project$Pages$Editor$onEnterKey($author$project$Pages$Editor$ConfirmSave),
+								A2($elm$html$Html$Attributes$style, 'padding', '8px'),
+								A2($elm$html$Html$Attributes$style, 'border', '1px solid #ccc'),
+								A2($elm$html$Html$Attributes$style, 'border-radius', '5px'),
+								A2($elm$html$Html$Attributes$style, 'font-size', '14px')
+							]),
+						_List_Nil),
+						A2(
+						$elm$html$Html$button,
+						_List_fromArray(
+							[
+								$elm$html$Html$Events$onClick($author$project$Pages$Editor$ConfirmSave),
+								A2($elm$html$Html$Attributes$style, 'padding', '10px'),
+								A2($elm$html$Html$Attributes$style, 'background-color', '#546e7a'),
+								A2($elm$html$Html$Attributes$style, 'color', 'white'),
+								A2($elm$html$Html$Attributes$style, 'border', 'none'),
+								A2($elm$html$Html$Attributes$style, 'border-radius', '5px'),
+								A2($elm$html$Html$Attributes$style, 'cursor', 'pointer'),
+								A2($elm$html$Html$Attributes$style, 'font-size', '14px')
+							]),
+						_List_fromArray(
+							[
+								$elm$html$Html$text('Uložiť')
+							])),
+						A2(
+						$elm$html$Html$button,
+						_List_fromArray(
+							[
+								$elm$html$Html$Events$onClick($author$project$Pages$Editor$DismissSaveModal),
+								A2($elm$html$Html$Attributes$style, 'padding', '8px'),
+								A2($elm$html$Html$Attributes$style, 'background-color', '#b0bec5'),
+								A2($elm$html$Html$Attributes$style, 'color', 'white'),
+								A2($elm$html$Html$Attributes$style, 'border', 'none'),
+								A2($elm$html$Html$Attributes$style, 'border-radius', '5px'),
+								A2($elm$html$Html$Attributes$style, 'cursor', 'pointer'),
+								A2($elm$html$Html$Attributes$style, 'font-size', '13px')
+							]),
+						_List_fromArray(
+							[
+								$elm$html$Html$text('Zrušiť')
+							]))
+					]))
+			])) : A2($elm$html$Html$div, _List_Nil, _List_Nil);
+};
+var $author$project$Pages$Editor$DismissStorageSelectModal = {$: 'DismissStorageSelectModal'};
+var $author$project$Pages$Editor$SelectStoredAutomaton = function (a) {
+	return {$: 'SelectStoredAutomaton', a: a};
+};
+var $author$project$Pages$Editor$viewStorageSelectModal = function (model) {
+	return model.showStorageSelectModal ? A2(
+		$elm$html$Html$div,
+		_List_fromArray(
+			[
+				A2($elm$html$Html$Attributes$style, 'position', 'fixed'),
+				A2($elm$html$Html$Attributes$style, 'top', '0'),
+				A2($elm$html$Html$Attributes$style, 'left', '0'),
+				A2($elm$html$Html$Attributes$style, 'width', '100%'),
+				A2($elm$html$Html$Attributes$style, 'height', '100%'),
+				A2($elm$html$Html$Attributes$style, 'background-color', 'rgba(0,0,0,0.5)'),
+				A2($elm$html$Html$Attributes$style, 'z-index', '2000'),
+				A2($elm$html$Html$Attributes$style, 'display', 'flex'),
+				A2($elm$html$Html$Attributes$style, 'align-items', 'center'),
+				A2($elm$html$Html$Attributes$style, 'justify-content', 'center')
+			]),
+		_List_fromArray(
+			[
+				A2(
+				$elm$html$Html$div,
+				_List_fromArray(
+					[
+						A2($elm$html$Html$Attributes$style, 'background', 'white'),
+						A2($elm$html$Html$Attributes$style, 'padding', '24px'),
+						A2($elm$html$Html$Attributes$style, 'border-radius', '8px'),
+						A2($elm$html$Html$Attributes$style, 'display', 'flex'),
+						A2($elm$html$Html$Attributes$style, 'flex-direction', 'column'),
+						A2($elm$html$Html$Attributes$style, 'gap', '10px'),
+						A2($elm$html$Html$Attributes$style, 'min-width', '280px'),
+						A2($elm$html$Html$Attributes$style, 'max-height', '70vh'),
+						A2($elm$html$Html$Attributes$style, 'overflow-y', 'auto')
+					]),
+				_Utils_ap(
+					_List_fromArray(
+						[
+							A2(
+							$elm$html$Html$div,
+							_List_fromArray(
+								[
+									A2($elm$html$Html$Attributes$style, 'font-weight', 'bold'),
+									A2($elm$html$Html$Attributes$style, 'font-size', '16px'),
+									A2($elm$html$Html$Attributes$style, 'margin-bottom', '4px')
+								]),
+							_List_fromArray(
+								[
+									$elm$html$Html$text('Uložené automaty')
+								]))
+						]),
+					_Utils_ap(
+						$elm$core$List$isEmpty(model.storedAutomata) ? _List_fromArray(
+							[
+								A2(
+								$elm$html$Html$div,
+								_List_fromArray(
+									[
+										A2($elm$html$Html$Attributes$style, 'color', '#888'),
+										A2($elm$html$Html$Attributes$style, 'font-size', '14px')
+									]),
+								_List_fromArray(
+									[
+										$elm$html$Html$text('Žiadne uložené automaty.')
+									]))
+							]) : A2(
+							$elm$core$List$map,
+							function (entry) {
+								return A2(
+									$elm$html$Html$div,
+									_List_fromArray(
+										[
+											A2($elm$html$Html$Attributes$style, 'display', 'flex'),
+											A2($elm$html$Html$Attributes$style, 'align-items', 'center'),
+											A2($elm$html$Html$Attributes$style, 'justify-content', 'space-between'),
+											A2($elm$html$Html$Attributes$style, 'gap', '8px')
+										]),
+									_List_fromArray(
+										[
+											A2(
+											$elm$html$Html$div,
+											_List_fromArray(
+												[
+													A2($elm$html$Html$Attributes$style, 'font-size', '14px'),
+													A2($elm$html$Html$Attributes$style, 'flex', '1')
+												]),
+											_List_fromArray(
+												[
+													$elm$html$Html$text(entry.name)
+												])),
+											A2(
+											$elm$html$Html$button,
+											_List_fromArray(
+												[
+													$elm$html$Html$Events$onClick(
+													$author$project$Pages$Editor$SelectStoredAutomaton(entry.name)),
+													A2($elm$html$Html$Attributes$style, 'padding', '6px 14px'),
+													A2($elm$html$Html$Attributes$style, 'background-color', '#546e7a'),
+													A2($elm$html$Html$Attributes$style, 'color', 'white'),
+													A2($elm$html$Html$Attributes$style, 'border', 'none'),
+													A2($elm$html$Html$Attributes$style, 'border-radius', '5px'),
+													A2($elm$html$Html$Attributes$style, 'cursor', 'pointer'),
+													A2($elm$html$Html$Attributes$style, 'font-size', '13px')
+												]),
+											_List_fromArray(
+												[
+													$elm$html$Html$text('Načítať')
+												]))
+										]));
+							},
+							model.storedAutomata),
+						_List_fromArray(
+							[
+								A2(
+								$elm$html$Html$button,
+								_List_fromArray(
+									[
+										$elm$html$Html$Events$onClick($author$project$Pages$Editor$DismissStorageSelectModal),
+										A2($elm$html$Html$Attributes$style, 'padding', '8px'),
+										A2($elm$html$Html$Attributes$style, 'background-color', '#b0bec5'),
+										A2($elm$html$Html$Attributes$style, 'color', 'white'),
+										A2($elm$html$Html$Attributes$style, 'border', 'none'),
+										A2($elm$html$Html$Attributes$style, 'border-radius', '5px'),
+										A2($elm$html$Html$Attributes$style, 'cursor', 'pointer'),
+										A2($elm$html$Html$Attributes$style, 'font-size', '13px'),
+										A2($elm$html$Html$Attributes$style, 'margin-top', '4px')
+									]),
+								_List_fromArray(
+									[
+										$elm$html$Html$text('Zrušiť')
+									]))
+							]))))
+			])) : A2($elm$html$Html$div, _List_Nil, _List_Nil);
+};
 var $author$project$Pages$Editor$view = function (model) {
 	var _v0 = model.automaton.present;
 	var states = _v0.states;
 	var transitions = _v0.transitions;
-	var isSimulateEnabled = A2($author$project$Utils$AutomatonHelpers$isDFA, states, transitions);
+	var isSimulateEnabled = !$elm$core$List$isEmpty(states);
 	return A2(
 		$elm$html$Html$div,
 		_List_fromArray(
@@ -8460,12 +9835,16 @@ var $author$project$Pages$Editor$view = function (model) {
 							onAddStateTool: $author$project$Pages$Editor$ChangeTool($author$project$Pages$Editor$AddStateTool),
 							onAddTransitionTool: $author$project$Pages$Editor$ChangeTool($author$project$Pages$Editor$AddTransitionTool),
 							onDeleteTool: $author$project$Pages$Editor$ChangeTool($author$project$Pages$Editor$DeleteTool),
+							onExport: $author$project$Pages$Editor$ExportJson,
+							onLoad: $author$project$Pages$Editor$LoadRequested,
 							onMoveTool: $author$project$Pages$Editor$ChangeTool($author$project$Pages$Editor$MoveTool),
 							onRedo: $author$project$Pages$Editor$Redo,
 							onRenameTool: $author$project$Pages$Editor$ChangeTool($author$project$Pages$Editor$RenameTool),
 							onResetTool: $author$project$Pages$Editor$ResetAutomaton,
+							onSave: $author$project$Pages$Editor$SaveRequested,
 							onSetEndStateTool: $author$project$Pages$Editor$ChangeTool($author$project$Pages$Editor$SetEndStateTool),
 							onSetStartStateTool: $author$project$Pages$Editor$ChangeTool($author$project$Pages$Editor$SetStartStateTool),
+							onShare: $author$project$Pages$Editor$ShareUrl,
 							onSwitchToSimulator: $author$project$Pages$Editor$SwitchToSimulator,
 							onUndo: $author$project$Pages$Editor$Undo
 						})
@@ -8500,7 +9879,10 @@ var $author$project$Pages$Editor$view = function (model) {
 				$author$project$Components$Console$view(
 				{messages: model.consoleMessages}),
 				$author$project$Pages$Editor$viewInlineTransitionInput(model),
-				$author$project$Pages$Editor$viewInlineStateInput(model)
+				$author$project$Pages$Editor$viewInlineStateInput(model),
+				$author$project$Pages$Editor$viewLoadModal(model),
+				$author$project$Pages$Editor$viewSaveModal(model),
+				$author$project$Pages$Editor$viewStorageSelectModal(model)
 			]));
 };
 var $author$project$Pages$Simulator$CanvasClick = F2(
@@ -8513,8 +9895,14 @@ var $author$project$Pages$Simulator$DragMove = F2(
 	});
 var $author$project$Pages$Simulator$EndDrag = {$: 'EndDrag'};
 var $author$project$Pages$Simulator$ResetSimulation = {$: 'ResetSimulation'};
+var $author$project$Pages$Simulator$SelectNfaInstance = function (a) {
+	return {$: 'SelectNfaInstance', a: a};
+};
 var $author$project$Pages$Simulator$SetInput = function (a) {
 	return {$: 'SetInput', a: a};
+};
+var $author$project$Pages$Simulator$SetViewMode = function (a) {
+	return {$: 'SetViewMode', a: a};
 };
 var $author$project$Pages$Simulator$StartDrag = F3(
 	function (a, b, c) {
@@ -8526,11 +9914,690 @@ var $author$project$Pages$Simulator$StateClick = function (a) {
 var $author$project$Pages$Simulator$StepBackward = {$: 'StepBackward'};
 var $author$project$Pages$Simulator$StepForward = {$: 'StepForward'};
 var $author$project$Pages$Simulator$SwitchToEditor = {$: 'SwitchToEditor'};
+var $author$project$Pages$Simulator$ToggleMerge = {$: 'ToggleMerge'};
 var $author$project$Pages$Simulator$TransitionClick = F3(
 	function (a, b, c) {
 		return {$: 'TransitionClick', a: a, b: b, c: c};
 	});
-var $author$project$Pages$Simulator$type_ = $elm$html$Html$Attributes$type_;
+var $author$project$Pages$Simulator$TreeView = {$: 'TreeView'};
+var $author$project$Pages$Simulator$canStepBackward = function (model) {
+	var _v0 = model.mode;
+	if (_v0.$ === 'DfaMode') {
+		return !$elm$core$List$isEmpty(model.history);
+	} else {
+		return !$elm$core$List$isEmpty(model.nfaHistory);
+	}
+};
+var $author$project$Pages$Simulator$canStepForward = function (model) {
+	var _v0 = model.mode;
+	if (_v0.$ === 'DfaMode') {
+		return !$elm$core$String$isEmpty(model.remainingInput);
+	} else {
+		return A2(
+			$elm$core$List$any,
+			function (i) {
+				return _Utils_eq(i.verdict, $elm$core$Maybe$Nothing);
+			},
+			model.nfaInstances);
+	}
+};
+var $elm$html$Html$Attributes$checked = $elm$html$Html$Attributes$boolProperty('checked');
+var $elm$html$Html$label = _VirtualDom_node('label');
+var $author$project$Pages$Simulator$nfaActiveStateId = function (model) {
+	return A2(
+		$elm$core$Maybe$andThen,
+		function ($) {
+			return $.currentStateId;
+		},
+		A2(
+			$elm$core$Maybe$andThen,
+			function (sid) {
+				return $elm$core$List$head(
+					A2(
+						$elm$core$List$filter,
+						function (i) {
+							return _Utils_eq(i.id, sid);
+						},
+						model.nfaInstances));
+			},
+			model.selectedInstanceId));
+};
+var $author$project$Components$NfaInstancePanel$viewInstance = F3(
+	function (config, displayIdx, instance) {
+		var stateLabel = function () {
+			var _v2 = instance.currentStateId;
+			if (_v2.$ === 'Just') {
+				var sid = _v2.a;
+				return A2(
+					$elm$core$Maybe$withDefault,
+					'?',
+					A2(
+						$elm$core$Maybe$map,
+						function ($) {
+							return $.label;
+						},
+						$elm$core$List$head(
+							A2(
+								$elm$core$List$filter,
+								function (s) {
+									return _Utils_eq(s.id, sid);
+								},
+								config.states))));
+			} else {
+				return 'Mŕtva vetva';
+			}
+		}();
+		var isSelected = _Utils_eq(
+			config.selectedId,
+			$elm$core$Maybe$Just(instance.id));
+		var borderWidth = isSelected ? '3px' : '2px';
+		var _v0 = function () {
+			var _v1 = instance.verdict;
+			if (_v1.$ === 'Nothing') {
+				return _Utils_Tuple3(
+					'Beží',
+					'#2196F3',
+					isSelected ? '#1565C0' : '#2196F3');
+			} else {
+				var v = _v1.a;
+				return v.isAccepted ? _Utils_Tuple3(
+					'Akceptované',
+					'#4CAF50',
+					isSelected ? '#2E7D32' : '#4CAF50') : _Utils_Tuple3(
+					'Zamietnuté',
+					'#F44336',
+					isSelected ? '#B71C1C' : '#F44336');
+			}
+		}();
+		var statusText = _v0.a;
+		var statusBg = _v0.b;
+		var borderColor = _v0.c;
+		return A2(
+			$elm$html$Html$div,
+			_List_fromArray(
+				[
+					A2($elm$html$Html$Attributes$style, 'border', borderWidth + (' solid ' + borderColor)),
+					A2($elm$html$Html$Attributes$style, 'border-radius', '6px'),
+					A2($elm$html$Html$Attributes$style, 'padding', '8px'),
+					A2($elm$html$Html$Attributes$style, 'margin-bottom', '8px'),
+					A2($elm$html$Html$Attributes$style, 'cursor', 'pointer'),
+					A2(
+					$elm$html$Html$Attributes$style,
+					'background-color',
+					isSelected ? '#f0f8ff' : 'white'),
+					$elm$html$Html$Events$onClick(
+					config.onSelect(instance.id))
+				]),
+			_List_fromArray(
+				[
+					A2(
+					$elm$html$Html$div,
+					_List_fromArray(
+						[
+							A2($elm$html$Html$Attributes$style, 'display', 'flex'),
+							A2($elm$html$Html$Attributes$style, 'justify-content', 'space-between'),
+							A2($elm$html$Html$Attributes$style, 'align-items', 'center'),
+							A2($elm$html$Html$Attributes$style, 'margin-bottom', '4px')
+						]),
+					_List_fromArray(
+						[
+							A2(
+							$elm$html$Html$span,
+							_List_fromArray(
+								[
+									A2($elm$html$Html$Attributes$style, 'font-weight', 'bold'),
+									A2($elm$html$Html$Attributes$style, 'font-size', '13px')
+								]),
+							_List_fromArray(
+								[
+									$elm$html$Html$text(
+									'Inštancia #' + $elm$core$String$fromInt(displayIdx))
+								])),
+							A2(
+							$elm$html$Html$span,
+							_List_fromArray(
+								[
+									A2($elm$html$Html$Attributes$style, 'background-color', statusBg),
+									A2($elm$html$Html$Attributes$style, 'color', 'white'),
+									A2($elm$html$Html$Attributes$style, 'padding', '2px 6px'),
+									A2($elm$html$Html$Attributes$style, 'border-radius', '4px'),
+									A2($elm$html$Html$Attributes$style, 'font-size', '11px')
+								]),
+							_List_fromArray(
+								[
+									$elm$html$Html$text(statusText)
+								]))
+						])),
+					A2(
+					$elm$html$Html$div,
+					_List_fromArray(
+						[
+							A2($elm$html$Html$Attributes$style, 'font-size', '12px'),
+							A2($elm$html$Html$Attributes$style, 'margin-bottom', '2px')
+						]),
+					_List_fromArray(
+						[
+							A2(
+							$elm$html$Html$span,
+							_List_fromArray(
+								[
+									A2($elm$html$Html$Attributes$style, 'font-weight', 'bold')
+								]),
+							_List_fromArray(
+								[
+									$elm$html$Html$text('Stav: ')
+								])),
+							$elm$html$Html$text(stateLabel)
+						])),
+					A2(
+					$elm$html$Html$div,
+					_List_fromArray(
+						[
+							A2($elm$html$Html$Attributes$style, 'font-size', '12px')
+						]),
+					_List_fromArray(
+						[
+							A2(
+							$elm$html$Html$span,
+							_List_fromArray(
+								[
+									A2($elm$html$Html$Attributes$style, 'font-weight', 'bold')
+								]),
+							_List_fromArray(
+								[
+									$elm$html$Html$text('Zostatok: ')
+								])),
+							$elm$html$Html$text(
+							$elm$core$String$isEmpty(instance.remainingInput) ? '(prázdny)' : instance.remainingInput)
+						]))
+				]));
+	});
+var $author$project$Components$NfaInstancePanel$view = function (config) {
+	return A2(
+		$elm$html$Html$div,
+		_List_fromArray(
+			[
+				A2($elm$html$Html$Attributes$style, 'overflow-y', 'auto'),
+				A2($elm$html$Html$Attributes$style, 'flex', '1'),
+				A2($elm$html$Html$Attributes$style, 'padding', '0 2px')
+			]),
+		A2(
+			$elm$core$List$indexedMap,
+			F2(
+				function (idx, inst) {
+					return A3($author$project$Components$NfaInstancePanel$viewInstance, config, idx + 1, inst);
+				}),
+			config.instances));
+};
+var $author$project$Components$NfaTreeView$getDepth = F2(
+	function (id, nodes) {
+		var _v0 = $elm$core$List$head(
+			A2(
+				$elm$core$List$filter,
+				function (n) {
+					return _Utils_eq(n.id, id);
+				},
+				nodes));
+		if (_v0.$ === 'Nothing') {
+			return 0;
+		} else {
+			var node = _v0.a;
+			var _v1 = node.parentId;
+			if (_v1.$ === 'Nothing') {
+				return 0;
+			} else {
+				var pid = _v1.a;
+				return 1 + A2($author$project$Components$NfaTreeView$getDepth, pid, nodes);
+			}
+		}
+	});
+var $author$project$Components$NfaTreeView$leftPad = 20;
+var $author$project$Components$NfaTreeView$levelH = 90;
+var $author$project$Components$NfaTreeView$nodeSpacingH = 62;
+var $author$project$Components$NfaTreeView$topPad = 50;
+var $author$project$Components$NfaTreeView$computePositions = F3(
+	function (nodes, maxDepth, contentW) {
+		var go = F3(
+			function (depth, prevPos, acc) {
+				go:
+				while (true) {
+					if (_Utils_cmp(depth, maxDepth) > 0) {
+						return acc;
+					} else {
+						var y = (depth * $author$project$Components$NfaTreeView$levelH) + $author$project$Components$NfaTreeView$topPad;
+						var levelNodes = A2(
+							$elm$core$List$filter,
+							function (n) {
+								return _Utils_eq(
+									A2($author$project$Components$NfaTreeView$getDepth, n.id, nodes),
+									depth);
+							},
+							nodes);
+						var sortedNodes = A2(
+							$elm$core$List$sortBy,
+							function (n) {
+								var _v0 = n.parentId;
+								if (_v0.$ === 'Nothing') {
+									return 0.0;
+								} else {
+									var pid = _v0.a;
+									return A2(
+										$elm$core$Maybe$withDefault,
+										0.0,
+										A2(
+											$elm$core$Maybe$map,
+											function ($) {
+												return $.x;
+											},
+											$elm$core$List$head(
+												A2(
+													$elm$core$List$filter,
+													function (p) {
+														return _Utils_eq(p.id, pid);
+													},
+													prevPos))));
+								}
+							},
+							levelNodes);
+						var count = $elm$core$List$length(sortedNodes);
+						var totalW = count * $author$project$Components$NfaTreeView$nodeSpacingH;
+						var startX = ($author$project$Components$NfaTreeView$leftPad + ((contentW - totalW) / 2.0)) + ($author$project$Components$NfaTreeView$nodeSpacingH / 2.0);
+						var thisLevel = A2(
+							$elm$core$List$indexedMap,
+							F2(
+								function (i, n) {
+									return {id: n.id, x: startX + (i * $author$project$Components$NfaTreeView$nodeSpacingH), y: y};
+								}),
+							sortedNodes);
+						var $temp$depth = depth + 1,
+							$temp$prevPos = thisLevel,
+							$temp$acc = _Utils_ap(acc, thisLevel);
+						depth = $temp$depth;
+						prevPos = $temp$prevPos;
+						acc = $temp$acc;
+						continue go;
+					}
+				}
+			});
+		return A3(go, 0, _List_Nil, _List_Nil);
+	});
+var $elm$svg$Svg$Attributes$dominantBaseline = _VirtualDom_attribute('dominant-baseline');
+var $elm$core$List$maximum = function (list) {
+	if (list.b) {
+		var x = list.a;
+		var xs = list.b;
+		return $elm$core$Maybe$Just(
+			A3($elm$core$List$foldl, $elm$core$Basics$max, x, xs));
+	} else {
+		return $elm$core$Maybe$Nothing;
+	}
+};
+var $author$project$Components$NfaTreeView$nodeR = 22;
+var $elm$svg$Svg$Events$onClick = function (msg) {
+	return A2(
+		$elm$html$Html$Events$on,
+		'click',
+		$elm$json$Json$Decode$succeed(msg));
+};
+var $elm$svg$Svg$Attributes$pointerEvents = _VirtualDom_attribute('pointer-events');
+var $elm$svg$Svg$rect = $elm$svg$Svg$trustedNode('rect');
+var $author$project$Components$NfaTreeView$rightAreaW = 70;
+var $elm$svg$Svg$Attributes$rx = _VirtualDom_attribute('rx');
+var $elm$svg$Svg$Attributes$strokeDasharray = _VirtualDom_attribute('stroke-dasharray');
+var $elm$svg$Svg$Attributes$transform = _VirtualDom_attribute('transform');
+var $author$project$Components$NfaTreeView$view = function (config) {
+	var stateLabel = function (maybeStateId) {
+		if (maybeStateId.$ === 'Nothing') {
+			return '∅';
+		} else {
+			var sid = maybeStateId.a;
+			return A2(
+				$elm$core$Maybe$withDefault,
+				'?',
+				A2(
+					$elm$core$Maybe$map,
+					function ($) {
+						return $.label;
+					},
+					$elm$core$List$head(
+						A2(
+							$elm$core$List$filter,
+							function (s) {
+								return _Utils_eq(s.id, sid);
+							},
+							config.states))));
+		}
+	};
+	var renderMergeEdge = F2(
+		function (parentPos, childPos) {
+			return A2(
+				$elm$svg$Svg$line,
+				_List_fromArray(
+					[
+						$elm$svg$Svg$Attributes$x1(
+						$elm$core$String$fromFloat(parentPos.x)),
+						$elm$svg$Svg$Attributes$y1(
+						$elm$core$String$fromFloat(parentPos.y + $author$project$Components$NfaTreeView$nodeR)),
+						$elm$svg$Svg$Attributes$x2(
+						$elm$core$String$fromFloat(childPos.x)),
+						$elm$svg$Svg$Attributes$y2(
+						$elm$core$String$fromFloat(childPos.y - $author$project$Components$NfaTreeView$nodeR)),
+						$elm$svg$Svg$Attributes$stroke('#90a4ae'),
+						$elm$svg$Svg$Attributes$strokeWidth('1.5'),
+						$elm$svg$Svg$Attributes$strokeDasharray('5,4')
+					]),
+				_List_Nil);
+		});
+	var renderEdge = F2(
+		function (parentPos, childPos) {
+			return A2(
+				$elm$svg$Svg$line,
+				_List_fromArray(
+					[
+						$elm$svg$Svg$Attributes$x1(
+						$elm$core$String$fromFloat(parentPos.x)),
+						$elm$svg$Svg$Attributes$y1(
+						$elm$core$String$fromFloat(parentPos.y + $author$project$Components$NfaTreeView$nodeR)),
+						$elm$svg$Svg$Attributes$x2(
+						$elm$core$String$fromFloat(childPos.x)),
+						$elm$svg$Svg$Attributes$y2(
+						$elm$core$String$fromFloat(childPos.y - $author$project$Components$NfaTreeView$nodeR)),
+						$elm$svg$Svg$Attributes$stroke('#b0bec5'),
+						$elm$svg$Svg$Attributes$strokeWidth('1.5')
+					]),
+				_List_Nil);
+		});
+	var nodes = config.treeNodes;
+	var isSelected = function (nid) {
+		return _Utils_eq(
+			config.selectedId,
+			$elm$core$Maybe$Just(nid));
+	};
+	var findInstance = function (nid) {
+		return $elm$core$List$head(
+			A2(
+				$elm$core$List$filter,
+				function (i) {
+					return _Utils_eq(i.id, nid);
+				},
+				config.instances));
+	};
+	var nodeColors = function (nid) {
+		var _v4 = findInstance(nid);
+		if (_v4.$ === 'Nothing') {
+			return {fill: '#90a4ae', stroke: '#607d8b', textFill: 'white'};
+		} else {
+			var inst = _v4.a;
+			var _v5 = inst.verdict;
+			if (_v5.$ === 'Nothing') {
+				return {fill: '#1e88e5', stroke: '#1565c0', textFill: 'white'};
+			} else {
+				var v = _v5.a;
+				return v.isAccepted ? {fill: '#43a047', stroke: '#2e7d32', textFill: 'white'} : {fill: '#e53935', stroke: '#b71c1c', textFill: 'white'};
+			}
+		}
+	};
+	var renderNode = F3(
+		function (pos, label, selectMsg) {
+			var truncLabel = ($elm$core$String$length(label) > 5) ? (A2($elm$core$String$left, 4, label) + '…') : label;
+			var strokeW = isSelected(pos.id) ? '3' : '1.5';
+			var colors = nodeColors(pos.id);
+			var strokeColor = isSelected(pos.id) ? 'white' : colors.stroke;
+			return A2(
+				$elm$svg$Svg$g,
+				_List_fromArray(
+					[
+						$elm$svg$Svg$Attributes$transform(
+						'translate(' + ($elm$core$String$fromFloat(pos.x) + (',' + ($elm$core$String$fromFloat(pos.y) + ')')))),
+						$elm$svg$Svg$Attributes$style('cursor: pointer'),
+						$elm$svg$Svg$Events$onClick(selectMsg)
+					]),
+				_List_fromArray(
+					[
+						A2(
+						$elm$svg$Svg$circle,
+						_List_fromArray(
+							[
+								$elm$svg$Svg$Attributes$r(
+								$elm$core$String$fromFloat($author$project$Components$NfaTreeView$nodeR)),
+								$elm$svg$Svg$Attributes$fill(colors.fill),
+								$elm$svg$Svg$Attributes$stroke(strokeColor),
+								$elm$svg$Svg$Attributes$strokeWidth(strokeW)
+							]),
+						_List_Nil),
+						A2(
+						$elm$svg$Svg$text_,
+						_List_fromArray(
+							[
+								$elm$svg$Svg$Attributes$textAnchor('middle'),
+								$elm$svg$Svg$Attributes$dominantBaseline('central'),
+								$elm$svg$Svg$Attributes$fill(colors.textFill),
+								$elm$svg$Svg$Attributes$fontSize('10'),
+								$elm$svg$Svg$Attributes$fontWeight('bold'),
+								$elm$svg$Svg$Attributes$pointerEvents('none')
+							]),
+						_List_fromArray(
+							[
+								$elm$svg$Svg$text(truncLabel)
+							]))
+					]));
+		});
+	var depths = A2(
+		$elm$core$List$map,
+		function (n) {
+			return A2($author$project$Components$NfaTreeView$getDepth, n.id, nodes);
+		},
+		nodes);
+	var maxDepth = A2(
+		$elm$core$Maybe$withDefault,
+		0,
+		$elm$core$List$maximum(depths));
+	var maxNodesPerLevel = A2(
+		$elm$core$Maybe$withDefault,
+		1,
+		$elm$core$List$maximum(
+			A2(
+				$elm$core$List$map,
+				function (d) {
+					return $elm$core$List$length(
+						A2(
+							$elm$core$List$filter,
+							function (n) {
+								return _Utils_eq(
+									A2($author$project$Components$NfaTreeView$getDepth, n.id, nodes),
+									d);
+							},
+							nodes));
+				},
+				A2($elm$core$List$range, 0, maxDepth))));
+	var svgH = (((maxDepth + 1) * $author$project$Components$NfaTreeView$levelH) + $author$project$Components$NfaTreeView$topPad) + 40.0;
+	var contentW = A2($elm$core$Basics$max, 1, maxNodesPerLevel) * $author$project$Components$NfaTreeView$nodeSpacingH;
+	var posMap = A3($author$project$Components$NfaTreeView$computePositions, nodes, maxDepth, contentW);
+	var findPos = function (nid) {
+		return $elm$core$List$head(
+			A2(
+				$elm$core$List$filter,
+				function (p) {
+					return _Utils_eq(p.id, nid);
+				},
+				posMap));
+	};
+	var mergeEdgesSvg = A2(
+		$elm$core$List$filterMap,
+		function (e) {
+			var _v3 = _Utils_Tuple2(
+				findPos(e.from),
+				findPos(e.to));
+			if ((_v3.a.$ === 'Just') && (_v3.b.$ === 'Just')) {
+				var fp = _v3.a.a;
+				var tp = _v3.b.a;
+				return $elm$core$Maybe$Just(
+					A2(renderMergeEdge, fp, tp));
+			} else {
+				return $elm$core$Maybe$Nothing;
+			}
+		},
+		config.mergedEdges);
+	var renderLevelSymbol = F2(
+		function (depth, sym) {
+			var y = (depth * $author$project$Components$NfaTreeView$levelH) + $author$project$Components$NfaTreeView$topPad;
+			var xLabel = ($author$project$Components$NfaTreeView$leftPad + contentW) + 12;
+			return A2(
+				$elm$svg$Svg$g,
+				_List_Nil,
+				_List_fromArray(
+					[
+						A2(
+						$elm$svg$Svg$line,
+						_List_fromArray(
+							[
+								$elm$svg$Svg$Attributes$x1(
+								$elm$core$String$fromFloat($author$project$Components$NfaTreeView$leftPad + 4)),
+								$elm$svg$Svg$Attributes$y1(
+								$elm$core$String$fromFloat(y - ($author$project$Components$NfaTreeView$levelH / 2))),
+								$elm$svg$Svg$Attributes$x2(
+								$elm$core$String$fromFloat(($author$project$Components$NfaTreeView$leftPad + contentW) - 4)),
+								$elm$svg$Svg$Attributes$y2(
+								$elm$core$String$fromFloat(y - ($author$project$Components$NfaTreeView$levelH / 2))),
+								$elm$svg$Svg$Attributes$stroke('#cfd8dc'),
+								$elm$svg$Svg$Attributes$strokeWidth('1'),
+								$elm$svg$Svg$Attributes$strokeDasharray('4,3')
+							]),
+						_List_Nil),
+						A2(
+						$elm$svg$Svg$rect,
+						_List_fromArray(
+							[
+								$elm$svg$Svg$Attributes$x(
+								$elm$core$String$fromFloat(xLabel - 2)),
+								$elm$svg$Svg$Attributes$y(
+								$elm$core$String$fromFloat((y - ($author$project$Components$NfaTreeView$levelH / 2)) - 11)),
+								$elm$svg$Svg$Attributes$width('36'),
+								$elm$svg$Svg$Attributes$height('22'),
+								$elm$svg$Svg$Attributes$rx('4'),
+								$elm$svg$Svg$Attributes$fill('#eceff1'),
+								$elm$svg$Svg$Attributes$stroke('#90a4ae'),
+								$elm$svg$Svg$Attributes$strokeWidth('1')
+							]),
+						_List_Nil),
+						A2(
+						$elm$svg$Svg$text_,
+						_List_fromArray(
+							[
+								$elm$svg$Svg$Attributes$x(
+								$elm$core$String$fromFloat(xLabel + 16)),
+								$elm$svg$Svg$Attributes$y(
+								$elm$core$String$fromFloat(y - ($author$project$Components$NfaTreeView$levelH / 2))),
+								$elm$svg$Svg$Attributes$textAnchor('middle'),
+								$elm$svg$Svg$Attributes$dominantBaseline('central'),
+								$elm$svg$Svg$Attributes$fill('#37474f'),
+								$elm$svg$Svg$Attributes$fontSize('13'),
+								$elm$svg$Svg$Attributes$fontWeight('bold')
+							]),
+						_List_fromArray(
+							[
+								$elm$svg$Svg$text(sym)
+							]))
+					]));
+		});
+	var levelSymbols = A2(
+		$elm$core$List$filterMap,
+		function (d) {
+			return A2(
+				$elm$core$Maybe$map,
+				function (sym) {
+					return A2(renderLevelSymbol, d, sym);
+				},
+				A2(
+					$elm$core$Maybe$andThen,
+					function ($) {
+						return $.symbol;
+					},
+					$elm$core$List$head(
+						A2(
+							$elm$core$List$filter,
+							function (n) {
+								return _Utils_eq(
+									A2($author$project$Components$NfaTreeView$getDepth, n.id, nodes),
+									d);
+							},
+							nodes))));
+		},
+		A2($elm$core$List$range, 1, maxDepth));
+	var svgW = ($author$project$Components$NfaTreeView$leftPad + contentW) + $author$project$Components$NfaTreeView$rightAreaW;
+	var allNodes = A2(
+		$elm$core$List$filterMap,
+		function (pos) {
+			var node = $elm$core$List$head(
+				A2(
+					$elm$core$List$filter,
+					function (n) {
+						return _Utils_eq(n.id, pos.id);
+					},
+					nodes));
+			if (node.$ === 'Nothing') {
+				return $elm$core$Maybe$Nothing;
+			} else {
+				var n = node.a;
+				return $elm$core$Maybe$Just(
+					A3(
+						renderNode,
+						pos,
+						stateLabel(n.stateId),
+						config.onSelect(pos.id)));
+			}
+		},
+		posMap);
+	var allEdges = A2(
+		$elm$core$List$filterMap,
+		function (n) {
+			var _v0 = n.parentId;
+			if (_v0.$ === 'Nothing') {
+				return $elm$core$Maybe$Nothing;
+			} else {
+				var pid = _v0.a;
+				var _v1 = _Utils_Tuple2(
+					findPos(n.id),
+					findPos(pid));
+				if ((_v1.a.$ === 'Just') && (_v1.b.$ === 'Just')) {
+					var cp = _v1.a.a;
+					var pp = _v1.b.a;
+					return $elm$core$Maybe$Just(
+						A2(renderEdge, pp, cp));
+				} else {
+					return $elm$core$Maybe$Nothing;
+				}
+			}
+		},
+		nodes);
+	return A2(
+		$elm$html$Html$div,
+		_List_fromArray(
+			[
+				A2($elm$html$Html$Attributes$style, 'flex', '1'),
+				A2($elm$html$Html$Attributes$style, 'overflow', 'auto'),
+				A2($elm$html$Html$Attributes$style, 'background-color', '#ecf0f1')
+			]),
+		_List_fromArray(
+			[
+				A2(
+				$elm$svg$Svg$svg,
+				_List_fromArray(
+					[
+						$elm$svg$Svg$Attributes$width(
+						$elm$core$String$fromFloat(svgW)),
+						$elm$svg$Svg$Attributes$height(
+						$elm$core$String$fromFloat(svgH))
+					]),
+				_List_fromArray(
+					[
+						A2($elm$svg$Svg$g, _List_Nil, allEdges),
+						A2($elm$svg$Svg$g, _List_Nil, mergeEdgesSvg),
+						A2($elm$svg$Svg$g, _List_Nil, levelSymbols),
+						A2($elm$svg$Svg$g, _List_Nil, allNodes)
+					]))
+			]));
+};
 var $author$project$Components$SimulateToolbar$actionButton = F3(
 	function (label, onClickMsg, isEnabled) {
 		return A2(
@@ -8609,7 +10676,20 @@ var $author$project$Components$SimulateToolbar$view = function (config) {
 			[
 				A4($author$project$Components$SimulateToolbar$toolButton, 'Reset', config.onReset, true, false),
 				A4($author$project$Components$SimulateToolbar$toolButton, 'Krok späť', config.onStepBackward, config.canStepBackward, false),
-				A4($author$project$Components$SimulateToolbar$toolButton, 'Krok vpred', config.onStepForward, config.canStepForward, false),
+				A4(
+				$author$project$Components$SimulateToolbar$toolButton,
+				function () {
+					var _v0 = config.nextSymbol;
+					if (_v0.$ === 'Nothing') {
+						return 'Krok vpred';
+					} else {
+						var s = _v0.a;
+						return 'Krok vpred  \'' + (s + '\'');
+					}
+				}(),
+				config.onStepForward,
+				config.canStepForward,
+				false),
 				A3($author$project$Components$SimulateToolbar$actionButton, 'Späť do editora', config.onSwitchToEditor, true)
 			]));
 };
@@ -8626,24 +10706,6 @@ var $author$project$Components$SimulationStatus$view = function (config) {
 			]),
 		_List_fromArray(
 			[
-				A2(
-				$elm$html$Html$div,
-				_List_Nil,
-				_List_fromArray(
-					[
-						A2(
-						$elm$html$Html$span,
-						_List_fromArray(
-							[
-								A2($elm$html$Html$Attributes$style, 'font-weight', 'bold')
-							]),
-						_List_fromArray(
-							[
-								$elm$html$Html$text('Zostávajúci vstup: ')
-							])),
-						$elm$html$Html$text(
-						$elm$core$String$isEmpty(config.remainingInput) ? '(prázdny)' : config.remainingInput)
-					])),
 				A2(
 				$elm$html$Html$div,
 				_List_Nil,
@@ -8696,7 +10758,181 @@ var $author$project$Components$SimulationStatus$view = function (config) {
 			}()
 			]));
 };
+var $elm$core$String$foldr = _String_foldr;
+var $elm$core$String$toList = function (string) {
+	return A3($elm$core$String$foldr, $elm$core$List$cons, _List_Nil, string);
+};
+var $author$project$Pages$Simulator$viewReadingHead = F2(
+	function (fullInput, remaining) {
+		var consumedCount = $elm$core$String$length(fullInput) - $elm$core$String$length(remaining);
+		var renderChar = F2(
+			function (idx, c) {
+				var isCurrent = _Utils_eq(idx, consumedCount);
+				var isConsumed = _Utils_cmp(idx, consumedCount) < 0;
+				return A2(
+					$elm$html$Html$div,
+					_List_fromArray(
+						[
+							A2($elm$html$Html$Attributes$style, 'min-width', '26px'),
+							A2($elm$html$Html$Attributes$style, 'height', '30px'),
+							A2($elm$html$Html$Attributes$style, 'display', 'flex'),
+							A2($elm$html$Html$Attributes$style, 'align-items', 'center'),
+							A2($elm$html$Html$Attributes$style, 'justify-content', 'center'),
+							A2($elm$html$Html$Attributes$style, 'font-size', '15px'),
+							A2($elm$html$Html$Attributes$style, 'font-weight', 'bold'),
+							A2($elm$html$Html$Attributes$style, 'border-radius', '4px'),
+							A2(
+							$elm$html$Html$Attributes$style,
+							'background-color',
+							isCurrent ? '#1e88e5' : (isConsumed ? '#eceff1' : 'white')),
+							A2(
+							$elm$html$Html$Attributes$style,
+							'color',
+							isCurrent ? 'white' : (isConsumed ? '#b0bec5' : '#263238')),
+							A2(
+							$elm$html$Html$Attributes$style,
+							'border',
+							isCurrent ? '2px solid #1565c0' : '1px solid #cfd8dc'),
+							A2($elm$html$Html$Attributes$style, 'padding', '0 4px')
+						]),
+					_List_fromArray(
+						[
+							$elm$html$Html$text(
+							$elm$core$String$fromChar(c))
+						]));
+			});
+		var chars = $elm$core$String$toList(fullInput);
+		return $elm$core$String$isEmpty(fullInput) ? A2($elm$html$Html$div, _List_Nil, _List_Nil) : A2(
+			$elm$html$Html$div,
+			_List_fromArray(
+				[
+					A2($elm$html$Html$Attributes$style, 'padding', '6px 15px 8px 15px'),
+					A2($elm$html$Html$Attributes$style, 'border-bottom', '1px solid #e0e0e0')
+				]),
+			_List_fromArray(
+				[
+					A2(
+					$elm$html$Html$div,
+					_List_fromArray(
+						[
+							A2($elm$html$Html$Attributes$style, 'display', 'flex'),
+							A2($elm$html$Html$Attributes$style, 'flex-wrap', 'wrap'),
+							A2($elm$html$Html$Attributes$style, 'gap', '3px'),
+							A2($elm$html$Html$Attributes$style, 'align-items', 'center')
+						]),
+					A2($elm$core$List$indexedMap, renderChar, chars))
+				]));
+	});
+var $author$project$Pages$Simulator$viewTab = F3(
+	function (label, isActive, msg) {
+		return A2(
+			$elm$html$Html$button,
+			_List_fromArray(
+				[
+					$elm$html$Html$Events$onClick(msg),
+					A2($elm$html$Html$Attributes$style, 'padding', '7px 18px'),
+					A2(
+					$elm$html$Html$Attributes$style,
+					'background-color',
+					isActive ? '#546e7a' : 'transparent'),
+					A2($elm$html$Html$Attributes$style, 'color', 'white'),
+					A2($elm$html$Html$Attributes$style, 'border', 'none'),
+					A2(
+					$elm$html$Html$Attributes$style,
+					'border-bottom',
+					isActive ? '2px solid #00bcd4' : '2px solid transparent'),
+					A2($elm$html$Html$Attributes$style, 'cursor', 'pointer'),
+					A2($elm$html$Html$Attributes$style, 'font-size', '13px'),
+					A2(
+					$elm$html$Html$Attributes$style,
+					'font-weight',
+					isActive ? 'bold' : 'normal')
+				]),
+			_List_fromArray(
+				[
+					$elm$html$Html$text(label)
+				]));
+	});
 var $author$project$Pages$Simulator$view = function (model) {
+	var selectedInstance = A2(
+		$elm$core$Maybe$andThen,
+		function (sid) {
+			return $elm$core$List$head(
+				A2(
+					$elm$core$List$filter,
+					function (i) {
+						return _Utils_eq(i.id, sid);
+					},
+					model.nfaInstances));
+		},
+		model.selectedInstanceId);
+	var selectedInstanceRemaining = A2(
+		$elm$core$Maybe$withDefault,
+		model.inputString,
+		A2(
+			$elm$core$Maybe$map,
+			function ($) {
+				return $.remainingInput;
+			},
+			selectedInstance));
+	var selectedInstanceState = A2(
+		$elm$core$Maybe$andThen,
+		function (inst) {
+			return A2(
+				$elm$core$Maybe$andThen,
+				function (stId) {
+					return A2($author$project$Utils$AutomatonHelpers$getStateById, stId, model.automaton.states);
+				},
+				inst.currentStateId);
+		},
+		selectedInstance);
+	var selectedInstanceVerdict = A2(
+		$elm$core$Maybe$andThen,
+		function ($) {
+			return $.verdict;
+		},
+		selectedInstance);
+	var readingHeadRemaining = function () {
+		var _v3 = model.mode;
+		if (_v3.$ === 'DfaMode') {
+			return model.remainingInput;
+		} else {
+			return selectedInstanceRemaining;
+		}
+	}();
+	var nextSymbol = function () {
+		var _v2 = model.mode;
+		if (_v2.$ === 'DfaMode') {
+			return A2(
+				$elm$core$Maybe$map,
+				A2($elm$core$Basics$composeR, $elm$core$Tuple$first, $elm$core$String$fromChar),
+				$elm$core$String$uncons(model.remainingInput));
+		} else {
+			return A2(
+				$elm$core$Maybe$map,
+				A2($elm$core$Basics$composeR, $elm$core$Tuple$first, $elm$core$String$fromChar),
+				A2(
+					$elm$core$Maybe$andThen,
+					function (i) {
+						return $elm$core$String$uncons(i.remainingInput);
+					},
+					$elm$core$List$head(
+						A2(
+							$elm$core$List$filter,
+							function (i) {
+								return _Utils_eq(i.verdict, $elm$core$Maybe$Nothing);
+							},
+							model.nfaInstances))));
+		}
+	}();
+	var activeStateId = function () {
+		var _v1 = model.mode;
+		if (_v1.$ === 'DfaMode') {
+			return model.currentStateId;
+		} else {
+			return $author$project$Pages$Simulator$nfaActiveStateId(model);
+		}
+	}();
 	return A2(
 		$elm$html$Html$div,
 		_List_fromArray(
@@ -8711,8 +10947,9 @@ var $author$project$Pages$Simulator$view = function (model) {
 			[
 				$author$project$Components$SimulateToolbar$view(
 				{
-					canStepBackward: !$elm$core$List$isEmpty(model.history),
-					canStepForward: !$elm$core$String$isEmpty(model.remainingInput),
+					canStepBackward: $author$project$Pages$Simulator$canStepBackward(model),
+					canStepForward: $author$project$Pages$Simulator$canStepForward(model),
+					nextSymbol: nextSymbol,
 					onReset: $author$project$Pages$Simulator$ResetSimulation,
 					onStepBackward: $author$project$Pages$Simulator$StepBackward,
 					onStepForward: $author$project$Pages$Simulator$StepForward,
@@ -8734,24 +10971,47 @@ var $author$project$Pages$Simulator$view = function (model) {
 						_List_fromArray(
 							[
 								A2($elm$html$Html$Attributes$style, 'flex', '1'),
-								A2($elm$html$Html$Attributes$style, 'background-color', '#ecf0f1')
+								A2($elm$html$Html$Attributes$style, 'display', 'flex'),
+								A2($elm$html$Html$Attributes$style, 'flex-direction', 'column'),
+								A2($elm$html$Html$Attributes$style, 'overflow', 'hidden')
 							]),
 						_List_fromArray(
 							[
-								$author$project$Components$Canvas$view(
-								{activeStateId: model.currentStateId, activeTransition: model.activeTransition, height: 600, onCanvasClick: $author$project$Pages$Simulator$CanvasClick, onDragMove: $author$project$Pages$Simulator$DragMove, onEndDrag: $author$project$Pages$Simulator$EndDrag, onStartDrag: $author$project$Pages$Simulator$StartDrag, onStateClick: $author$project$Pages$Simulator$StateClick, onTransitionClick: $author$project$Pages$Simulator$TransitionClick, selectedState: $elm$core$Maybe$Nothing, states: model.automaton.states, transitionFrom: $elm$core$Maybe$Nothing, transitions: model.automaton.transitions, width: 800})
+								_Utils_eq(model.mode, $author$project$Pages$Simulator$NfaMode) ? A2(
+								$elm$html$Html$div,
+								_List_fromArray(
+									[
+										A2($elm$html$Html$Attributes$style, 'display', 'flex'),
+										A2($elm$html$Html$Attributes$style, 'background-color', '#455a64'),
+										A2($elm$html$Html$Attributes$style, 'flex-shrink', '0')
+									]),
+								_List_fromArray(
+									[
+										A3(
+										$author$project$Pages$Simulator$viewTab,
+										'Automat',
+										_Utils_eq(model.viewMode, $author$project$Pages$Simulator$CanvasView),
+										$author$project$Pages$Simulator$SetViewMode($author$project$Pages$Simulator$CanvasView)),
+										A3(
+										$author$project$Pages$Simulator$viewTab,
+										'Strom',
+										_Utils_eq(model.viewMode, $author$project$Pages$Simulator$TreeView),
+										$author$project$Pages$Simulator$SetViewMode($author$project$Pages$Simulator$TreeView))
+									])) : A2($elm$html$Html$div, _List_Nil, _List_Nil),
+								(_Utils_eq(model.mode, $author$project$Pages$Simulator$NfaMode) && _Utils_eq(model.viewMode, $author$project$Pages$Simulator$TreeView)) ? $author$project$Components$NfaTreeView$view(
+								{instances: model.nfaInstances, mergedEdges: model.nfaMergedEdges, onSelect: $author$project$Pages$Simulator$SelectNfaInstance, selectedId: model.selectedInstanceId, states: model.automaton.states, treeNodes: model.nfaTree}) : $author$project$Components$Canvas$view(
+								{activeStateId: activeStateId, activeTransition: model.activeTransition, height: 600, onCanvasClick: $author$project$Pages$Simulator$CanvasClick, onDragMove: $author$project$Pages$Simulator$DragMove, onEndDrag: $author$project$Pages$Simulator$EndDrag, onStartDrag: $author$project$Pages$Simulator$StartDrag, onStateClick: $author$project$Pages$Simulator$StateClick, onTransitionClick: $author$project$Pages$Simulator$TransitionClick, selectedState: $elm$core$Maybe$Nothing, states: model.automaton.states, transitionFrom: $elm$core$Maybe$Nothing, transitions: model.automaton.transitions, width: 800})
 							])),
 						A2(
 						$elm$html$Html$div,
 						_List_fromArray(
 							[
 								A2($elm$html$Html$Attributes$style, 'width', '300px'),
-								A2($elm$html$Html$Attributes$style, 'background-color', 'white'),
 								A2($elm$html$Html$Attributes$style, 'border-left', '2px solid #34495e'),
-								A2($elm$html$Html$Attributes$style, 'padding', '15px'),
 								A2($elm$html$Html$Attributes$style, 'display', 'flex'),
 								A2($elm$html$Html$Attributes$style, 'flex-direction', 'column'),
-								A2($elm$html$Html$Attributes$style, 'background-color', '#f8f9fa')
+								A2($elm$html$Html$Attributes$style, 'background-color', '#f8f9fa'),
+								A2($elm$html$Html$Attributes$style, 'overflow', 'hidden')
 							]),
 						_List_fromArray(
 							[
@@ -8759,7 +11019,7 @@ var $author$project$Pages$Simulator$view = function (model) {
 								$elm$html$Html$div,
 								_List_fromArray(
 									[
-										A2($elm$html$Html$Attributes$style, 'padding', '20px')
+										A2($elm$html$Html$Attributes$style, 'padding', '10px 15px 6px 15px')
 									]),
 								_List_fromArray(
 									[
@@ -8768,27 +11028,111 @@ var $author$project$Pages$Simulator$view = function (model) {
 										$elm$html$Html$input,
 										_List_fromArray(
 											[
-												$author$project$Pages$Simulator$type_('text'),
+												$elm$html$Html$Attributes$type_('text'),
 												$elm$html$Html$Attributes$value(model.inputString),
 												$elm$html$Html$Events$onInput($author$project$Pages$Simulator$SetInput),
 												A2($elm$html$Html$Attributes$style, 'width', '100%'),
 												A2($elm$html$Html$Attributes$style, 'padding', '8px'),
 												A2($elm$html$Html$Attributes$style, 'margin-top', '5px'),
 												A2($elm$html$Html$Attributes$style, 'border', '1px solid #bdc3c7'),
-												A2($elm$html$Html$Attributes$style, 'border-radius', '4px')
+												A2($elm$html$Html$Attributes$style, 'border-radius', '4px'),
+												A2($elm$html$Html$Attributes$style, 'box-sizing', 'border-box')
 											]),
 										_List_Nil)
 									])),
-								$author$project$Components$SimulationStatus$view(
-								{
-									currentState: A2(
-										$author$project$Utils$AutomatonHelpers$getStateById,
-										A2($elm$core$Maybe$withDefault, -1, model.currentStateId),
-										model.automaton.states),
-									inputString: model.inputString,
-									remainingInput: model.remainingInput,
-									verdict: model.verdict
-								})
+								A2($author$project$Pages$Simulator$viewReadingHead, model.inputString, readingHeadRemaining),
+								function () {
+								var _v0 = model.mode;
+								if (_v0.$ === 'DfaMode') {
+									return $author$project$Components$SimulationStatus$view(
+										{
+											currentState: A2(
+												$author$project$Utils$AutomatonHelpers$getStateById,
+												A2($elm$core$Maybe$withDefault, -1, model.currentStateId),
+												model.automaton.states),
+											inputString: model.inputString,
+											remainingInput: model.remainingInput,
+											verdict: model.verdict
+										});
+								} else {
+									return A2(
+										$elm$html$Html$div,
+										_List_fromArray(
+											[
+												A2($elm$html$Html$Attributes$style, 'display', 'flex'),
+												A2($elm$html$Html$Attributes$style, 'flex-direction', 'column'),
+												A2($elm$html$Html$Attributes$style, 'flex', '1'),
+												A2($elm$html$Html$Attributes$style, 'overflow', 'hidden')
+											]),
+										_List_fromArray(
+											[
+												$author$project$Components$SimulationStatus$view(
+												{currentState: selectedInstanceState, inputString: model.inputString, remainingInput: selectedInstanceRemaining, verdict: selectedInstanceVerdict}),
+												A2(
+												$elm$html$Html$div,
+												_List_fromArray(
+													[
+														A2($elm$html$Html$Attributes$style, 'padding', '6px 15px'),
+														A2($elm$html$Html$Attributes$style, 'border-top', '1px solid #ccc'),
+														A2($elm$html$Html$Attributes$style, 'display', 'flex'),
+														A2($elm$html$Html$Attributes$style, 'align-items', 'center'),
+														A2($elm$html$Html$Attributes$style, 'justify-content', 'space-between')
+													]),
+												_List_fromArray(
+													[
+														A2(
+														$elm$html$Html$label,
+														_List_fromArray(
+															[
+																A2($elm$html$Html$Attributes$style, 'display', 'flex'),
+																A2($elm$html$Html$Attributes$style, 'align-items', 'center'),
+																A2($elm$html$Html$Attributes$style, 'gap', '6px'),
+																A2($elm$html$Html$Attributes$style, 'cursor', 'pointer'),
+																A2($elm$html$Html$Attributes$style, 'font-size', '12px'),
+																A2($elm$html$Html$Attributes$style, 'color', '#546e7a'),
+																A2($elm$html$Html$Attributes$style, 'user-select', 'none')
+															]),
+														_List_fromArray(
+															[
+																A2(
+																$elm$html$Html$input,
+																_List_fromArray(
+																	[
+																		$elm$html$Html$Attributes$type_('checkbox'),
+																		$elm$html$Html$Attributes$checked(model.mergeEnabled),
+																		$elm$html$Html$Events$onClick($author$project$Pages$Simulator$ToggleMerge)
+																	]),
+																_List_Nil),
+																$elm$html$Html$text('Zlúčiť stavy')
+															])),
+														A2(
+														$elm$html$Html$div,
+														_List_fromArray(
+															[
+																A2($elm$html$Html$Attributes$style, 'font-weight', 'bold'),
+																A2($elm$html$Html$Attributes$style, 'font-size', '13px')
+															]),
+														_List_fromArray(
+															[
+																$elm$html$Html$text('Inštancie NFA:')
+															]))
+													])),
+												A2(
+												$elm$html$Html$div,
+												_List_fromArray(
+													[
+														A2($elm$html$Html$Attributes$style, 'flex', '1'),
+														A2($elm$html$Html$Attributes$style, 'overflow-y', 'auto'),
+														A2($elm$html$Html$Attributes$style, 'padding', '4px 15px')
+													]),
+												_List_fromArray(
+													[
+														$author$project$Components$NfaInstancePanel$view(
+														{instances: model.nfaInstances, onSelect: $author$project$Pages$Simulator$SelectNfaInstance, selectedId: model.selectedInstanceId, states: model.automaton.states})
+													]))
+											]));
+								}
+							}()
 							]))
 					])),
 				$author$project$Components$Console$view(
@@ -8823,4 +11167,9 @@ var $author$project$Main$view = function (model) {
 var $author$project$Main$main = $elm$browser$Browser$element(
 	{init: $author$project$Main$init, subscriptions: $author$project$Main$subscriptions, update: $author$project$Main$update, view: $author$project$Main$view});
 _Platform_export({'Main':{'init':$author$project$Main$main(
-	$elm$json$Json$Decode$succeed(_Utils_Tuple0))(0)}});}(this));
+	$elm$json$Json$Decode$oneOf(
+		_List_fromArray(
+			[
+				$elm$json$Json$Decode$null($elm$core$Maybe$Nothing),
+				A2($elm$json$Json$Decode$map, $elm$core$Maybe$Just, $elm$json$Json$Decode$string)
+			])))(0)}});}(this));
