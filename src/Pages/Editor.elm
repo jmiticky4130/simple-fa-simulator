@@ -1,8 +1,8 @@
 module Pages.Editor exposing (Model, Msg(..), Tool(..), init, initWith, update, view)
 
-import Html exposing (Html, div, input, button, text)
-import Html.Attributes exposing (style, placeholder, value, autofocus, type_)
-import Html.Events exposing (onInput, on, onClick)
+import Html exposing (Html, div, input, button, text, label, span)
+import Html.Attributes exposing (style, placeholder, value, autofocus, type_, checked)
+import Html.Events exposing (onInput, on, onClick, onCheck)
 import Json.Decode as Decode
 import Components.Toolbar as Toolbar
 import Components.Canvas as Canvas
@@ -43,14 +43,8 @@ onEnterKey msg =
 
 
 type Tool
-    = ResetTool
-    | AddStateTool
-    | AddTransitionTool
+    = BuildTool
     | DeleteTool
-    | MoveTool
-    | RenameTool
-    | SetStartStateTool
-    | SetEndStateTool
 
 
 type alias Model =
@@ -61,23 +55,39 @@ type alias Model =
     , consoleMessages : List Console.Message
     , isDragging : Bool
     , draggedState : Maybe Int
+    , dragStartX : Float
+    , dragStartY : Float
     , editingTransition : Maybe { from : Int, to : Int, x : Float, y : Float }
+    , editingTransitionOldSymbol : Maybe String
     , transitionInput : String
     , editingStateId : Maybe Int
     , stateLabelInput : String
+    , stateModalIsStart : Bool
+    , stateModalIsEnd : Bool
     , transitionDisplayMode : AutomatonDisplay.TransitionDisplayMode
     , showLoadModal : Bool
     , showSaveModal : Bool
     , saveNameInput : String
     , showStorageSelectModal : Bool
     , storedAutomata : List { name : String, data : String }
+    , panX : Float
+    , panY : Float
+    , zoom : Float
+    , isPanning : Bool
+    , panLastX : Float
+    , panLastY : Float
+    , hasPanned : Bool
     }
 
 
 type Msg
     = ChangeTool Tool
     | CanvasClick Float Float
+    | CanvasDoubleClick Float Float
     | StateClick Int
+    | StateDoubleClick Int
+    | TransitionClick Int Int String
+    | TransitionDoubleClick Int Int String
     | StartDrag Int Float Float
     | DragMove Float Float
     | EndDrag
@@ -85,11 +95,14 @@ type Msg
     | DeleteTransition Int Int String
     | SetStateLabel Int String
     | SetTransitionSymbol Int Int String String
-    | TransitionClick Int Int String
     | UpdateTransitionInput String
     | ConfirmTransitionSymbol
     | UpdateStateLabelInput String
     | ConfirmStateLabel
+    | ConfirmStateModal
+    | DismissStateModal
+    | SetStateModalIsStart Bool
+    | SetStateModalIsEnd Bool
     | SetTransitionDisplayMode AutomatonDisplay.TransitionDisplayMode
     | ResetAutomaton
     | Undo
@@ -97,6 +110,10 @@ type Msg
     | CancelAction
     | NoOp
     | SwitchToSimulator
+    | CanvasMouseDown Float Float
+    | ZoomIn
+    | ZoomOut
+    | Wheel Float
     | ExportJson
     | ImportJsonRequested
     | ImportJsonLoaded File.File
@@ -117,22 +134,34 @@ type Msg
 init : Model
 init =
     { automaton = UndoList.fresh { states = [], transitions = [], nextStateId = 0 }
-    , currentTool = ResetTool
+    , currentTool = BuildTool
     , selectedState = Nothing
     , transitionFrom = Nothing
-    , consoleMessages = [ { text = "Vítajte v simulátore DFA/NFA. Začnite pridaním stavov.", msgType = Console.Info } ]
+    , consoleMessages = [ { text = "Vítajte v simulátore DFA/NFA. Dvojklikom na plátno pridajte stav.", msgType = Console.Info } ]
     , isDragging = False
     , draggedState = Nothing
+    , dragStartX = 0
+    , dragStartY = 0
     , editingTransition = Nothing
+    , editingTransitionOldSymbol = Nothing
     , transitionInput = ""
     , editingStateId = Nothing
     , stateLabelInput = ""
+    , stateModalIsStart = False
+    , stateModalIsEnd = False
     , transitionDisplayMode = AutomatonDisplay.Table
     , showLoadModal = False
     , showSaveModal = False
     , saveNameInput = ""
     , showStorageSelectModal = False
     , storedAutomata = []
+    , panX = 0
+    , panY = 0
+    , zoom = 1.0
+    , isPanning = False
+    , panLastX = 0
+    , panLastY = 0
+    , hasPanned = False
     }
 
 
@@ -186,7 +215,9 @@ update msg model =
                     )
 
         ShareUrl ->
-            ( model, Cmd.none )
+            ( { model | consoleMessages = { text = "URL skopírovaná do schránky.", msgType = Console.Info } :: model.consoleMessages }
+            , Cmd.none
+            )
 
         SaveRequested ->
             ( { model | showSaveModal = True, saveNameInput = "" }, Cmd.none )
@@ -212,13 +243,15 @@ update msg model =
             ( { model | showSaveModal = False, saveNameInput = "" }, Cmd.none )
 
         LoadRequested ->
-            ( { model | showLoadModal = True }, Cmd.none )
+            ( { model | showLoadModal = True }
+            , Cmd.none
+            )
 
         LoadFromStorage ->
-            ( { model | showLoadModal = False }, Cmd.none )
+            ( model, Cmd.none )
 
         StorageAutomataLoaded list ->
-            ( { model | storedAutomata = list, showStorageSelectModal = True }, Cmd.none )
+            ( { model | storedAutomata = list, showLoadModal = True }, Cmd.none )
 
         SelectStoredAutomaton name ->
             let
@@ -227,15 +260,14 @@ update msg model =
             in
             case maybeEntry of
                 Nothing ->
-                    ( { model | showStorageSelectModal = False }, Cmd.none )
+                    ( { model | showLoadModal = False }, Cmd.none )
 
                 Just entry ->
                     case Decode.decodeString Utils.AutomatonCodec.decoder entry.data of
                         Ok automaton ->
                             ( { model
                                 | automaton = UndoList.fresh automaton
-                                , showStorageSelectModal = False
-                                , storedAutomata = []
+                                , showLoadModal = False
                                 , consoleMessages = { text = "Automat načítaný: " ++ name, msgType = Console.Info } :: model.consoleMessages
                               }
                             , Cmd.none
@@ -243,7 +275,7 @@ update msg model =
 
                         Err err ->
                             ( { model
-                                | showStorageSelectModal = False
+                                | showLoadModal = False
                                 , consoleMessages = { text = "Chyba: " ++ Decode.errorToString err, msgType = Console.Error } :: model.consoleMessages
                               }
                             , Cmd.none
@@ -263,10 +295,13 @@ update msg model =
         CancelAction ->
             ( { model
                 | editingTransition = Nothing
+                , editingTransitionOldSymbol = Nothing
                 , transitionInput = ""
                 , transitionFrom = Nothing
                 , editingStateId = Nothing
                 , stateLabelInput = ""
+                , stateModalIsStart = False
+                , stateModalIsEnd = False
                 , consoleMessages = { text = "Akcia zrušená.", msgType = Console.Info } :: model.consoleMessages
               }
             , Cmd.none
@@ -275,37 +310,44 @@ update msg model =
         ChangeTool tool ->
             let
                 newTool =
-                    if model.currentTool == tool then
-                        ResetTool
-                    else
-                        tool
+                    case tool of
+                        BuildTool ->
+                            BuildTool
+                        DeleteTool ->
+                            if model.currentTool == DeleteTool then
+                                BuildTool
+                            else
+                                DeleteTool
             in
-            ( { model 
+            ( { model
                 | currentTool = newTool
                 , transitionFrom = Nothing
-                , consoleMessages = { text = getToolMessage newTool, msgType = Console.Info } :: model.consoleMessages
                 , editingStateId = Nothing
                 , stateLabelInput = ""
+                , stateModalIsStart = False
+                , stateModalIsEnd = False
+                , consoleMessages = { text = getToolMessage newTool, msgType = Console.Info } :: model.consoleMessages
               }
             , Cmd.none
             )
 
-        CanvasClick x y ->
+        CanvasDoubleClick x y ->
             case model.currentTool of
-                AddStateTool ->
+                BuildTool ->
                     let
+                        worldX = (x - model.panX) / model.zoom
+                        worldY = (y - model.panY) / model.zoom
                         newState =
                             { id = currentAutomaton.nextStateId
-                            , x = x
-                            , y = y
+                            , x = worldX
+                            , y = worldY
                             , label = "q" ++ String.fromInt currentAutomaton.nextStateId
                             , isStart = False
                             , isEnd = False
                             }
-                        
                         message = "Pridaný stav: " ++ newState.label
-                        newAutomaton = 
-                            { currentAutomaton 
+                        newAutomaton =
+                            { currentAutomaton
                             | states = currentAutomaton.states ++ [ newState ]
                             , nextStateId = currentAutomaton.nextStateId + 1
                             }
@@ -317,63 +359,163 @@ update msg model =
                     , Cmd.none
                     )
 
-                _ ->
-                    ( { model 
-                        | selectedState = Nothing 
-                        , editingStateId = Nothing
-                        , stateLabelInput = ""
-                        , editingTransition = Nothing
-                        , transitionInput = ""
-                      }
-                    , Cmd.none
-                    )
+                DeleteTool ->
+                    ( model, Cmd.none )
+
+        CanvasClick _ _ ->
+            if model.hasPanned then
+                ( { model | hasPanned = False }, Cmd.none )
+            else
+                ( { model
+                    | selectedState = Nothing
+                    , editingStateId = Nothing
+                    , stateLabelInput = ""
+                    , stateModalIsStart = False
+                    , stateModalIsEnd = False
+                    , editingTransition = Nothing
+                    , editingTransitionOldSymbol = Nothing
+                    , transitionInput = ""
+                  }
+                , Cmd.none
+                )
 
         StateClick stateId ->
             handleStateClick stateId model
 
-        StartDrag stateId _ _ ->
-            if model.currentTool == MoveTool then
-                ( { model
-                    | automaton = UndoList.new currentAutomaton model.automaton
-                    , isDragging = True
-                    , draggedState = Just stateId
-                  }
-                , Cmd.none
-                )
-            else
-                ( model, Cmd.none )
-
-        DragMove x y ->
-            case model.draggedState of
-                Just stateId ->
+        StateDoubleClick stateId ->
+            case model.currentTool of
+                BuildTool ->
                     let
-                        newStates = updateStatePosition stateId x y currentAutomaton.states
-                        newAutomaton = { currentAutomaton | states = newStates }
-                        undoList = model.automaton
+                        maybeState = getStateById stateId currentAutomaton.states
+                    in
+                    case maybeState of
+                        Just state ->
+                            ( { model
+                                | transitionFrom = Nothing
+                                , editingTransition = Nothing
+                                , editingTransitionOldSymbol = Nothing
+                                , transitionInput = ""
+                                , editingStateId = Just stateId
+                                , stateLabelInput = state.label
+                                , stateModalIsStart = state.isStart
+                                , stateModalIsEnd = state.isEnd
+                                , isDragging = False
+                              }
+                            , Task.attempt (\_ -> NoOp) (Browser.Dom.focus "state-modal-input")
+                            )
+                        Nothing ->
+                            ( model, Cmd.none )
+
+                DeleteTool ->
+                    ( model, Cmd.none )
+
+        TransitionDoubleClick from to symbol ->
+            case model.currentTool of
+                BuildTool ->
+                    let
+                        fromState = getStateById from currentAutomaton.states
+                        toState = getStateById to currentAutomaton.states
+                        ( inputX, inputY ) =
+                            case ( fromState, toState ) of
+                                ( Just fs, Just ts ) ->
+                                    if from == to then
+                                        ( fs.x, fs.y - 80 )
+                                    else
+                                        ( (fs.x + ts.x) / 2, (fs.y + ts.y) / 2 )
+                                _ ->
+                                    ( 400, 300 )
                     in
                     ( { model
-                        | automaton = { undoList | present = newAutomaton }
+                        | editingTransition = Just { from = from, to = to, x = inputX, y = inputY }
+                        , editingTransitionOldSymbol = Just symbol
+                        , transitionInput = symbol
+                        , consoleMessages = { text = "Upravte symbol prechodu.", msgType = Console.Info } :: model.consoleMessages
+                      }
+                    , Task.attempt (\_ -> NoOp) (Browser.Dom.focus "transition-input")
+                    )
+
+                DeleteTool ->
+                    ( model, Cmd.none )
+
+        StartDrag stateId x y ->
+            case model.currentTool of
+                BuildTool ->
+                    let
+                        worldX = (x - model.panX) / model.zoom
+                        worldY = (y - model.panY) / model.zoom
+                    in
+                    ( { model
+                        | draggedState = Just stateId
+                        , dragStartX = worldX
+                        , dragStartY = worldY
+                        , isDragging = False
+                        , isPanning = False
                       }
                     , Cmd.none
                     )
 
-                Nothing ->
+                DeleteTool ->
                     ( model, Cmd.none )
 
+        DragMove x y ->
+            if model.isPanning then
+                ( { model
+                    | panX = model.panX + (x - model.panLastX)
+                    , panY = model.panY + (y - model.panLastY)
+                    , panLastX = x
+                    , panLastY = y
+                    , hasPanned = True
+                  }
+                , Cmd.none
+                )
+            else
+                case model.draggedState of
+                    Just stateId ->
+                        let
+                            worldX = (x - model.panX) / model.zoom
+                            worldY = (y - model.panY) / model.zoom
+                            dx = worldX - model.dragStartX
+                            dy = worldY - model.dragStartY
+                            dist = sqrt (dx * dx + dy * dy)
+                        in
+                        if not model.isDragging && dist > 5 then
+                            let
+                                newStates = updateStatePosition stateId worldX worldY currentAutomaton.states
+                                newAutomaton = { currentAutomaton | states = newStates }
+                                newHistory = UndoList.new currentAutomaton model.automaton
+                            in
+                            ( { model
+                                | automaton = { newHistory | present = newAutomaton }
+                                , isDragging = True
+                              }
+                            , Cmd.none
+                            )
+                        else if model.isDragging then
+                            let
+                                newStates = updateStatePosition stateId worldX worldY currentAutomaton.states
+                                newAutomaton = { currentAutomaton | states = newStates }
+                                undoList = model.automaton
+                            in
+                            ( { model
+                                | automaton = { undoList | present = newAutomaton }
+                              }
+                            , Cmd.none
+                            )
+                        else
+                            ( model, Cmd.none )
+
+                    Nothing ->
+                        ( model, Cmd.none )
+
         EndDrag ->
-            ( { model
-                | isDragging = False
-                , draggedState = Nothing
-              }
-            , Cmd.none
-            )
+            ( { model | draggedState = Nothing, isPanning = False }, Cmd.none )
 
         DeleteState stateId ->
             let
                 state = getStateById stateId currentAutomaton.states
                 label = Maybe.map .label state |> Maybe.withDefault ""
                 message = "Odstránený stav: " ++ label
-                newAutomaton = 
+                newAutomaton =
                     { currentAutomaton
                     | states = List.filter (\s -> s.id /= stateId) currentAutomaton.states
                     , transitions = List.filter (\t -> t.from /= stateId && t.to /= stateId) currentAutomaton.transitions
@@ -422,8 +564,8 @@ update msg model =
             , Cmd.none
             )
 
-        UpdateStateLabelInput input ->
-            ( { model | stateLabelInput = input }, Cmd.none )
+        UpdateStateLabelInput inputVal ->
+            ( { model | stateLabelInput = inputVal }, Cmd.none )
 
         ConfirmStateLabel ->
             case model.editingStateId of
@@ -464,6 +606,65 @@ update msg model =
                 Nothing ->
                     ( model, Cmd.none )
 
+        ConfirmStateModal ->
+            case model.editingStateId of
+                Just stateId ->
+                    if String.isEmpty (String.trim model.stateLabelInput) then
+                        ( { model | consoleMessages = { text = "Prázdny názov nie je povolený.", msgType = Console.Error } :: model.consoleMessages }
+                        , Cmd.none
+                        )
+                    else
+                        let
+                            newLabel = String.trim model.stateLabelInput
+                            isDuplicate = List.any (\s -> s.label == newLabel && s.id /= stateId) currentAutomaton.states
+                        in
+                        if isDuplicate then
+                            ( { model | consoleMessages = { text = "Stav s názvom '" ++ newLabel ++ "' už existuje.", msgType = Console.Error } :: model.consoleMessages }
+                            , Cmd.none
+                            )
+                        else
+                            let
+                                statesWithLabel = updateStateLabel stateId newLabel currentAutomaton.states
+                                statesWithStart =
+                                    if model.stateModalIsStart then
+                                        setStartState stateId statesWithLabel
+                                    else
+                                        List.map (\s -> if s.id == stateId then { s | isStart = False } else s) statesWithLabel
+                                statesWithEnd =
+                                    List.map (\s -> if s.id == stateId then { s | isEnd = model.stateModalIsEnd } else s) statesWithStart
+                                newAutomaton = { currentAutomaton | states = statesWithEnd }
+                                message = "Stav upravený: " ++ newLabel
+                            in
+                            ( { model
+                                | automaton = UndoList.new newAutomaton model.automaton
+                                , editingStateId = Nothing
+                                , stateLabelInput = ""
+                                , stateModalIsStart = False
+                                , stateModalIsEnd = False
+                                , consoleMessages = { text = message, msgType = Console.Info } :: model.consoleMessages
+                              }
+                            , Cmd.none
+                            )
+
+                Nothing ->
+                    ( model, Cmd.none )
+
+        DismissStateModal ->
+            ( { model
+                | editingStateId = Nothing
+                , stateLabelInput = ""
+                , stateModalIsStart = False
+                , stateModalIsEnd = False
+              }
+            , Cmd.none
+            )
+
+        SetStateModalIsStart val ->
+            ( { model | stateModalIsStart = val }, Cmd.none )
+
+        SetStateModalIsEnd val ->
+            ( { model | stateModalIsEnd = val }, Cmd.none )
+
         SetTransitionDisplayMode mode ->
             ( { model | transitionDisplayMode = mode }, Cmd.none )
 
@@ -475,97 +676,156 @@ update msg model =
                     , nextStateId = 0
                     }
             in
-            ( { model 
+            ( { model
                 | automaton = UndoList.new newAutomaton model.automaton
-                , currentTool = ResetTool
+                , currentTool = BuildTool
                 , selectedState = Nothing
                 , transitionFrom = Nothing
                 , consoleMessages = { text = "Automat bol resetovaný.", msgType = Console.Info } :: model.consoleMessages
                 , isDragging = False
                 , draggedState = Nothing
                 , editingTransition = Nothing
+                , editingTransitionOldSymbol = Nothing
                 , transitionInput = ""
                 , editingStateId = Nothing
                 , stateLabelInput = ""
+                , stateModalIsStart = False
+                , stateModalIsEnd = False
                 , transitionDisplayMode = AutomatonDisplay.Table
+                , panX = 0
+                , panY = 0
+                , zoom = 1.0
+                , isPanning = False
+                , panLastX = 0
+                , panLastY = 0
+                , hasPanned = False
               }
             , Cmd.none
             )
 
-        UpdateTransitionInput input ->
-            ( { model | transitionInput = input }, Cmd.none )
+        UpdateTransitionInput inputVal ->
+            ( { model | transitionInput = inputVal }, Cmd.none )
 
         ConfirmTransitionSymbol ->
             case model.editingTransition of
                 Just { from, to } ->
-                    if String.isEmpty (String.trim model.transitionInput) then
-                        ( { model
-                            | editingTransition = Nothing
-                            , transitionInput = ""
-                            , consoleMessages = { text = "Prázdny symbol nie je povolený.", msgType = Console.Error } :: model.consoleMessages
-                          }
-                        , Cmd.none
-                        )
-                    else
-                        let
-                            rawSymbols =
-                                String.split "," model.transitionInput
-                                    |> List.map String.trim
-                                    |> List.filter (not << String.isEmpty)
-                            
-                            symbols =
-                                Set.fromList rawSymbols
-                                    |> Set.toList
-                                    |> List.sort
-
-
-                            duplicates =
-                                List.filter (\sym -> transitionExists from to sym currentAutomaton.transitions) symbols
-
-                            uniqueSymbols =
-                                List.filter (\sym -> not (transitionExists from to sym currentAutomaton.transitions)) symbols
-                        in
-                        if not (List.isEmpty duplicates) then
-                             let
-                                errorMsg = "Prechod(y) už existujú: " ++ String.join ", " duplicates
-                             in
-                             ( { model
-                                | consoleMessages = { text = errorMsg, msgType = Console.Error } :: model.consoleMessages
-                               }
-                             , Cmd.none
-                             )
-                        else
+                    case model.editingTransitionOldSymbol of
+                        Just oldSymbol ->
+                            -- Edit mode: replace old transition(s) with new
                             let
-                                newTransitions =
-                                    List.foldl
-                                        (\symbol acc ->
-                                            acc ++ [ { from = from, to = to, symbol = symbol } ]
-                                        )
-                                        currentAutomaton.transitions
-                                        uniqueSymbols
-
-                                addedCount =
-                                    List.length newTransitions - List.length currentAutomaton.transitions
-
-                                message =
-                                    if addedCount == 0 then
-                                        "Všetky prechody už existujú."
-                                    else if addedCount == 1 then
-                                        "Pridaný prechod: " ++ String.join ", " uniqueSymbols
-                                    else
-                                        "Pridaných " ++ String.fromInt addedCount ++ " prechodov."
-                                
-                                newAutomaton = { currentAutomaton | transitions = newTransitions }
+                                newInput = String.trim model.transitionInput
+                                newSymbol = if String.isEmpty newInput then "ε" else newInput
+                                -- Remove old transition
+                                filteredTransitions =
+                                    List.filter (\t -> not (t.from == from && t.to == to && t.symbol == oldSymbol)) currentAutomaton.transitions
+                                -- Check duplicate
+                                isDuplicate = List.any (\t -> t.from == from && t.to == to && t.symbol == newSymbol) filteredTransitions
                             in
-                            ( { model
-                                | automaton = UndoList.new newAutomaton model.automaton
-                                , editingTransition = Nothing
-                                , transitionInput = ""
-                                , transitionFrom = Nothing
-                                , consoleMessages = { text = message, msgType = Console.Info } :: model.consoleMessages
-                              }
-                            , Cmd.none
-                            )
+                            if isDuplicate then
+                                ( { model | consoleMessages = { text = "Prechod '" ++ newSymbol ++ "' už existuje.", msgType = Console.Error } :: model.consoleMessages }
+                                , Cmd.none
+                                )
+                            else
+                                let
+                                    newTransitions = filteredTransitions ++ [ { from = from, to = to, symbol = newSymbol } ]
+                                    newAutomaton = { currentAutomaton | transitions = newTransitions }
+                                    message = "Prechod zmenený na: " ++ newSymbol
+                                in
+                                ( { model
+                                    | automaton = UndoList.new newAutomaton model.automaton
+                                    , editingTransition = Nothing
+                                    , editingTransitionOldSymbol = Nothing
+                                    , transitionInput = ""
+                                    , transitionFrom = Nothing
+                                    , consoleMessages = { text = message, msgType = Console.Info } :: model.consoleMessages
+                                  }
+                                , Cmd.none
+                                )
+
+                        Nothing ->
+                            -- Create mode: existing behavior
+                            if String.isEmpty (String.trim model.transitionInput) then
+                                if transitionExists from to "ε" currentAutomaton.transitions then
+                                    ( { model
+                                        | consoleMessages = { text = "ε-prechod už existuje.", msgType = Console.Error } :: model.consoleMessages
+                                      }
+                                    , Cmd.none
+                                    )
+
+                                else
+                                    let
+                                        newAutomaton =
+                                            { currentAutomaton | transitions = currentAutomaton.transitions ++ [ { from = from, to = to, symbol = "ε" } ] }
+                                    in
+                                    ( { model
+                                        | automaton = UndoList.new newAutomaton model.automaton
+                                        , editingTransition = Nothing
+                                        , transitionInput = ""
+                                        , transitionFrom = Nothing
+                                        , consoleMessages = { text = "Pridaný ε-prechod.", msgType = Console.Info } :: model.consoleMessages
+                                      }
+                                    , Cmd.none
+                                    )
+
+                            else
+                                let
+                                    rawSymbols =
+                                        String.split "," model.transitionInput
+                                            |> List.map String.trim
+                                            |> List.filter (not << String.isEmpty)
+
+                                    symbols =
+                                        Set.fromList rawSymbols
+                                            |> Set.toList
+                                            |> List.sort
+
+                                    duplicates =
+                                        List.filter (\sym -> transitionExists from to sym currentAutomaton.transitions) symbols
+
+                                    uniqueSymbols =
+                                        List.filter (\sym -> not (transitionExists from to sym currentAutomaton.transitions)) symbols
+                                in
+                                if not (List.isEmpty duplicates) then
+                                    let
+                                        errorMsg = "Prechod(y) už existujú: " ++ String.join ", " duplicates
+                                    in
+                                    ( { model
+                                        | consoleMessages = { text = errorMsg, msgType = Console.Error } :: model.consoleMessages
+                                       }
+                                    , Cmd.none
+                                    )
+                                else
+                                    let
+                                        newTransitions =
+                                            List.foldl
+                                                (\symbol acc ->
+                                                    acc ++ [ { from = from, to = to, symbol = symbol } ]
+                                                )
+                                                currentAutomaton.transitions
+                                                uniqueSymbols
+
+                                        addedCount =
+                                            List.length newTransitions - List.length currentAutomaton.transitions
+
+                                        message =
+                                            if addedCount == 0 then
+                                                "Všetky prechody už existujú."
+                                            else if addedCount == 1 then
+                                                "Pridaný prechod: " ++ String.join ", " uniqueSymbols
+                                            else
+                                                "Pridaných " ++ String.fromInt addedCount ++ " prechodov."
+
+                                        newAutomaton = { currentAutomaton | transitions = newTransitions }
+                                    in
+                                    ( { model
+                                        | automaton = UndoList.new newAutomaton model.automaton
+                                        , editingTransition = Nothing
+                                        , transitionInput = ""
+                                        , transitionFrom = Nothing
+                                        , consoleMessages = { text = message, msgType = Console.Info } :: model.consoleMessages
+                                      }
+                                    , Cmd.none
+                                    )
 
                 Nothing ->
                     ( model, Cmd.none )
@@ -588,6 +848,22 @@ update msg model =
             else
                 ( model, Cmd.none )
 
+        CanvasMouseDown x y ->
+            ( { model | isPanning = True, panLastX = x, panLastY = y, hasPanned = False }, Cmd.none )
+
+        ZoomIn ->
+            ( { model | zoom = min 3.0 (model.zoom * 1.2) }, Cmd.none )
+
+        ZoomOut ->
+            ( { model | zoom = max 0.2 (model.zoom / 1.2) }, Cmd.none )
+
+        Wheel deltaY ->
+            let
+                zoomFactor = if deltaY > 0 then 0.9 else 1.1
+                newZoom = model.zoom * zoomFactor |> min 3.0 |> max 0.2
+            in
+            ( { model | zoom = newZoom }, Cmd.none )
+
         NoOp ->
             ( model, Cmd.none )
 
@@ -598,17 +874,12 @@ handleStateClick stateId model =
         currentAutomaton = model.automaton.present
     in
     case model.currentTool of
-        ResetTool ->
-            ( { model | selectedState = Just stateId }
-            , Cmd.none
-            )
-
         DeleteTool ->
             let
                 state = getStateById stateId currentAutomaton.states
                 label = Maybe.map .label state |> Maybe.withDefault ""
                 message = "Odstránený stav: " ++ label
-                newAutomaton = 
+                newAutomaton =
                     { currentAutomaton
                     | states = List.filter (\s -> s.id /= stateId) currentAutomaton.states
                     , transitions = List.filter (\t -> t.from /= stateId && t.to /= stateId) currentAutomaton.transitions
@@ -621,138 +892,61 @@ handleStateClick stateId model =
             , Cmd.none
             )
 
-        AddTransitionTool ->
-            case model.transitionFrom of
-                Nothing ->
-                    ( { model
-                        | transitionFrom = Just stateId
-                        , consoleMessages = { text = "Vyberte cieľový stav pre prechod.", msgType = Console.Info } :: model.consoleMessages
-                      }
-                    , Cmd.none
-                    )
+        BuildTool ->
+            if model.isDragging then
+                ( { model | isDragging = False }, Cmd.none )
+            else
+                case model.transitionFrom of
+                    Nothing ->
+                        ( { model
+                            | transitionFrom = Just stateId
+                            , consoleMessages = { text = "Vyberte cieľový stav pre prechod.", msgType = Console.Info } :: model.consoleMessages
+                          }
+                        , Cmd.none
+                        )
 
-                Just fromId ->
-                    let
-                        fromState = getStateById fromId currentAutomaton.states
-                        toState = getStateById stateId currentAutomaton.states
-                        (inputX, inputY) =
-                            case (fromState, toState) of
-                                (Just from, Just to) ->
-                                    if fromId == stateId then
-                                        (from.x, from.y - 80)
-                                    else
-                                        ((from.x + to.x) / 2, (from.y + to.y) / 2)
-                                _ ->
-                                    (400, 300)
-                    in
-                    ( { model
-                        | editingTransition = Just { from = fromId, to = stateId, x = inputX, y = inputY }
-                        , transitionInput = ""
-                        , consoleMessages = { text = "Zadajte symbol(y) pre prechod (oddeľte čiarkou).", msgType = Console.Info } :: model.consoleMessages
-                      }
-                    , Task.attempt (\_ -> NoOp) (Browser.Dom.focus "transition-input")
-                    )
-
-        RenameTool ->
-            let
-                state = getStateById stateId currentAutomaton.states
-                label = Maybe.map .label state |> Maybe.withDefault ""
-            in
-            ( { model
-                | editingStateId = Just stateId
-                , stateLabelInput = label
-                , consoleMessages = { text = "Upravte názov stavu.", msgType = Console.Info } :: model.consoleMessages
-              }
-            , Task.attempt (\_ -> NoOp) (Browser.Dom.focus "state-input")
-            )
-
-        MoveTool ->
-            ( model, Cmd.none )
-
-        SetStartStateTool ->
-            let
-                message = "Nastavený počiatočný stav"
-                newAutomaton = { currentAutomaton | states = setStartState stateId currentAutomaton.states }
-            in
-            ( { model
-                | automaton = UndoList.new newAutomaton model.automaton
-                , consoleMessages = { text = message, msgType = Console.Info } :: model.consoleMessages
-              }
-            , Cmd.none
-            )
-
-        SetEndStateTool ->
-            let
-                state = getStateById stateId currentAutomaton.states
-                isCurrentlyEnd = Maybe.map .isEnd state |> Maybe.withDefault False
-                message = if isCurrentlyEnd then "Odstránený koncový stav" else "Nastavený koncový stav"
-                newAutomaton = { currentAutomaton | states = toggleEndState stateId currentAutomaton.states }
-            in
-            ( { model
-                | automaton = UndoList.new newAutomaton model.automaton
-                , consoleMessages = { text = message, msgType = Console.Info } :: model.consoleMessages
-              }
-            , Cmd.none
-            )
-
-        _ ->
-            ( model, Cmd.none )
+                    Just fromId ->
+                        let
+                            fromState = getStateById fromId currentAutomaton.states
+                            toState = getStateById stateId currentAutomaton.states
+                            ( inputX, inputY ) =
+                                case ( fromState, toState ) of
+                                    ( Just fs, Just ts ) ->
+                                        if fromId == stateId then
+                                            ( fs.x, fs.y - 80 )
+                                        else
+                                            ( (fs.x + ts.x) / 2, (fs.y + ts.y) / 2 )
+                                    _ ->
+                                        ( 400, 300 )
+                        in
+                        ( { model
+                            | editingTransition = Just { from = fromId, to = stateId, x = inputX, y = inputY }
+                            , editingTransitionOldSymbol = Nothing
+                            , transitionInput = ""
+                            , consoleMessages = { text = "Zadajte symbol(y) pre prechod (oddeľte čiarkou).", msgType = Console.Info } :: model.consoleMessages
+                          }
+                        , Task.attempt (\_ -> NoOp) (Browser.Dom.focus "transition-input")
+                        )
 
 
 getToolMessage : Tool -> String
 getToolMessage tool =
     case tool of
-        ResetTool ->
-            "Nástroj: Reset"
-
-        AddStateTool ->
-            "Nástroj: Pridať stav - kliknite na plátno"
-
-        AddTransitionTool ->
-            "Nástroj: Pridať prechod - kliknite na dva stavy"
+        BuildTool ->
+            "Nástroj: Stavať - dvojklik=nový stav, klik na stav=prechod, dvojklik na stav=upraviť"
 
         DeleteTool ->
-            "Nástroj: Odstrániť - kliknite na stav alebo prechod"
-
-        MoveTool ->
-            "Nástroj: Posunúť - ťahajte stavy myšou"
-
-        RenameTool ->
-            "Nástroj: Premenovať - kliknite na stav"
-
-        SetStartStateTool ->
-            "Nástroj: Nastaviť počiatočný stav"
-
-        SetEndStateTool ->
-            "Nástroj: Nastaviť koncový stav"
+            "Nástroj: Odstraniť - kliknite na stav alebo prechod"
 
 
 toolToString : Tool -> String
 toolToString tool =
     case tool of
-        ResetTool ->
-            "ResetTool"
-
-        AddStateTool ->
-            "AddStateTool"
-
-        AddTransitionTool ->
-            "AddTransitionTool"
+        BuildTool ->
+            "BuildTool"
 
         DeleteTool ->
             "DeleteTool"
-
-        MoveTool ->
-            "MoveTool"
-
-        RenameTool ->
-            "RenameTool"
-
-        SetStartStateTool ->
-            "SetStartStateTool"
-
-        SetEndStateTool ->
-            "SetEndStateTool"
 
 
 view : Model -> Html Msg
@@ -772,13 +966,8 @@ view model =
           div [ style "display" "flex", style "flex-direction" "column", style "width" "100%" ]
             [ Toolbar.view
                 { onResetTool = ResetAutomaton
-                , onAddStateTool = ChangeTool AddStateTool
-                , onAddTransitionTool = ChangeTool AddTransitionTool
+                , onBuildTool = ChangeTool BuildTool
                 , onDeleteTool = ChangeTool DeleteTool
-                , onMoveTool = ChangeTool MoveTool
-                , onRenameTool = ChangeTool RenameTool
-                , onSetStartStateTool = ChangeTool SetStartStateTool
-                , onSetEndStateTool = ChangeTool SetEndStateTool
                 , onUndo = Undo
                 , onRedo = Redo
                 , onSwitchToSimulator = SwitchToSimulator
@@ -804,6 +993,7 @@ view model =
                 [ style "flex" "1"
                 , style "overflow" "hidden"
                 , style "background-color" "#ecf0f1"
+                , style "user-select" "none"
                 ]
                 [ Canvas.view
                     { states = states
@@ -813,11 +1003,21 @@ view model =
                     , activeStateId = Nothing
                     , activeTransition = Nothing
                     , onCanvasClick = CanvasClick
+                    , onCanvasDoubleClick = CanvasDoubleClick
                     , onStateClick = StateClick
+                    , onStateDoubleClick = StateDoubleClick
                     , onTransitionClick = TransitionClick
+                    , onTransitionDoubleClick = TransitionDoubleClick
                     , onStartDrag = StartDrag
                     , onDragMove = DragMove
                     , onEndDrag = EndDrag
+                    , onCanvasMouseDown = CanvasMouseDown
+                    , onZoomIn = ZoomIn
+                    , onZoomOut = ZoomOut
+                    , onWheel = Wheel
+                    , panX = model.panX
+                    , panY = model.panY
+                    , zoom = model.zoom
                     , width = 800
                     , height = 600
                     }
@@ -837,13 +1037,11 @@ view model =
         ,
           viewInlineTransitionInput model
         ,
-          viewInlineStateInput model
+          viewStateModal model
         ,
           viewLoadModal model
         ,
           viewSaveModal model
-        ,
-          viewStorageSelectModal model
         ]
 
 
@@ -851,10 +1049,14 @@ viewInlineTransitionInput : Model -> Html Msg
 viewInlineTransitionInput model =
     case model.editingTransition of
         Just { x, y } ->
+            let
+                screenX = x * model.zoom + model.panX
+                screenY = y * model.zoom + model.panY
+            in
             div
                 [ style "position" "absolute"
-                , style "left" (String.fromFloat (x - 75) ++ "px")
-                , style "top" (String.fromFloat (y - 60) ++ "px")
+                , style "left" (String.fromFloat (screenX - 75) ++ "px")
+                , style "top" (String.fromFloat (screenY - 60) ++ "px")
                 , style "z-index" "1000"
                 , style "background-color" "white"
                 , style "border" "2px solid #3498db"
@@ -868,11 +1070,14 @@ viewInlineTransitionInput model =
                     , style "margin-bottom" "4px"
                     , style "white-space" "nowrap"
                     ]
-                    [ text "Symbol(y): a,b,c" ]
+                    [ text (case model.editingTransitionOldSymbol of
+                        Just _ -> "Upraviť symbol:"
+                        Nothing -> "Symbol(y): a,b,ε (prázdny=ε)")
+                    ]
                 , input
                     [ type_ "text"
                     , Html.Attributes.id "transition-input"
-                    , placeholder "a,b,c"
+                    , placeholder "a,b,ε"
                     , value model.transitionInput
                     , onInput UpdateTransitionInput
                     , autofocus True
@@ -890,48 +1095,116 @@ viewInlineTransitionInput model =
             div [] []
 
 
-viewInlineStateInput : Model -> Html Msg
-viewInlineStateInput model =
+viewStateModal : Model -> Html Msg
+viewStateModal model =
     case model.editingStateId of
-        Just id ->
+        Just stateId ->
             let
-                maybeState = List.filter (\s -> s.id == id) model.automaton.present.states |> List.head
+                maybeState = List.filter (\s -> s.id == stateId) model.automaton.present.states |> List.head
             in
             case maybeState of
                 Just state ->
+                    let
+                        screenX = state.x * model.zoom + model.panX
+                        screenY = state.y * model.zoom + model.panY
+                    in
                     div
                         [ style "position" "absolute"
-                        , style "left" (String.fromFloat (state.x - 75) ++ "px")
-                        , style "top" (String.fromFloat (state.y - 60) ++ "px")
+                        , style "left" (String.fromFloat (screenX - 110) ++ "px")
+                        , style "top" (String.fromFloat (screenY - 160) ++ "px")
                         , style "z-index" "1000"
                         , style "background-color" "white"
                         , style "border" "2px solid #3498db"
-                        , style "border-radius" "4px"
-                        , style "padding" "8px"
-                        , style "box-shadow" "0 2px 8px rgba(0,0,0,0.2)"
+                        , style "border-radius" "6px"
+                        , style "padding" "12px"
+                        , style "box-shadow" "0 4px 12px rgba(0,0,0,0.25)"
+                        , style "min-width" "220px"
                         ]
                         [ div
-                            [ style "font-size" "11px"
-                            , style "color" "#666"
-                            , style "margin-bottom" "4px"
-                            , style "white-space" "nowrap"
+                            [ style "font-weight" "bold"
+                            , style "font-size" "13px"
+                            , style "margin-bottom" "8px"
+                            , style "color" "#333"
                             ]
-                            [ text "Názov stavu:" ]
+                            [ text "Upraviť stav" ]
                         , input
                             [ type_ "text"
-                            , Html.Attributes.id "state-input"
-                            , placeholder "Názov"
+                            , Html.Attributes.id "state-modal-input"
+                            , placeholder "Názov stavu"
                             , value model.stateLabelInput
                             , onInput UpdateStateLabelInput
-                            , autofocus True
-                            , onEnterKey ConfirmStateLabel
-                            , style "width" "130px"
+                            , onEnterKey ConfirmStateModal
+                            , style "width" "100%"
                             , style "padding" "4px 6px"
                             , style "border" "1px solid #ccc"
                             , style "border-radius" "3px"
                             , style "font-size" "13px"
+                            , style "margin-bottom" "8px"
+                            , style "box-sizing" "border-box"
                             ]
                             []
+                        , div
+                            [ style "display" "flex"
+                            , style "align-items" "center"
+                            , style "gap" "6px"
+                            , style "margin-bottom" "6px"
+                            ]
+                            [ input
+                                [ type_ "checkbox"
+                                , Html.Attributes.id "modal-start-cb"
+                                , checked model.stateModalIsStart
+                                , onCheck SetStateModalIsStart
+                                ]
+                                []
+                            , label [ Html.Attributes.for "modal-start-cb", style "font-size" "13px", style "cursor" "pointer" ]
+                                [ text "Počiatočný stav" ]
+                            ]
+                        , div
+                            [ style "display" "flex"
+                            , style "align-items" "center"
+                            , style "gap" "6px"
+                            , style "margin-bottom" "10px"
+                            ]
+                            [ input
+                                [ type_ "checkbox"
+                                , Html.Attributes.id "modal-end-cb"
+                                , checked model.stateModalIsEnd
+                                , onCheck SetStateModalIsEnd
+                                ]
+                                []
+                            , label [ Html.Attributes.for "modal-end-cb", style "font-size" "13px", style "cursor" "pointer" ]
+                                [ text "Koncový stav" ]
+                            ]
+                        , div
+                            [ style "display" "flex"
+                            , style "gap" "8px"
+                            ]
+                            [ button
+                                [ onClick ConfirmStateModal
+                                , style "flex" "1"
+                                , style "padding" "6px"
+                                , style "background-color" "#00897b"
+                                , style "color" "white"
+                                , style "border" "none"
+                                , style "border-radius" "4px"
+                                , style "cursor" "pointer"
+                                , style "font-size" "13px"
+                                , style "font-weight" "bold"
+                                ]
+                                [ text "OK" ]
+                            , button
+                                [ onClick DismissStateModal
+                                , style "flex" "1"
+                                , style "padding" "6px"
+                                , style "background-color" "#c62828"
+                                , style "color" "white"
+                                , style "border" "none"
+                                , style "border-radius" "4px"
+                                , style "cursor" "pointer"
+                                , style "font-size" "13px"
+                                ]
+                                [ text "Zrušiť" ]
+                            ]
                         ]
                 Nothing ->
                     div [] []
@@ -960,49 +1233,66 @@ viewLoadModal model =
                 , style "border-radius" "8px"
                 , style "display" "flex"
                 , style "flex-direction" "column"
-                , style "gap" "12px"
-                , style "min-width" "220px"
+                , style "gap" "10px"
+                , style "min-width" "280px"
+                , style "max-height" "70vh"
+                , style "overflow-y" "auto"
                 ]
-                [ div
-                    [ style "font-weight" "bold"
-                    , style "font-size" "16px"
-                    , style "margin-bottom" "4px"
-                    ]
+                ([ div [ style "font-weight" "bold", style "font-size" "16px", style "margin-bottom" "4px" ]
                     [ text "Načítať automat" ]
-                , button
-                    [ onClick LoadFromStorage
-                    , style "padding" "10px"
-                    , style "background-color" "#546e7a"
-                    , style "color" "white"
-                    , style "border" "none"
-                    , style "border-radius" "5px"
-                    , style "cursor" "pointer"
-                    , style "font-size" "14px"
-                    ]
-                    [ text "Z prehliadača" ]
-                , button
-                    [ onClick ImportJsonRequested
-                    , style "padding" "10px"
-                    , style "background-color" "#546e7a"
-                    , style "color" "white"
-                    , style "border" "none"
-                    , style "border-radius" "5px"
-                    , style "cursor" "pointer"
-                    , style "font-size" "14px"
-                    ]
-                    [ text "Zo súboru (.json)" ]
-                , button
-                    [ onClick DismissLoadModal
-                    , style "padding" "8px"
-                    , style "background-color" "#b0bec5"
-                    , style "color" "white"
-                    , style "border" "none"
-                    , style "border-radius" "5px"
-                    , style "cursor" "pointer"
-                    , style "font-size" "13px"
-                    ]
-                    [ text "Zrušiť" ]
                 ]
+                ++ List.map
+                    (\entry ->
+                        div
+                            [ style "display" "flex"
+                            , style "align-items" "center"
+                            , style "justify-content" "space-between"
+                            , style "gap" "8px"
+                            , style "padding" "8px 0"
+                            ]
+                            [ div [ style "font-size" "14px", style "flex" "1" ] [ text entry.name ]
+                            , button
+                                [ onClick (SelectStoredAutomaton entry.name)
+                                , Html.Attributes.class "elm-btn"
+                                , style "padding" "6px 14px"
+                                , style "background-color" "#546e7a"
+                                , style "color" "white"
+                                , style "border" "none"
+                                , style "border-radius" "5px"
+                                , style "cursor" "pointer"
+                                , style "font-size" "13px"
+                                ]
+                                [ text "Načítať" ]
+                            ]
+                    )
+                    model.storedAutomata
+                ++ [ button
+                        [ onClick ImportJsonRequested
+                        , Html.Attributes.class "elm-btn"
+                        , style "padding" "10px"
+                        , style "background-color" "#546e7a"
+                        , style "color" "white"
+                        , style "border" "none"
+                        , style "border-radius" "5px"
+                        , style "cursor" "pointer"
+                        , style "font-size" "14px"
+                        , style "margin-top" "8px"
+                        ]
+                        [ text "Načítať zo súboru .json" ]
+                   , button
+                        [ onClick DismissLoadModal
+                        , Html.Attributes.class "elm-btn"
+                        , style "padding" "8px"
+                        , style "background-color" "#c62828"
+                        , style "color" "white"
+                        , style "border" "none"
+                        , style "border-radius" "5px"
+                        , style "cursor" "pointer"
+                        , style "font-size" "13px"
+                        ]
+                        [ text "Zrušiť" ]
+                   ]
+                )
             ]
     else
         div [] []
@@ -1049,6 +1339,7 @@ viewSaveModal model =
                     []
                 , button
                     [ onClick ConfirmSave
+                    , Html.Attributes.class "elm-btn"
                     , style "padding" "10px"
                     , style "background-color" "#546e7a"
                     , style "color" "white"
@@ -1060,8 +1351,9 @@ viewSaveModal model =
                     [ text "Uložiť" ]
                 , button
                     [ onClick DismissSaveModal
+                    , Html.Attributes.class "elm-btn"
                     , style "padding" "8px"
-                    , style "background-color" "#b0bec5"
+                    , style "background-color" "#c62828"
                     , style "color" "white"
                     , style "border" "none"
                     , style "border-radius" "5px"
@@ -1075,78 +1367,3 @@ viewSaveModal model =
         div [] []
 
 
-viewStorageSelectModal : Model -> Html Msg
-viewStorageSelectModal model =
-    if model.showStorageSelectModal then
-        div
-            [ style "position" "fixed"
-            , style "top" "0"
-            , style "left" "0"
-            , style "width" "100%"
-            , style "height" "100%"
-            , style "background-color" "rgba(0,0,0,0.5)"
-            , style "z-index" "2000"
-            , style "display" "flex"
-            , style "align-items" "center"
-            , style "justify-content" "center"
-            ]
-            [ div
-                [ style "background" "white"
-                , style "padding" "24px"
-                , style "border-radius" "8px"
-                , style "display" "flex"
-                , style "flex-direction" "column"
-                , style "gap" "10px"
-                , style "min-width" "280px"
-                , style "max-height" "70vh"
-                , style "overflow-y" "auto"
-                ]
-                ([ div [ style "font-weight" "bold", style "font-size" "16px", style "margin-bottom" "4px" ]
-                    [ text "Uložené automaty" ]
-                ]
-                ++ (if List.isEmpty model.storedAutomata then
-                        [ div [ style "color" "#888", style "font-size" "14px" ]
-                            [ text "Žiadne uložené automaty." ]
-                        ]
-                    else
-                        List.map
-                            (\entry ->
-                                div
-                                    [ style "display" "flex"
-                                    , style "align-items" "center"
-                                    , style "justify-content" "space-between"
-                                    , style "gap" "8px"
-                                    ]
-                                    [ div [ style "font-size" "14px", style "flex" "1" ] [ text entry.name ]
-                                    , button
-                                        [ onClick (SelectStoredAutomaton entry.name)
-                                        , style "padding" "6px 14px"
-                                        , style "background-color" "#546e7a"
-                                        , style "color" "white"
-                                        , style "border" "none"
-                                        , style "border-radius" "5px"
-                                        , style "cursor" "pointer"
-                                        , style "font-size" "13px"
-                                        ]
-                                        [ text "Načítať" ]
-                                    ]
-                            )
-                            model.storedAutomata
-                   )
-                ++ [ button
-                        [ onClick DismissStorageSelectModal
-                        , style "padding" "8px"
-                        , style "background-color" "#b0bec5"
-                        , style "color" "white"
-                        , style "border" "none"
-                        , style "border-radius" "5px"
-                        , style "cursor" "pointer"
-                        , style "font-size" "13px"
-                        , style "margin-top" "4px"
-                        ]
-                        [ text "Zrušiť" ]
-                   ]
-                )
-            ]
-    else
-        div [] []

@@ -78,7 +78,13 @@ update msg model =
                     )
 
                 Editor.ShareUrl ->
-                    ( model, setUrlHash (Utils.AutomatonCodec.encode model.editorModel.automaton.present) )
+                    let
+                        ( newEditorModel, editorCmd ) =
+                            Editor.update editorMsg model.editorModel
+                    in
+                    ( { model | editorModel = newEditorModel }
+                    , Cmd.batch [ Cmd.map EditorMsg editorCmd, setUrlHash (Utils.AutomatonCodec.encode model.editorModel.automaton.present) ]
+                    )
 
                 Editor.ConfirmSave ->
                     let
@@ -97,6 +103,15 @@ update msg model =
                             , saveNamedAutomaton { name = name, data = Utils.AutomatonCodec.encode model.editorModel.automaton.present }
                             ]
                         )
+
+                Editor.LoadRequested ->
+                    let
+                        ( newEditorModel, editorCmd ) =
+                            Editor.update editorMsg model.editorModel
+                    in
+                    ( { model | editorModel = newEditorModel }
+                    , Cmd.batch [ Cmd.map EditorMsg editorCmd, requestStoredAutomata () ]
+                    )
 
                 Editor.LoadFromStorage ->
                     let
@@ -117,9 +132,16 @@ update msg model =
                     )
 
         SimulatorMsg simulatorMsg ->
+            let
+                sim =
+                    model.simulatorModel
+            in
             case simulatorMsg of
                 Simulator.SwitchToEditor ->
-                    ( { model | currentPage = EditorPage }
+                    ( { model
+                        | currentPage = EditorPage
+                        , simulatorModel = { sim | autoRunning = False }
+                      }
                     , Cmd.none
                     )
 
@@ -148,7 +170,7 @@ subscriptions model =
                 ]
 
         SimulatorPage ->
-            Sub.none
+            Sub.map SimulatorMsg (Simulator.subscriptions model.simulatorModel)
 
 
 keyDecoder : Model -> Decode.Decoder Msg
@@ -156,14 +178,12 @@ keyDecoder model =
     Decode.map3 (\key ctrl shift ->
         if ctrl && (key == "z" || key == "Z") then EditorMsg Editor.Undo
         else if ctrl && (key == "y" || key == "Y") then EditorMsg Editor.Redo
-        else if shift && (key == "s" || key == "S") then EditorMsg (Editor.ChangeTool Editor.AddStateTool)
+        else if shift && (key == "b" || key == "B") then EditorMsg (Editor.ChangeTool Editor.BuildTool)
         else if shift && (key == "d" || key == "D") then EditorMsg (Editor.ChangeTool Editor.DeleteTool)
-        else if shift && (key == "e" || key == "E") then EditorMsg (Editor.ChangeTool Editor.AddTransitionTool)
-        else if shift && (key == "r" || key == "R") then EditorMsg (Editor.ChangeTool Editor.RenameTool)
-        else if shift && (key == "a" || key == "A") then EditorMsg (Editor.ChangeTool Editor.MoveTool)
-        else if shift && (key == "f" || key == "F") then EditorMsg (Editor.ChangeTool Editor.SetEndStateTool)
-        else if shift && (key == "q" || key == "Q") then EditorMsg (Editor.ChangeTool Editor.SetStartStateTool)
-        else if key == "Escape" then EditorMsg Editor.CancelAction
+        else if key == "Escape" then
+            if model.editorModel.showSaveModal then EditorMsg Editor.DismissSaveModal
+            else if model.editorModel.showLoadModal then EditorMsg Editor.DismissLoadModal
+            else EditorMsg Editor.CancelAction
         else EditorMsg Editor.NoOp
     )
     (Decode.field "key" Decode.string)

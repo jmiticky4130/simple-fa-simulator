@@ -1,4 +1,4 @@
-module Utils.AutomatonHelpers exposing 
+module Utils.AutomatonHelpers exposing
     ( getStateById
     , getStateLabel
     , transitionExists
@@ -9,6 +9,7 @@ module Utils.AutomatonHelpers exposing
     , updateTransitionSymbol
     , isDFA
     , calculateArrowHead
+    , epsilonClosure
     )
 
 import Shared exposing (State, Transition)
@@ -38,6 +39,8 @@ calculateArrowHead tipX tipY ux uy =
 isDFA : List State -> List Transition -> Bool
 isDFA states transitions =
     let
+        hasEpsilon =
+            List.any (\t -> t.symbol == "ε") transitions
 
         key t = String.fromInt t.from ++ "|" ++ t.symbol
 
@@ -53,7 +56,37 @@ isDFA states transitions =
                     else
                         checkDuplicates rest (k :: seenKeys)
     in
-    not (checkDuplicates transitions [])
+    not hasEpsilon && not (checkDuplicates transitions [])
+
+
+epsilonClosure : List Transition -> Int -> List Int
+epsilonClosure transitions stateId =
+    let
+        go toVisit visited =
+            case toVisit of
+                [] ->
+                    visited
+
+                current :: rest ->
+                    if List.member current visited then
+                        go rest visited
+
+                    else
+                        let
+                            epsTargets =
+                                List.filterMap
+                                    (\t ->
+                                        if t.from == current && t.symbol == "ε" then
+                                            Just t.to
+
+                                        else
+                                            Nothing
+                                    )
+                                    transitions
+                        in
+                        go (rest ++ epsTargets) (current :: visited)
+    in
+    go [ stateId ] []
 
 
 getStateById : Int -> List State -> Maybe State

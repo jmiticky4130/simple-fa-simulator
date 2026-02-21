@@ -1,8 +1,9 @@
-module Pages.Simulator exposing (Model, Msg(..), init, update, view)
+module Pages.Simulator exposing (Model, Msg(..), init, update, view, subscriptions)
 
 import Html exposing (Html, div, text, input, span)
 import Html.Attributes exposing (style, placeholder, value, disabled, type_)
 import Html.Events exposing (onClick, onInput)
+import Time
 import Shared exposing (AutomatonState, State, Transition, NfaInstance, NfaTreeNode)
 import Components.Canvas as Canvas
 import Components.Console as Console
@@ -17,11 +18,6 @@ import Json.Encode
 type SimulationMode
     = DfaMode
     | NfaMode
-
-
-type ViewMode
-    = CanvasView
-    | TreeView
 
 
 type alias Model =
@@ -43,8 +39,17 @@ type alias Model =
     -- shared
     , inputString : String
     , consoleMessages : List Console.Message
-    , viewMode : ViewMode
+    , showCanvas : Bool
+    , showTree : Bool
     , mergeEnabled : Bool
+    , autoRunning : Bool
+    , autoSpeed : Float
+    , panX : Float
+    , panY : Float
+    , zoom : Float
+    , isPanning : Bool
+    , panLastX : Float
+    , panLastY : Float
     }
 
 
@@ -58,24 +63,11 @@ init automaton =
             else
                 NfaMode
 
+        nfaState =
+            initNfaState automaton ""
+
         startState =
             List.filter .isStart automaton.states |> List.head |> Maybe.map .id
-
-        initInstance =
-            { id = 0
-            , currentStateId = startState
-            , remainingInput = ""
-            , verdict = Nothing
-            , parentId = Nothing
-            , symbolTaken = Nothing
-            }
-
-        initNode =
-            { id = 0
-            , stateId = startState
-            , parentId = Nothing
-            , symbol = Nothing
-            }
     in
     { automaton = automaton
     , mode = mode
@@ -86,14 +78,23 @@ init automaton =
     , consoleMessages = [ { text = "Simulátor pripravený. Zadajte vstupné slovo.", msgType = Console.Info } ]
     , activeTransition = Nothing
     , verdict = Nothing
-    , nfaInstances = [ initInstance ]
+    , nfaInstances = nfaState.instances
     , nfaHistory = []
-    , nfaTree = [ initNode ]
+    , nfaTree = nfaState.tree
     , nfaMergedEdges = []
     , selectedInstanceId = Nothing
-    , nextInstanceId = 1
-    , viewMode = CanvasView
+    , nextInstanceId = nfaState.nextInstanceId
+    , showCanvas = True
+    , showTree = False
     , mergeEnabled = False
+    , autoRunning = False
+    , autoSpeed = 1000
+    , panX = 0
+    , panY = 0
+    , zoom = 1.0
+    , isPanning = False
+    , panLastX = 0
+    , panLastY = 0
     }
 
 
@@ -104,14 +105,22 @@ type Msg
     | SwitchToEditor
     | SetInput String
     | SelectNfaInstance Int
-    | SetViewMode ViewMode
+    | ToggleCanvas
+    | ToggleTree
     | ToggleMerge
+    | ToggleAutoRun
+    | SetAutoSpeed String
+    | AutoStep Time.Posix
     | CanvasClick Float Float
     | StateClick Int
     | TransitionClick Int Int String
     | StartDrag Int Float Float
     | DragMove Float Float
     | EndDrag
+    | CanvasMouseDown Float Float
+    | ZoomIn
+    | ZoomOut
+    | Wheel Float
 
 
 update : Msg -> Model -> Model
@@ -122,21 +131,8 @@ update msg model =
                 startState =
                     List.filter .isStart model.automaton.states |> List.head |> Maybe.map .id
 
-                initInstance =
-                    { id = 0
-                    , currentStateId = startState
-                    , remainingInput = str
-                    , verdict = Nothing
-                    , parentId = Nothing
-                    , symbolTaken = Nothing
-                    }
-
-                initNode =
-                    { id = 0
-                    , stateId = startState
-                    , parentId = Nothing
-                    , symbol = Nothing
-                    }
+                nfaState =
+                    initNfaState model.automaton str
             in
             { model
                 | inputString = str
@@ -145,12 +141,12 @@ update msg model =
                 , history = []
                 , activeTransition = Nothing
                 , verdict = Nothing
-                , nfaInstances = [ initInstance ]
+                , nfaInstances = nfaState.instances
                 , nfaHistory = []
-                , nfaTree = [ initNode ]
+                , nfaTree = nfaState.tree
                 , nfaMergedEdges = []
                 , selectedInstanceId = Nothing
-                , nextInstanceId = 1
+                , nextInstanceId = nfaState.nextInstanceId
                 , consoleMessages = [ { text = "Vstup nastavený: " ++ str, msgType = Console.Info } ]
             }
 
@@ -175,7 +171,7 @@ update msg model =
                 fresh =
                     init model.automaton
             in
-            { fresh | mergeEnabled = model.mergeEnabled, viewMode = model.viewMode }
+            { fresh | mergeEnabled = model.mergeEnabled, showCanvas = model.showCanvas, showTree = model.showTree, autoSpeed = model.autoSpeed, panX = model.panX, panY = model.panY, zoom = model.zoom }
 
         SwitchToEditor ->
             model
@@ -183,14 +179,82 @@ update msg model =
         SelectNfaInstance id ->
             { model | selectedInstanceId = Just id }
 
-        SetViewMode mode ->
-            { model | viewMode = mode }
+        ToggleCanvas ->
+            { model | showCanvas = not model.showCanvas }
+
+        ToggleTree ->
+            { model | showTree = not model.showTree }
 
         ToggleMerge ->
             { model | mergeEnabled = not model.mergeEnabled }
 
+        ToggleAutoRun ->
+            { model | autoRunning = not model.autoRunning }
+
+        SetAutoSpeed str ->
+            case String.toFloat str of
+                Just ms ->
+                    { model | autoSpeed = ms }
+
+                Nothing ->
+                    model
+
+        AutoStep _ ->
+            if canStepForward model then
+                case model.mode of
+                    DfaMode ->
+                        stepForwardDfa model
+
+                    NfaMode ->
+                        stepForwardNfa model
+
+            else
+                { model | autoRunning = False }
+
+        CanvasMouseDown x y ->
+            { model | isPanning = True, panLastX = x, panLastY = y }
+
+        DragMove x y ->
+            if model.isPanning then
+                { model
+                    | panX = model.panX + (x - model.panLastX)
+                    , panY = model.panY + (y - model.panLastY)
+                    , panLastX = x
+                    , panLastY = y
+                }
+            else
+                model
+
+        EndDrag ->
+            { model | isPanning = False }
+
+        StartDrag _ _ _ ->
+            { model | isPanning = False }
+
+        ZoomIn ->
+            { model | zoom = min 3.0 (model.zoom * 1.2) }
+
+        ZoomOut ->
+            { model | zoom = max 0.2 (model.zoom / 1.2) }
+
+        Wheel deltaY ->
+            let
+                zoomFactor = if deltaY > 0 then 0.9 else 1.1
+                newZoom = model.zoom * zoomFactor |> min 3.0 |> max 0.2
+            in
+            { model | zoom = newZoom }
+
         _ ->
             model
+
+
+subscriptions : Model -> Sub Msg
+subscriptions model =
+    if model.autoRunning then
+        Time.every model.autoSpeed AutoStep
+
+    else
+        Sub.none
 
 
 stepForwardDfa : Model -> Model
@@ -289,6 +353,113 @@ stepBackwardDfa model =
             model
 
 
+expandEpsChain :
+    AutomatonState
+    -> String
+    -> List Int
+    -> NfaInstance
+    -> { instances : List NfaInstance, nodes : List NfaTreeNode, nextId : Int }
+    -> { instances : List NfaInstance, nodes : List NfaTreeNode, nextId : Int }
+expandEpsChain automaton remaining visited source acc =
+    let
+        sid =
+            Maybe.withDefault -1 source.currentStateId
+
+        directEps =
+            List.filter
+                (\t -> t.from == sid && t.symbol == "ε" && not (List.member t.to visited))
+                automaton.transitions
+    in
+    List.foldl
+        (\t innerAcc ->
+            let
+                childIsEnd =
+                    getStateById t.to automaton.states
+                        |> Maybe.map .isEnd
+                        |> Maybe.withDefault False
+
+                childVerdict =
+                    if String.isEmpty remaining then
+                        if childIsEnd then
+                            Just { text = "Akceptované", isAccepted = True }
+
+                        else
+                            Just { text = "Zamietnuté", isAccepted = False }
+
+                    else
+                        Nothing
+
+                childInstance =
+                    { id = innerAcc.nextId
+                    , currentStateId = Just t.to
+                    , remainingInput = remaining
+                    , verdict = childVerdict
+                    , parentId = Just source.id
+                    , symbolTaken = Just "ε"
+                    }
+
+                childNode =
+                    { id = innerAcc.nextId
+                    , stateId = Just t.to
+                    , parentId = Just source.id
+                    , symbol = Just "ε"
+                    }
+
+                newAcc =
+                    { innerAcc
+                        | instances = childInstance :: innerAcc.instances
+                        , nodes = childNode :: innerAcc.nodes
+                        , nextId = innerAcc.nextId + 1
+                    }
+            in
+            expandEpsChain automaton remaining (t.to :: visited) childInstance newAcc
+        )
+        acc
+        directEps
+
+
+initNfaState :
+    AutomatonState
+    -> String
+    -> { instances : List NfaInstance, tree : List NfaTreeNode, nextInstanceId : Int }
+initNfaState automaton inputStr =
+    let
+        startState =
+            List.filter .isStart automaton.states |> List.head |> Maybe.map .id
+
+        rootInstance =
+            { id = 0
+            , currentStateId = startState
+            , remainingInput = inputStr
+            , verdict = Nothing
+            , parentId = Nothing
+            , symbolTaken = Nothing
+            }
+
+        rootNode =
+            { id = 0
+            , stateId = startState
+            , parentId = Nothing
+            , symbol = Nothing
+            }
+
+        initAcc =
+            { instances = [ rootInstance ], nodes = [ rootNode ], nextId = 1 }
+
+        expanded =
+            case startState of
+                Nothing ->
+                    initAcc
+
+                Just sid ->
+                    expandEpsChain automaton inputStr [ sid ] rootInstance initAcc
+    in
+    { instances = List.reverse expanded.instances
+    , tree = List.reverse expanded.nodes
+    , nextInstanceId = expanded.nextId
+    }
+
+
 processInstance :
     AutomatonState
     -> NfaInstance
@@ -340,7 +511,7 @@ processInstance automaton instance acc =
 
                 _ ->
                     List.foldl
-                        (\t innerAcc ->
+                        (\t outerAcc ->
                             let
                                 childIsEnd =
                                     getStateById t.to automaton.states
@@ -359,7 +530,7 @@ processInstance automaton instance acc =
                                         Nothing
 
                                 childInstance =
-                                    { id = innerAcc.nextId
+                                    { id = outerAcc.nextId
                                     , currentStateId = Just t.to
                                     , remainingInput = rest
                                     , verdict = childVerdict
@@ -368,17 +539,20 @@ processInstance automaton instance acc =
                                     }
 
                                 childNode =
-                                    { id = innerAcc.nextId
+                                    { id = outerAcc.nextId
                                     , stateId = Just t.to
                                     , parentId = Just instance.id
                                     , symbol = Just symbol
                                     }
+
+                                newAcc =
+                                    { outerAcc
+                                        | instances = childInstance :: outerAcc.instances
+                                        , nodes = childNode :: outerAcc.nodes
+                                        , nextId = outerAcc.nextId + 1
+                                    }
                             in
-                            { innerAcc
-                                | instances = childInstance :: innerAcc.instances
-                                , nodes = childNode :: innerAcc.nodes
-                                , nextId = innerAcc.nextId + 1
-                            }
+                            expandEpsChain automaton rest [ t.to ] childInstance newAcc
                         )
                         acc
                         matchingTransitions
@@ -651,8 +825,8 @@ viewReadingHead fullInput remaining =
             ]
 
 
-viewTab : String -> Bool -> Msg -> Html Msg
-viewTab label isActive msg =
+viewToggleTab : String -> Bool -> Msg -> Html Msg
+viewToggleTab label isActive msg =
     Html.button
         [ onClick msg
         , style "padding" "7px 18px"
@@ -740,6 +914,10 @@ view model =
             , canStepBackward = canStepBackward model
             , canStepForward = canStepForward model
             , nextSymbol = nextSymbol
+            , onToggleAutoRun = ToggleAutoRun
+            , autoRunning = model.autoRunning
+            , autoSpeed = model.autoSpeed
+            , onSetAutoSpeed = SetAutoSpeed
             }
         , div
             [ style "display" "flex"
@@ -760,40 +938,68 @@ view model =
                         , style "background-color" "#455a64"
                         , style "flex-shrink" "0"
                         ]
-                        [ viewTab "Automat" (model.viewMode == CanvasView) (SetViewMode CanvasView)
-                        , viewTab "Strom" (model.viewMode == TreeView) (SetViewMode TreeView)
+                        [ viewToggleTab "Automat" model.showCanvas ToggleCanvas
+                        , viewToggleTab "Strom" model.showTree ToggleTree
                         ]
 
                   else
                     div [] []
-                , -- Canvas or tree
-                  if model.mode == NfaMode && model.viewMode == TreeView then
-                    NfaTreeView.view
-                        { treeNodes = model.nfaTree
-                        , instances = model.nfaInstances
-                        , states = model.automaton.states
-                        , selectedId = model.selectedInstanceId
-                        , onSelect = SelectNfaInstance
-                        , mergedEdges = model.nfaMergedEdges
-                        }
+                , -- Canvas and/or tree (side by side)
+                  div
+                    [ style "flex" "1"
+                    , style "display" "flex"
+                    , style "flex-direction" "row"
+                    , style "overflow" "hidden"
+                    ]
+                    [ if model.mode == DfaMode || model.showCanvas then
+                        div
+                            [ style "flex" "1"
+                            , style "overflow" "auto"
+                            , style "background-color" "#ecf0f1"
+                            ]
+                            [ Canvas.view
+                                { states = model.automaton.states
+                                , transitions = model.automaton.transitions
+                                , selectedState = Nothing
+                                , transitionFrom = Nothing
+                                , activeStateId = activeStateId
+                                , activeTransition = model.activeTransition
+                                , onCanvasClick = CanvasClick
+                                , onCanvasDoubleClick = \_ _ -> CanvasClick 0 0
+                                , onStateClick = StateClick
+                                , onStateDoubleClick = \_ -> CanvasClick 0 0
+                                , onTransitionClick = TransitionClick
+                                , onTransitionDoubleClick = \_ _ _ -> CanvasClick 0 0
+                                , onStartDrag = StartDrag
+                                , onDragMove = DragMove
+                                , onEndDrag = EndDrag
+                                , onCanvasMouseDown = CanvasMouseDown
+                                , onZoomIn = ZoomIn
+                                , onZoomOut = ZoomOut
+                                , onWheel = Wheel
+                                , panX = model.panX
+                                , panY = model.panY
+                                , zoom = model.zoom
+                                , width = 800
+                                , height = 600
+                                }
+                            ]
 
-                  else
-                    Canvas.view
-                        { states = model.automaton.states
-                        , transitions = model.automaton.transitions
-                        , selectedState = Nothing
-                        , transitionFrom = Nothing
-                        , activeStateId = activeStateId
-                        , activeTransition = model.activeTransition
-                        , onCanvasClick = CanvasClick
-                        , onStateClick = StateClick
-                        , onTransitionClick = TransitionClick
-                        , onStartDrag = StartDrag
-                        , onDragMove = DragMove
-                        , onEndDrag = EndDrag
-                        , width = 800
-                        , height = 600
-                        }
+                      else
+                        div [] []
+                    , if model.mode == NfaMode && model.showTree then
+                        NfaTreeView.view
+                            { treeNodes = model.nfaTree
+                            , instances = model.nfaInstances
+                            , states = model.automaton.states
+                            , selectedId = model.selectedInstanceId
+                            , onSelect = SelectNfaInstance
+                            , mergedEdges = model.nfaMergedEdges
+                            }
+
+                      else
+                        div [] []
+                    ]
                 ]
             , div
                 [ style "width" "300px"

@@ -12,12 +12,12 @@
             "elm/html": "1.0.1",
             "elm/json": "1.1.4",
             "elm/svg": "1.0.1",
+            "elm/time": "1.0.0",
             "elm-community/undo-redo": "3.0.0"
         },
         "indirect": {
             "avh4/elm-color": "1.0.0",
             "elm/bytes": "1.0.8",
-            "elm/time": "1.0.0",
             "elm/url": "1.0.0",
             "elm/virtual-dom": "1.0.5",
             "mpizenberg/elm-pointer-events": "5.0.0"

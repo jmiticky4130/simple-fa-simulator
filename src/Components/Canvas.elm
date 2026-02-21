@@ -1,9 +1,9 @@
 module Components.Canvas exposing (view)
 
-import Html exposing (Html, div, span)
+import Html exposing (Html, div, span, button, text)
 import Utils.AutomatonHelpers exposing (calculateArrowHead)
 import Html.Attributes exposing (style)
-import Html.Events exposing (custom)
+import Html.Events exposing (custom, onClick)
 import Json.Decode as Decode
 import Svg exposing (Svg)
 import Svg.Attributes as SA
@@ -19,11 +19,21 @@ type alias Config msg =
     , activeStateId : Maybe Int
     , activeTransition : Maybe { from : Int, to : Int, symbol : String }
     , onCanvasClick : Float -> Float -> msg
+    , onCanvasDoubleClick : Float -> Float -> msg
     , onStateClick : Int -> msg
+    , onStateDoubleClick : Int -> msg
     , onTransitionClick : Int -> Int -> String -> msg
+    , onTransitionDoubleClick : Int -> Int -> String -> msg
     , onStartDrag : Int -> Float -> Float -> msg
     , onDragMove : Float -> Float -> msg
     , onEndDrag : msg
+    , onCanvasMouseDown : Float -> Float -> msg
+    , onZoomIn : msg
+    , onZoomOut : msg
+    , onWheel : Float -> msg
+    , panX : Float
+    , panY : Float
+    , zoom : Float
     , width : Float
     , height : Float
     }
@@ -31,17 +41,76 @@ type alias Config msg =
 
 view : Config msg -> Html msg
 view config =
-    Svg.svg
-        [ SA.width "100%"
-        , SA.height "100%"
-        , SE.on "click" (Decode.map2 config.onCanvasClick offsetX offsetY)
-        , SE.on "mousemove" (Decode.map2 config.onDragMove offsetX offsetY)
-        , SE.on "mouseup" (Decode.succeed config.onEndDrag)
+    div
+        [ style "position" "relative"
+        , style "width" "100%"
+        , style "height" "100%"
+        , style "overflow" "hidden"
         ]
-        (
-            List.map (viewGroupedTransition config) (groupTransitions config.transitions)
-                ++ List.map (svgState config) config.states
-        )
+        [ Svg.svg
+            [ SA.width "100%"
+            , SA.height "100%"
+            , SE.on "click" (Decode.map2 config.onCanvasClick offsetX offsetY)
+            , SE.on "dblclick" (Decode.map2 config.onCanvasDoubleClick offsetX offsetY)
+            , SE.on "mousemove" (Decode.map2 config.onDragMove offsetX offsetY)
+            , SE.on "mouseup" (Decode.succeed config.onEndDrag)
+            , SE.on "mouseleave" (Decode.succeed config.onEndDrag)
+            , SE.on "mousedown" (Decode.map2 config.onCanvasMouseDown offsetX offsetY)
+            , SE.on "wheel" (Decode.map config.onWheel wheelDeltaY)
+            ]
+            [ Svg.g
+                [ SA.transform
+                    ( "translate("
+                    ++ String.fromFloat config.panX
+                    ++ ","
+                    ++ String.fromFloat config.panY
+                    ++ ") scale("
+                    ++ String.fromFloat config.zoom
+                    ++ ")"
+                    )
+                ]
+                ( List.map (viewGroupedTransition config) (groupTransitions config.transitions)
+                    ++ List.map (svgState config) config.states
+                )
+            ]
+        , div
+            [ style "position" "absolute"
+            , style "bottom" "16px"
+            , style "right" "16px"
+            , style "display" "flex"
+            , style "flex-direction" "column"
+            , style "gap" "4px"
+            ]
+            [ button
+                [ onClick config.onZoomIn
+                , style "width" "32px"
+                , style "height" "32px"
+                , style "font-size" "18px"
+                , style "font-weight" "bold"
+                , style "background-color" "#546e7a"
+                , style "color" "white"
+                , style "border" "none"
+                , style "border-radius" "4px"
+                , style "cursor" "pointer"
+                , style "line-height" "1"
+                ]
+                [ text "+" ]
+            , button
+                [ onClick config.onZoomOut
+                , style "width" "32px"
+                , style "height" "32px"
+                , style "font-size" "18px"
+                , style "font-weight" "bold"
+                , style "background-color" "#546e7a"
+                , style "color" "white"
+                , style "border" "none"
+                , style "border-radius" "4px"
+                , style "cursor" "pointer"
+                , style "line-height" "1"
+                ]
+                [ text "−" ]
+            ]
+        ]
 
 
 offsetX : Decode.Decoder Float
@@ -52,6 +121,11 @@ offsetX =
 offsetY : Decode.Decoder Float
 offsetY =
     Decode.field "offsetY" Decode.float
+
+
+wheelDeltaY : Decode.Decoder Float
+wheelDeltaY =
+    Decode.field "deltaY" Decode.float
 
 
 svgState : Config msg -> State -> Svg msg
@@ -82,7 +156,7 @@ svgState config state =
             else if isActive then
                 "#1b5e20"
             else
-                "#455a64" 
+                "#455a64"
 
         borderWidth = 2
 
@@ -96,8 +170,24 @@ svgState config state =
                 , preventDefault = False
                 }
             )
-        , SE.on "mousedown"
-            (Decode.map2 (\x y -> config.onStartDrag state.id x y) offsetX offsetY)
+        , SE.custom "dblclick"
+            (Decode.succeed
+                { message = config.onStateDoubleClick state.id
+                , stopPropagation = True
+                , preventDefault = False
+                }
+            )
+        , SE.custom "mousedown"
+            (Decode.map2
+                (\x y ->
+                    { message = config.onStartDrag state.id x y
+                    , stopPropagation = True
+                    , preventDefault = False
+                    }
+                )
+                offsetX
+                offsetY
+            )
         ]
         ([ Svg.circle
             [ SA.cx (String.fromFloat state.x)
@@ -195,7 +285,7 @@ viewGroupedTransition config grouped =
         maybeToState =
             List.filter (\s -> s.id == grouped.to) config.states
                 |> List.head
-        
+
         combinedSymbol = String.join ", " grouped.symbols
 
         hasReverseTransition =
@@ -227,18 +317,18 @@ svgSelfLoop config state symbols isActive =
         r = 35
         startAngle = degrees -150
         endAngle = degrees -30
-        
+
         sx = state.x + r * cos startAngle
         sy = state.y + r * sin startAngle
-        
+
         ex = state.x + r * cos endAngle
         ey = state.y + r * sin endAngle
-        
+
         loopHeight = 55
-        
+
         c1x = sx
         c1y = sy - loopHeight
-        
+
         c2x = ex
         c2y = ey - loopHeight
 
@@ -271,14 +361,28 @@ svgSelfLoop config state symbols isActive =
                         [ SA.x (String.fromFloat (startX + toFloat i * toFloat spacing))
                         , SA.y (String.fromFloat labelY)
                         , SA.textAnchor "middle"
-                        , SA.fontSize "12"
-                        , SA.fill "blue"
-                        , SE.on "click" (Decode.succeed (config.onTransitionClick state.id state.id sym))
+                        , SA.fontSize "16"
+                        , SA.fill "black"
+                        , SA.fontWeight "bold"
+                        , SE.custom "click"
+                            (Decode.succeed
+                                { message = config.onTransitionClick state.id state.id sym
+                                , stopPropagation = True
+                                , preventDefault = False
+                                }
+                            )
+                        , SE.custom "dblclick"
+                            (Decode.succeed
+                                { message = config.onTransitionDoubleClick state.id state.id sym
+                                , stopPropagation = True
+                                , preventDefault = False
+                                }
+                            )
                         ]
                         [ Svg.text sym ]
                 )
                 symbols
-        
+
         strokeWidth = if isActive then "4" else "2"
         strokeColor = if isActive then "#e74c3c" else "#222"
     in
@@ -316,6 +420,11 @@ svgEdge config a b symbols isActive =
         midX = (sx + ex) / 2
         midY = (sy + ey) / 2 - 6
         startX = midX - (toFloat (n - 1) * toFloat spacing) / 2
+
+        angleRad = atan2 uy ux
+        angleDeg = angleRad * 180 / pi
+        rotationAngle = if ux < 0 then angleDeg + 180 else angleDeg
+
         labels =
             List.indexedMap
                 (\i sym ->
@@ -323,9 +432,24 @@ svgEdge config a b symbols isActive =
                         [ SA.x (String.fromFloat (startX + toFloat i * toFloat spacing))
                         , SA.y (String.fromFloat midY)
                         , SA.textAnchor "middle"
-                        , SA.fontSize "12"
-                        , SA.fill "blue"
-                        , SE.on "click" (Decode.succeed (config.onTransitionClick a.id b.id sym))
+                        , SA.fontSize "16"
+                        , SA.fill "black"
+                        , SA.fontWeight "bold"
+                        , SA.transform ("rotate(" ++ String.fromFloat rotationAngle ++ " " ++ String.fromFloat (startX + toFloat i * toFloat spacing) ++ " " ++ String.fromFloat midY ++ ")")
+                        , SE.custom "click"
+                            (Decode.succeed
+                                { message = config.onTransitionClick a.id b.id sym
+                                , stopPropagation = True
+                                , preventDefault = False
+                                }
+                            )
+                        , SE.custom "dblclick"
+                            (Decode.succeed
+                                { message = config.onTransitionDoubleClick a.id b.id sym
+                                , stopPropagation = True
+                                , preventDefault = False
+                                }
+                            )
                         ]
                         [ Svg.text sym ]
                 )
@@ -344,61 +468,65 @@ svgEdge config a b symbols isActive =
 svgCurvedEdge config a b symbols isActive =
     let
         r = 35
-        
+
         vx = b.x - a.x
         vy = b.y - a.y
         len = sqrt (vx * vx + vy * vy)
-        
+
         ux = if len == 0 then 1 else vx / len
         uy = if len == 0 then 0 else vy / len
-        
+
         px = -uy
         py = ux
-        
+
         offset = 40
-        
+
         midX = (a.x + b.x) / 2
         midY = (a.y + b.y) / 2
         cx = midX + offset * px
         cy = midY + offset * py
-        
+
         acX = cx - a.x
         acY = cy - a.y
         acLen = sqrt (acX * acX + acY * acY)
         acUx = acX / acLen
         acUy = acY / acLen
-        
+
         sx = a.x + acUx * toFloat r
         sy = a.y + acUy * toFloat r
-        
+
         bcX = cx - b.x
         bcY = cy - b.y
         bcLen = sqrt (bcX * bcX + bcY * bcY)
         bcUx = bcX / bcLen
         bcUy = bcY / bcLen
-        
+
         ex = b.x + bcUx * toFloat r
         ey = b.y + bcUy * toFloat r
-        
+
         d = "M " ++ String.fromFloat sx ++ " " ++ String.fromFloat sy
             ++ " Q " ++ String.fromFloat cx ++ " " ++ String.fromFloat cy
             ++ " " ++ String.fromFloat ex ++ " " ++ String.fromFloat ey
-            
+
         tVx = ex - cx
         tVy = ey - cy
         tLen = sqrt (tVx * tVx + tVy * tVy)
         tUx = tVx / tLen
         tUy = tVy / tLen
-        
+
         arrowPts = calculateArrowHead ex ey tUx tUy
 
         n = List.length symbols
         spacing = 16
-        
+
         curveMidX = 0.25 * sx + 0.5 * cx + 0.25 * ex
-        curveMidY = 0.25 * sy + 0.5 * cy + 0.25 * ey
-        
+        curveMidY = 0.25 * sy + 0.5 * cy + 0.25 * ey - 4
+
         startX = curveMidX - (toFloat (n - 1) * toFloat spacing) / 2
+
+        angleRad = atan2 uy ux
+        angleDeg = angleRad * 180 / pi
+        rotationAngle = if ux < 0 then angleDeg + 180 else angleDeg
 
         labels =
             List.indexedMap
@@ -407,9 +535,24 @@ svgCurvedEdge config a b symbols isActive =
                         [ SA.x (String.fromFloat (startX + toFloat i * toFloat spacing))
                         , SA.y (String.fromFloat curveMidY)
                         , SA.textAnchor "middle"
-                        , SA.fontSize "12"
-                        , SA.fill "blue"
-                        , SE.on "click" (Decode.succeed (config.onTransitionClick a.id b.id sym))
+                        , SA.fontSize "16"
+                        , SA.fill "black"
+                        , SA.fontWeight "bold"
+                        , SA.transform ("rotate(" ++ String.fromFloat rotationAngle ++ " " ++ String.fromFloat (startX + toFloat i * toFloat spacing) ++ " " ++ String.fromFloat curveMidY ++ ")")
+                        , SE.custom "click"
+                            (Decode.succeed
+                                { message = config.onTransitionClick a.id b.id sym
+                                , stopPropagation = True
+                                , preventDefault = False
+                                }
+                            )
+                        , SE.custom "dblclick"
+                            (Decode.succeed
+                                { message = config.onTransitionDoubleClick a.id b.id sym
+                                , stopPropagation = True
+                                , preventDefault = False
+                                }
+                            )
                         ]
                         [ Svg.text sym ]
                 )
