@@ -20,6 +20,8 @@ type alias Config msg =
     , onSave : msg
     , onLoad : msg
     , onShare : msg
+    , onSwitchToConversion : msg
+    , isConvertEnabled : Bool
     }
 
 
@@ -38,12 +40,13 @@ view config =
         , btn "<-" config.onUndo (not config.canUndo) "#546e7a"
         , btn "->" config.onRedo (not config.canRedo) "#546e7a"
         , toolBtn "Stavať" config.onBuildTool (config.currentTool == "BuildTool")
-        , toolBtn "Odstraniť" config.onDeleteTool (config.currentTool == "DeleteTool")
+        , toolBtn "Odstrániť" config.onDeleteTool (config.currentTool == "DeleteTool")
         , btn "Export" config.onExport False "#546e7a"
         , btn "Uložiť" config.onSave False "#546e7a"
         , btn "Načítať" config.onLoad False "#546e7a"
-        , btn "Zdieľať" config.onShare False "#546e7a"
+        , btn "Zdieľať cez URL" config.onShare False "#546e7a"
         , div [ style "margin-left" "auto" ] []
+        , actionButton "NFA→DFA" config.onSwitchToConversion config.isConvertEnabled "#6a1b9a"
         , actionButton "Simulovať" config.onSwitchToSimulator config.isSimulateEnabled "#0277bd"
         ]
 

@@ -30,12 +30,13 @@ type alias Config msg =
     , onCanvasMouseDown : Float -> Float -> msg
     , onZoomIn : msg
     , onZoomOut : msg
-    , onWheel : Float -> msg
+    , onWheel : Float -> Float -> Float -> msg
     , panX : Float
     , panY : Float
     , zoom : Float
     , width : Float
     , height : Float
+    , isSimulateMode : Bool
     }
 
 
@@ -56,7 +57,7 @@ view config =
             , SE.on "mouseup" (Decode.succeed config.onEndDrag)
             , SE.on "mouseleave" (Decode.succeed config.onEndDrag)
             , SE.on "mousedown" (Decode.map2 config.onCanvasMouseDown offsetX offsetY)
-            , SE.on "wheel" (Decode.map config.onWheel wheelDeltaY)
+            , SE.on "wheel" (Decode.map3 config.onWheel wheelDeltaY offsetX offsetY)
             ]
             [ Svg.g
                 [ SA.transform
@@ -311,6 +312,7 @@ viewGroupedTransition config grouped =
         _ ->
             Svg.g [] []
 
+
 svgSelfLoop : Config msg -> State -> List String -> Bool -> Svg msg
 svgSelfLoop config state symbols isActive =
     let
@@ -354,6 +356,7 @@ svgSelfLoop config state symbols isActive =
                 spacing = 16
                 labelY = state.y - r - loopHeight + 5
                 startX = state.x - (toFloat (n - 1) * toFloat spacing) / 2
+                symbolStyle = if config.isSimulateMode then "user-select: none; pointer-events: none;" else "user-select: none;"
             in
             List.indexedMap
                 (\i sym ->
@@ -378,6 +381,7 @@ svgSelfLoop config state symbols isActive =
                                 , preventDefault = False
                                 }
                             )
+                        , SA.style symbolStyle
                         ]
                         [ Svg.text sym ]
                 )
@@ -418,42 +422,50 @@ svgEdge config a b symbols isActive =
         n = List.length symbols
         spacing = 16
         midX = (sx + ex) / 2
-        midY = (sy + ey) / 2 - 6
-        startX = midX - (toFloat (n - 1) * toFloat spacing) / 2
+        midY = (sy + ey) / 2
 
         angleRad = atan2 uy ux
         angleDeg = angleRad * 180 / pi
         rotationAngle = if ux < 0 then angleDeg + 180 else angleDeg
 
+        symbolStyle = if config.isSimulateMode then "user-select: none; pointer-events: none;" else "user-select: none;"
+
         labels =
-            List.indexedMap
-                (\i sym ->
-                    Svg.text_
-                        [ SA.x (String.fromFloat (startX + toFloat i * toFloat spacing))
-                        , SA.y (String.fromFloat midY)
-                        , SA.textAnchor "middle"
-                        , SA.fontSize "16"
-                        , SA.fill "black"
-                        , SA.fontWeight "bold"
-                        , SA.transform ("rotate(" ++ String.fromFloat rotationAngle ++ " " ++ String.fromFloat (startX + toFloat i * toFloat spacing) ++ " " ++ String.fromFloat midY ++ ")")
-                        , SE.custom "click"
-                            (Decode.succeed
-                                { message = config.onTransitionClick a.id b.id sym
-                                , stopPropagation = True
-                                , preventDefault = False
-                                }
-                            )
-                        , SE.custom "dblclick"
-                            (Decode.succeed
-                                { message = config.onTransitionDoubleClick a.id b.id sym
-                                , stopPropagation = True
-                                , preventDefault = False
-                                }
-                            )
-                        ]
-                        [ Svg.text sym ]
+            [ Svg.g
+                [ SA.transform
+                    ("translate(" ++ String.fromFloat midX ++ "," ++ String.fromFloat midY
+                        ++ ") rotate(" ++ String.fromFloat rotationAngle ++ ")")
+                ]
+                (List.indexedMap
+                    (\i sym ->
+                        Svg.text_
+                            [ SA.x (String.fromFloat ((toFloat i - toFloat (n - 1) / 2.0) * toFloat spacing))
+                            , SA.y "-6"
+                            , SA.textAnchor "middle"
+                            , SA.fontSize "16"
+                            , SA.fill "black"
+                            , SA.fontWeight "bold"
+                            , SE.custom "click"
+                                (Decode.succeed
+                                    { message = config.onTransitionClick a.id b.id sym
+                                    , stopPropagation = True
+                                    , preventDefault = False
+                                    }
+                                )
+                            , SE.custom "dblclick"
+                                (Decode.succeed
+                                    { message = config.onTransitionDoubleClick a.id b.id sym
+                                    , stopPropagation = True
+                                    , preventDefault = False
+                                    }
+                                )
+                            , SA.style symbolStyle
+                            ]
+                            [ Svg.text sym ]
+                    )
+                    symbols
                 )
-                symbols
+            ]
 
         strokeWidth = if isActive then "4" else "2"
         strokeColor = if isActive then "#e74c3c" else "#222"
@@ -520,43 +532,50 @@ svgCurvedEdge config a b symbols isActive =
         spacing = 16
 
         curveMidX = 0.25 * sx + 0.5 * cx + 0.25 * ex
-        curveMidY = 0.25 * sy + 0.5 * cy + 0.25 * ey - 4
-
-        startX = curveMidX - (toFloat (n - 1) * toFloat spacing) / 2
+        curveMidY = 0.25 * sy + 0.5 * cy + 0.25 * ey
 
         angleRad = atan2 uy ux
         angleDeg = angleRad * 180 / pi
         rotationAngle = if ux < 0 then angleDeg + 180 else angleDeg
 
+        symbolStyle = if config.isSimulateMode then "user-select: none; pointer-events: none;" else "user-select: none;"
+
         labels =
-            List.indexedMap
-                (\i sym ->
-                    Svg.text_
-                        [ SA.x (String.fromFloat (startX + toFloat i * toFloat spacing))
-                        , SA.y (String.fromFloat curveMidY)
-                        , SA.textAnchor "middle"
-                        , SA.fontSize "16"
-                        , SA.fill "black"
-                        , SA.fontWeight "bold"
-                        , SA.transform ("rotate(" ++ String.fromFloat rotationAngle ++ " " ++ String.fromFloat (startX + toFloat i * toFloat spacing) ++ " " ++ String.fromFloat curveMidY ++ ")")
-                        , SE.custom "click"
-                            (Decode.succeed
-                                { message = config.onTransitionClick a.id b.id sym
-                                , stopPropagation = True
-                                , preventDefault = False
-                                }
-                            )
-                        , SE.custom "dblclick"
-                            (Decode.succeed
-                                { message = config.onTransitionDoubleClick a.id b.id sym
-                                , stopPropagation = True
-                                , preventDefault = False
-                                }
-                            )
-                        ]
-                        [ Svg.text sym ]
+            [ Svg.g
+                [ SA.transform
+                    ("translate(" ++ String.fromFloat curveMidX ++ "," ++ String.fromFloat curveMidY
+                        ++ ") rotate(" ++ String.fromFloat rotationAngle ++ ")")
+                ]
+                (List.indexedMap
+                    (\i sym ->
+                        Svg.text_
+                            [ SA.x (String.fromFloat ((toFloat i - toFloat (n - 1) / 2.0) * toFloat spacing))
+                            , SA.y "-6"
+                            , SA.textAnchor "middle"
+                            , SA.fontSize "16"
+                            , SA.fill "black"
+                            , SA.fontWeight "bold"
+                            , SE.custom "click"
+                                (Decode.succeed
+                                    { message = config.onTransitionClick a.id b.id sym
+                                    , stopPropagation = True
+                                    , preventDefault = False
+                                    }
+                                )
+                            , SE.custom "dblclick"
+                                (Decode.succeed
+                                    { message = config.onTransitionDoubleClick a.id b.id sym
+                                    , stopPropagation = True
+                                    , preventDefault = False
+                                    }
+                                )
+                            , SA.style symbolStyle
+                            ]
+                            [ Svg.text sym ]
+                    )
+                    symbols
                 )
-                symbols
+            ]
 
         strokeWidth = if isActive then "4" else "2"
         strokeColor = if isActive then "#e74c3c" else "#222"

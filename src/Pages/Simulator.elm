@@ -120,7 +120,7 @@ type Msg
     | CanvasMouseDown Float Float
     | ZoomIn
     | ZoomOut
-    | Wheel Float
+    | Wheel Float Float Float
 
 
 update : Msg -> Model -> Model
@@ -237,12 +237,15 @@ update msg model =
         ZoomOut ->
             { model | zoom = max 0.2 (model.zoom / 1.2) }
 
-        Wheel deltaY ->
+        Wheel deltaY mouseX mouseY ->
             let
                 zoomFactor = if deltaY > 0 then 0.9 else 1.1
                 newZoom = model.zoom * zoomFactor |> min 3.0 |> max 0.2
+                scale = newZoom / model.zoom
+                newPanX = mouseX - (mouseX - model.panX) * scale
+                newPanY = mouseY - (mouseY - model.panY) * scale
             in
-            { model | zoom = newZoom }
+            { model | zoom = newZoom, panX = newPanX, panY = newPanY }
 
         _ ->
             model
@@ -976,14 +979,24 @@ view model =
                                 , onCanvasMouseDown = CanvasMouseDown
                                 , onZoomIn = ZoomIn
                                 , onZoomOut = ZoomOut
-                                , onWheel = Wheel
+                                , onWheel = \d x y -> Wheel d x y
                                 , panX = model.panX
                                 , panY = model.panY
                                 , zoom = model.zoom
                                 , width = 800
                                 , height = 600
+                                , isSimulateMode = True
                                 }
                             ]
+
+                      else
+                        div [] []
+                    , if model.mode == NfaMode && model.showTree then
+                        div
+                            [ style "width" "1px"
+                            , style "background-color" "#ccc"
+                            ]
+                            []
 
                       else
                         div [] []

@@ -60,6 +60,12 @@
       localStorage.setItem(STORAGE_KEY, JSON.stringify(list));
     });
 
+    app.ports.deleteNamedAutomaton.subscribe(function(name) {
+      var list = getStoredList();
+      var filtered = list.filter(function(e) { return e.name !== name; });
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(filtered));
+    });
+
     app.ports.requestStoredAutomata.subscribe(function() {
       app.ports.storedAutomataLoaded.send(getStoredList());
     });

@@ -8,13 +8,17 @@ import Html.Events exposing (onClick)
 import Json.Decode as Decode
 import Pages.Editor as Editor
 import Pages.Simulator as Simulator
+import Pages.Conversion as Conversion
 import Shared exposing (AutomatonState)
+import UndoList
 import Utils.AutomatonCodec
 
 
 port setUrlHash : String -> Cmd msg
 
 port saveNamedAutomaton : { name : String, data : String } -> Cmd msg
+
+port deleteNamedAutomaton : String -> Cmd msg
 
 port requestStoredAutomata : () -> Cmd msg
 
@@ -24,12 +28,14 @@ port storedAutomataLoaded : (List { name : String, data : String } -> msg) -> Su
 type Page
     = EditorPage
     | SimulatorPage
+    | ConversionPage
 
 
 type alias Model =
     { currentPage : Page
     , editorModel : Editor.Model
     , simulatorModel : Simulator.Model
+    , conversionModel : Conversion.Model
     }
 
 
@@ -45,10 +51,14 @@ init maybeJson =
 
         simulatorInit =
             Simulator.init { states = [], transitions = [], nextStateId = 0 }
+
+        conversionInit =
+            Conversion.init { states = [], transitions = [], nextStateId = 0 }
     in
     ( { currentPage = EditorPage
       , editorModel = editorInit
       , simulatorModel = simulatorInit
+      , conversionModel = conversionInit
       }
     , Cmd.none
     )
@@ -57,6 +67,7 @@ init maybeJson =
 type Msg
     = EditorMsg Editor.Msg
     | SimulatorMsg Simulator.Msg
+    | ConversionMsg Conversion.Msg
     | SwitchToEditor
 
 
@@ -65,6 +76,14 @@ update msg model =
     case msg of
         EditorMsg editorMsg ->
             case editorMsg of
+                Editor.SwitchToConversion ->
+                    ( { model
+                        | currentPage = ConversionPage
+                        , conversionModel = Conversion.init model.editorModel.automaton.present
+                      }
+                    , Cmd.none
+                    )
+
                 Editor.SwitchToSimulator ->
                     let
                         currentAutomaton = model.editorModel.automaton.present
@@ -122,6 +141,15 @@ update msg model =
                     , Cmd.batch [ Cmd.map EditorMsg editorCmd, requestStoredAutomata () ]
                     )
 
+                Editor.DeleteStoredAutomaton name ->
+                    let
+                        ( newEditorModel, editorCmd ) =
+                            Editor.update editorMsg model.editorModel
+                    in
+                    ( { model | editorModel = newEditorModel }
+                    , Cmd.batch [ Cmd.map EditorMsg editorCmd, deleteNamedAutomaton name, requestStoredAutomata () ]
+                    )
+
                 _ ->
                     let
                         ( newEditorModel, editorCmd ) =
@@ -154,6 +182,49 @@ update msg model =
                     , Cmd.none
                     )
 
+        ConversionMsg convMsg ->
+            case convMsg of
+                Conversion.SwitchToEditor ->
+                    ( { model | currentPage = EditorPage }, Cmd.none )
+
+                Conversion.ReplaceAutomaton ->
+                    let
+                        builtDfa =
+                            Conversion.conversionResultToAutomaton model.conversionModel
+
+                        em =
+                            model.editorModel
+                    in
+                    ( { model
+                        | currentPage = EditorPage
+                        , editorModel = { em | automaton = UndoList.new builtDfa em.automaton }
+                      }
+                    , Cmd.none
+                    )
+
+                Conversion.ConfirmSaveToStorage ->
+                    let
+                        name =
+                            String.trim model.conversionModel.saveNameInput
+
+                        builtDfa =
+                            Conversion.conversionResultToAutomaton model.conversionModel
+
+                        newConvModel =
+                            Conversion.update Conversion.DismissSaveModal model.conversionModel
+                    in
+                    ( { model | conversionModel = newConvModel }
+                    , if String.isEmpty name then
+                        Cmd.none
+                      else
+                        saveNamedAutomaton { name = name, data = Utils.AutomatonCodec.encode builtDfa }
+                    )
+
+                _ ->
+                    ( { model | conversionModel = Conversion.update convMsg model.conversionModel }
+                    , Cmd.none
+                    )
+
         SwitchToEditor ->
             ( { model | currentPage = EditorPage }
             , Cmd.none
@@ -171,6 +242,9 @@ subscriptions model =
 
         SimulatorPage ->
             Sub.map SimulatorMsg (Simulator.subscriptions model.simulatorModel)
+
+        ConversionPage ->
+            Sub.none
 
 
 keyDecoder : Model -> Decode.Decoder Msg
@@ -205,6 +279,9 @@ view model =
                 ]
                 [ Html.map SimulatorMsg (Simulator.view model.simulatorModel)
                 ]
+
+        ConversionPage ->
+            Html.map ConversionMsg (Conversion.view model.conversionModel)
 
 
 main : Program (Maybe String) Model Msg

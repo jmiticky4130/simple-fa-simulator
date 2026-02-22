@@ -18,6 +18,7 @@ import Utils.AutomatonHelpers exposing
     , setStartState
     , toggleEndState
     , updateTransitionSymbol
+    , isDFA
     )
 import Browser.Dom
 import Task
@@ -113,7 +114,7 @@ type Msg
     | CanvasMouseDown Float Float
     | ZoomIn
     | ZoomOut
-    | Wheel Float
+    | Wheel Float Float Float
     | ExportJson
     | ImportJsonRequested
     | ImportJsonLoaded File.File
@@ -127,8 +128,10 @@ type Msg
     | LoadFromStorage
     | StorageAutomataLoaded (List { name : String, data : String })
     | SelectStoredAutomaton String
+    | DeleteStoredAutomaton String
     | DismissLoadModal
     | DismissStorageSelectModal
+    | SwitchToConversion
 
 
 init : Model
@@ -137,7 +140,7 @@ init =
     , currentTool = BuildTool
     , selectedState = Nothing
     , transitionFrom = Nothing
-    , consoleMessages = [ { text = "Vítajte v simulátore DFA/NFA. Dvojklikom na plátno pridajte stav.", msgType = Console.Info } ]
+    , consoleMessages = [ { text = "Vitajte v simulátore DFA/NFA. Dvojklikom na plátno pridajte stav.", msgType = Console.Info } ]
     , isDragging = False
     , draggedState = Nothing
     , dragStartX = 0
@@ -185,6 +188,9 @@ update msg model =
     in
     case msg of
         SwitchToSimulator ->
+            ( model, Cmd.none )
+
+        SwitchToConversion ->
             ( model, Cmd.none )
 
         ExportJson ->
@@ -286,6 +292,9 @@ update msg model =
 
         DismissStorageSelectModal ->
             ( { model | showStorageSelectModal = False, storedAutomata = [] }, Cmd.none )
+
+        DeleteStoredAutomaton name ->
+            ( { model | storedAutomata = List.filter (\e -> e.name /= name) model.storedAutomata }, Cmd.none )
 
         Undo ->
             ( { model | automaton = UndoList.undo model.automaton }, Cmd.none )
@@ -857,12 +866,15 @@ update msg model =
         ZoomOut ->
             ( { model | zoom = max 0.2 (model.zoom / 1.2) }, Cmd.none )
 
-        Wheel deltaY ->
+        Wheel deltaY mouseX mouseY ->
             let
                 zoomFactor = if deltaY > 0 then 0.9 else 1.1
                 newZoom = model.zoom * zoomFactor |> min 3.0 |> max 0.2
+                scale = newZoom / model.zoom
+                newPanX = mouseX - (mouseX - model.panX) * scale
+                newPanY = mouseY - (mouseY - model.panY) * scale
             in
-            ( { model | zoom = newZoom }, Cmd.none )
+            ( { model | zoom = newZoom, panX = newPanX, panY = newPanY }, Cmd.none )
 
         NoOp ->
             ( model, Cmd.none )
@@ -936,7 +948,7 @@ getToolMessage tool =
             "Nástroj: Stavať - dvojklik=nový stav, klik na stav=prechod, dvojklik na stav=upraviť"
 
         DeleteTool ->
-            "Nástroj: Odstraniť - kliknite na stav alebo prechod"
+            "Nástroj: Odstrániť - kliknite na stav alebo prechod"
 
 
 toolToString : Tool -> String
@@ -954,6 +966,7 @@ view model =
     let
         { states, transitions } = model.automaton.present
         isSimulateEnabled = not (List.isEmpty states)
+        isConvertEnabled = not (List.isEmpty states) && not (isDFA states transitions)
     in
     div
         [ style "display" "flex"
@@ -979,6 +992,8 @@ view model =
                 , onSave = SaveRequested
                 , onLoad = LoadRequested
                 , onShare = ShareUrl
+                , onSwitchToConversion = SwitchToConversion
+                , isConvertEnabled = isConvertEnabled
                 }
             ]
         ,
@@ -1014,12 +1029,13 @@ view model =
                     , onCanvasMouseDown = CanvasMouseDown
                     , onZoomIn = ZoomIn
                     , onZoomOut = ZoomOut
-                    , onWheel = Wheel
+                    , onWheel = \d x y -> Wheel d x y
                     , panX = model.panX
                     , panY = model.panY
                     , zoom = model.zoom
                     , width = 800
                     , height = 600
+                    , isSimulateMode = False
                     }
                 ]
             ,
@@ -1263,6 +1279,18 @@ viewLoadModal model =
                                 , style "font-size" "13px"
                                 ]
                                 [ text "Načítať" ]
+                            , button
+                                [ onClick (DeleteStoredAutomaton entry.name)
+                                , Html.Attributes.class "elm-btn"
+                                , style "padding" "6px 14px"
+                                , style "background-color" "#c62828"
+                                , style "color" "white"
+                                , style "border" "none"
+                                , style "border-radius" "5px"
+                                , style "cursor" "pointer"
+                                , style "font-size" "13px"
+                                ]
+                                [ text "Vymazať" ]
                             ]
                     )
                     model.storedAutomata
