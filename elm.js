@@ -6517,6 +6517,8 @@ var $author$project$Pages$Simulator$init = function (automaton) {
 		currentStateId: startState,
 		dividerDragStartRatio: 0.667,
 		dividerDragStartX: 0,
+		efficientMode: false,
+		efficientResult: $elm$core$Maybe$Nothing,
 		history: _List_Nil,
 		inputString: '',
 		instancePanelVisible: 100,
@@ -8921,21 +8923,173 @@ var $author$project$Pages$Simulator$SetInput = function (a) {
 	return {$: 'SetInput', a: a};
 };
 var $author$project$Pages$Simulator$canStepForward = function (model) {
-	var _v0 = model.mode;
-	if (_v0.$ === 'DfaMode') {
-		return !$elm$core$String$isEmpty(model.remainingInput);
+	if (model.efficientMode) {
+		return false;
 	} else {
-		return A2(
-			$elm$core$List$any,
-			function (i) {
-				return _Utils_eq(i.verdict, $elm$core$Maybe$Nothing);
-			},
-			model.nfaInstances);
+		var _v0 = model.mode;
+		if (_v0.$ === 'DfaMode') {
+			return !$elm$core$String$isEmpty(model.remainingInput);
+		} else {
+			return A2(
+				$elm$core$List$any,
+				function (i) {
+					return _Utils_eq(i.verdict, $elm$core$Maybe$Nothing);
+				},
+				model.nfaInstances);
+		}
 	}
 };
 var $elm$core$Basics$clamp = F3(
 	function (low, high, number) {
 		return (_Utils_cmp(number, low) < 0) ? low : ((_Utils_cmp(number, high) > 0) ? high : number);
+	});
+var $elm$core$Set$foldl = F3(
+	function (func, initialState, _v0) {
+		var dict = _v0.a;
+		return A3(
+			$elm$core$Dict$foldl,
+			F3(
+				function (key, _v1, state) {
+					return A2(func, key, state);
+				}),
+			initialState,
+			dict);
+	});
+var $elm$core$String$cons = _String_cons;
+var $elm$core$String$fromChar = function (_char) {
+	return A2($elm$core$String$cons, _char, '');
+};
+var $elm$core$Dict$filter = F2(
+	function (isGood, dict) {
+		return A3(
+			$elm$core$Dict$foldl,
+			F3(
+				function (k, v, d) {
+					return A2(isGood, k, v) ? A3($elm$core$Dict$insert, k, v, d) : d;
+				}),
+			$elm$core$Dict$empty,
+			dict);
+	});
+var $elm$core$Dict$member = F2(
+	function (key, dict) {
+		var _v0 = A2($elm$core$Dict$get, key, dict);
+		if (_v0.$ === 'Just') {
+			return true;
+		} else {
+			return false;
+		}
+	});
+var $elm$core$Dict$intersect = F2(
+	function (t1, t2) {
+		return A2(
+			$elm$core$Dict$filter,
+			F2(
+				function (k, _v0) {
+					return A2($elm$core$Dict$member, k, t2);
+				}),
+			t1);
+	});
+var $elm$core$Set$intersect = F2(
+	function (_v0, _v1) {
+		var dict1 = _v0.a;
+		var dict2 = _v1.a;
+		return $elm$core$Set$Set_elm_builtin(
+			A2($elm$core$Dict$intersect, dict1, dict2));
+	});
+var $elm$core$Dict$isEmpty = function (dict) {
+	if (dict.$ === 'RBEmpty_elm_builtin') {
+		return true;
+	} else {
+		return false;
+	}
+};
+var $elm$core$Set$isEmpty = function (_v0) {
+	var dict = _v0.a;
+	return $elm$core$Dict$isEmpty(dict);
+};
+var $elm$core$String$foldr = _String_foldr;
+var $elm$core$String$toList = function (string) {
+	return A3($elm$core$String$foldr, $elm$core$List$cons, _List_Nil, string);
+};
+var $author$project$Pages$Simulator$runEfficientNfa = F2(
+	function (automaton, inputStr) {
+		var step = F2(
+			function (_char, currentSet) {
+				var symbol = $elm$core$String$fromChar(_char);
+				var targets = A3(
+					$elm$core$Set$foldl,
+					F2(
+						function (stId, acc) {
+							return A3(
+								$elm$core$List$foldl,
+								F2(
+									function (t, innerAcc) {
+										return (_Utils_eq(t.from, stId) && _Utils_eq(t.symbol, symbol)) ? A2($elm$core$Set$insert, t.to, innerAcc) : innerAcc;
+									}),
+								acc,
+								automaton.transitions);
+						}),
+					$elm$core$Set$empty,
+					currentSet);
+				var expanded = A3(
+					$elm$core$Set$foldl,
+					F2(
+						function (stId, acc) {
+							return A3(
+								$elm$core$List$foldl,
+								F2(
+									function (x, s) {
+										return A2($elm$core$Set$insert, x, s);
+									}),
+								acc,
+								A2($author$project$Utils$AutomatonHelpers$epsilonClosure, automaton.transitions, stId));
+						}),
+					$elm$core$Set$empty,
+					targets);
+				return expanded;
+			});
+		var startState = A2(
+			$elm$core$Maybe$map,
+			function ($) {
+				return $.id;
+			},
+			$elm$core$List$head(
+				A2(
+					$elm$core$List$filter,
+					function ($) {
+						return $.isStart;
+					},
+					automaton.states)));
+		var initialSet = function () {
+			if (startState.$ === 'Nothing') {
+				return $elm$core$Set$empty;
+			} else {
+				var sid = startState.a;
+				return $elm$core$Set$fromList(
+					A2($author$project$Utils$AutomatonHelpers$epsilonClosure, automaton.transitions, sid));
+			}
+		}();
+		var finalSet = A3(
+			$elm$core$List$foldl,
+			step,
+			initialSet,
+			$elm$core$String$toList(inputStr));
+		var reachedList = $elm$core$Set$toList(finalSet);
+		var endStateIds = $elm$core$Set$fromList(
+			A2(
+				$elm$core$List$map,
+				function ($) {
+					return $.id;
+				},
+				A2(
+					$elm$core$List$filter,
+					function ($) {
+						return $.isEnd;
+					},
+					automaton.states)));
+		var accepted = !$elm$core$Set$isEmpty(
+			A2($elm$core$Set$intersect, finalSet, endStateIds));
+		return accepted ? {isAccepted: true, reachedStates: reachedList, text: 'Slovo je akceptované'} : {isAccepted: false, reachedStates: reachedList, text: 'Slovo nie je akceptované'};
 	});
 var $author$project$Pages$Simulator$stepBackwardDfa = function (model) {
 	var _v0 = model.history;
@@ -8983,10 +9137,6 @@ var $author$project$Pages$Simulator$stepBackwardNfa = function (model) {
 	} else {
 		return model;
 	}
-};
-var $elm$core$String$cons = _String_cons;
-var $elm$core$String$fromChar = function (_char) {
-	return A2($elm$core$String$cons, _char, '');
 };
 var $author$project$Pages$Simulator$stepForwardDfa = function (model) {
 	var _v0 = _Utils_Tuple2(
@@ -9425,6 +9575,7 @@ var $author$project$Pages$Simulator$update = F2(
 								{msgType: $author$project$Components$Console$Info, text: 'Vstup nastavený: ' + str}
 							]),
 						currentStateId: startState,
+						efficientResult: $elm$core$Maybe$Nothing,
 						history: _List_Nil,
 						inputString: str,
 						instancePanelVisible: 100,
@@ -9458,7 +9609,7 @@ var $author$project$Pages$Simulator$update = F2(
 					$author$project$Pages$Simulator$init(model.automaton));
 				return _Utils_update(
 					fresh,
-					{autoSpeed: model.autoSpeed, mergeEnabled: model.mergeEnabled, panX: model.panX, panY: model.panY, showCanvas: model.showCanvas, showTree: model.showTree, splitRatio: model.splitRatio, treeZoom: model.treeZoom, zoom: model.zoom});
+					{autoSpeed: model.autoSpeed, efficientMode: model.efficientMode, efficientResult: $elm$core$Maybe$Nothing, mergeEnabled: model.mergeEnabled, panX: model.panX, panY: model.panY, showCanvas: model.showCanvas, showTree: model.showTree, splitRatio: model.splitRatio, treeZoom: model.treeZoom, zoom: model.zoom});
 			case 'SwitchToEditor':
 				return model;
 			case 'SelectNfaInstance':
@@ -9481,7 +9632,7 @@ var $author$project$Pages$Simulator$update = F2(
 					model,
 					{mergeEnabled: !model.mergeEnabled});
 			case 'ToggleAutoRun':
-				return _Utils_update(
+				return model.efficientMode ? model : _Utils_update(
 					model,
 					{autoRunning: !model.autoRunning});
 			case 'SetAutoSpeed':
@@ -9592,6 +9743,29 @@ var $author$project$Pages$Simulator$update = F2(
 				return _Utils_update(
 					model,
 					{isDraggingDivider: false});
+			case 'ToggleEfficientMode':
+				var newMode = !model.efficientMode;
+				if (newMode) {
+					return _Utils_update(
+						model,
+						{autoRunning: false, efficientMode: true, efficientResult: $elm$core$Maybe$Nothing});
+				} else {
+					var nfaState = A2($author$project$Pages$Simulator$initNfaState, model.automaton, model.inputString);
+					return _Utils_update(
+						model,
+						{efficientMode: false, efficientResult: $elm$core$Maybe$Nothing, instancePanelVisible: 100, nextInstanceId: nfaState.nextInstanceId, nfaHistory: _List_Nil, nfaInstances: nfaState.instances, nfaMergedEdges: _List_Nil, nfaTree: nfaState.tree, selectedInstanceId: $elm$core$Maybe$Nothing});
+				}
+			case 'RunEfficient':
+				var result = A2($author$project$Pages$Simulator$runEfficientNfa, model.automaton, model.inputString);
+				return _Utils_update(
+					model,
+					{
+						consoleMessages: A2(
+							$elm$core$List$cons,
+							{msgType: $author$project$Components$Console$Info, text: 'Efektívny beh: ' + result.text},
+							model.consoleMessages),
+						efficientResult: $elm$core$Maybe$Just(result)
+					});
 			case 'ToggleConsole':
 				return model;
 			default:
@@ -11573,15 +11747,6 @@ var $author$project$Pages$Editor$toolToString = function (tool) {
 	}
 };
 var $elm$html$Html$h3 = _VirtualDom_node('h3');
-var $elm$core$Dict$member = F2(
-	function (key, dict) {
-		var _v0 = A2($elm$core$Dict$get, key, dict);
-		if (_v0.$ === 'Just') {
-			return true;
-		} else {
-			return false;
-		}
-	});
 var $elm$core$Set$member = F2(
 	function (key, _v0) {
 		var dict = _v0.a;
@@ -11865,9 +12030,68 @@ var $author$project$Components$Canvas$svgState = F2(
 		var isActive = _Utils_eq(
 			config.activeStateId,
 			$elm$core$Maybe$Just(state.id));
-		var fillColor = isSelected ? '#80cbc4' : ((isTransitionStart || isTransitionEnd) ? '#fff59d' : (isActive ? '#a5d6a7' : '#eceff1'));
+		var highlightMatch = $elm$core$List$head(
+			A2(
+				$elm$core$List$filter,
+				function (h) {
+					return _Utils_eq(h.stateId, state.id);
+				},
+				config.highlightedStateIds));
+		var fillColor = function () {
+			if (isSelected) {
+				return '#80cbc4';
+			} else {
+				if (isTransitionStart || isTransitionEnd) {
+					return '#fff59d';
+				} else {
+					if (isActive) {
+						var _v2 = config.activeStateVerdict;
+						if (_v2.$ === 'Nothing') {
+							return '#1e88e5';
+						} else {
+							if (_v2.a) {
+								return '#43a047';
+							} else {
+								return '#e53935';
+							}
+						}
+					} else {
+						if (highlightMatch.$ === 'Just') {
+							var h = highlightMatch.a;
+							return h.isAccepted ? '#a5d6a7' : '#ef9a9a';
+						} else {
+							return '#eceff1';
+						}
+					}
+				}
+			}
+		}();
 		var borderWidth = 2;
-		var borderColor = isSelected ? '#004d40' : (isActive ? '#1b5e20' : '#455a64');
+		var borderColor = function () {
+			if (isSelected) {
+				return '#004d40';
+			} else {
+				if (isActive) {
+					var _v0 = config.activeStateVerdict;
+					if (_v0.$ === 'Nothing') {
+						return '#1565c0';
+					} else {
+						if (_v0.a) {
+							return '#2e7d32';
+						} else {
+							return '#b71c1c';
+						}
+					}
+				} else {
+					if (highlightMatch.$ === 'Just') {
+						var h = highlightMatch.a;
+						return h.isAccepted ? '#2e7d32' : '#b71c1c';
+					} else {
+						return '#455a64';
+					}
+				}
+			}
+		}();
 		return A2(
 			$elm$svg$Svg$g,
 			_List_fromArray(
@@ -13508,8 +13732,10 @@ var $author$project$Pages$Editor$view = F2(
 									$author$project$Components$Canvas$view(
 									{
 										activeStateId: $elm$core$Maybe$Nothing,
+										activeStateVerdict: $elm$core$Maybe$Nothing,
 										activeTransition: $elm$core$Maybe$Nothing,
 										height: 600,
+										highlightedStateIds: _List_Nil,
 										isSimulateMode: false,
 										onCanvasClick: $author$project$Pages$Editor$CanvasClick,
 										onCanvasDoubleClick: $author$project$Pages$Editor$CanvasDoubleClick,
@@ -13584,6 +13810,7 @@ var $author$project$Pages$Simulator$DragMove = F2(
 var $author$project$Pages$Simulator$EndDrag = {$: 'EndDrag'};
 var $author$project$Pages$Simulator$LoadMoreInstances = {$: 'LoadMoreInstances'};
 var $author$project$Pages$Simulator$ResetSimulation = {$: 'ResetSimulation'};
+var $author$project$Pages$Simulator$RunEfficient = {$: 'RunEfficient'};
 var $author$project$Pages$Simulator$SelectNfaInstance = function (a) {
 	return {$: 'SelectNfaInstance', a: a};
 };
@@ -13607,6 +13834,7 @@ var $author$project$Pages$Simulator$SwitchToEditor = {$: 'SwitchToEditor'};
 var $author$project$Pages$Simulator$ToggleAutoRun = {$: 'ToggleAutoRun'};
 var $author$project$Pages$Simulator$ToggleCanvas = {$: 'ToggleCanvas'};
 var $author$project$Pages$Simulator$ToggleConsole = {$: 'ToggleConsole'};
+var $author$project$Pages$Simulator$ToggleEfficientMode = {$: 'ToggleEfficientMode'};
 var $author$project$Pages$Simulator$ToggleMerge = {$: 'ToggleMerge'};
 var $author$project$Pages$Simulator$ToggleTree = {$: 'ToggleTree'};
 var $author$project$Pages$Simulator$TransitionClick = F3(
@@ -13620,11 +13848,15 @@ var $author$project$Pages$Simulator$Wheel = F3(
 var $author$project$Pages$Simulator$ZoomIn = {$: 'ZoomIn'};
 var $author$project$Pages$Simulator$ZoomOut = {$: 'ZoomOut'};
 var $author$project$Pages$Simulator$canStepBackward = function (model) {
-	var _v0 = model.mode;
-	if (_v0.$ === 'DfaMode') {
-		return !$elm$core$List$isEmpty(model.history);
+	if (model.efficientMode) {
+		return false;
 	} else {
-		return !$elm$core$List$isEmpty(model.nfaHistory);
+		var _v0 = model.mode;
+		if (_v0.$ === 'DfaMode') {
+			return !$elm$core$List$isEmpty(model.history);
+		} else {
+			return !$elm$core$List$isEmpty(model.nfaHistory);
+		}
 	}
 };
 var $elm$virtual_dom$VirtualDom$lazy6 = _VirtualDom_lazy6;
@@ -14267,6 +14499,26 @@ var $author$project$Components$SimulationStatus$view = function (config) {
 					return $elm$html$Html$text('');
 				}
 			}()
+			]));
+};
+var $author$project$Pages$Simulator$viewDisabledToggleTab = function (label) {
+	return A2(
+		$elm$html$Html$button,
+		_List_fromArray(
+			[
+				$elm$html$Html$Attributes$disabled(true),
+				A2($elm$html$Html$Attributes$style, 'padding', '7px 18px'),
+				A2($elm$html$Html$Attributes$style, 'background-color', 'transparent'),
+				A2($elm$html$Html$Attributes$style, 'color', '#78909c'),
+				A2($elm$html$Html$Attributes$style, 'border', 'none'),
+				A2($elm$html$Html$Attributes$style, 'border-bottom', '2px solid transparent'),
+				A2($elm$html$Html$Attributes$style, 'cursor', 'not-allowed'),
+				A2($elm$html$Html$Attributes$style, 'font-size', '13px'),
+				A2($elm$html$Html$Attributes$style, 'opacity', '0.5')
+			]),
+		_List_fromArray(
+			[
+				$elm$html$Html$text(label)
 			]));
 };
 var $author$project$Pages$Simulator$TreeZoomIn = {$: 'TreeZoomIn'};
@@ -14950,10 +15202,6 @@ var $author$project$Pages$Simulator$viewNfaTree = F6(
 		return $author$project$Components$NfaTreeView$view(
 			{instances: instances, mergedEdges: mergedEdges, onSelect: $author$project$Pages$Simulator$SelectNfaInstance, onZoomIn: $author$project$Pages$Simulator$TreeZoomIn, onZoomOut: $author$project$Pages$Simulator$TreeZoomOut, selectedId: selectedId, states: states, treeNodes: treeNodes, zoom: zoom});
 	});
-var $elm$core$String$foldr = _String_foldr;
-var $elm$core$String$toList = function (string) {
-	return A3($elm$core$String$foldr, $elm$core$List$cons, _List_Nil, string);
-};
 var $author$project$Pages$Simulator$viewReadingHead = F2(
 	function (fullInput, remaining) {
 		var consumedCount = $elm$core$String$length(fullInput) - $elm$core$String$length(remaining);
@@ -15086,16 +15334,16 @@ var $author$project$Pages$Simulator$view = F2(
 			},
 			selectedInstance);
 		var readingHeadRemaining = function () {
-			var _v9 = model.mode;
-			if (_v9.$ === 'DfaMode') {
+			var _v12 = model.mode;
+			if (_v12.$ === 'DfaMode') {
 				return model.remainingInput;
 			} else {
 				return selectedInstanceRemaining;
 			}
 		}();
 		var nextSymbol = function () {
-			var _v8 = model.mode;
-			if (_v8.$ === 'DfaMode') {
+			var _v11 = model.mode;
+			if (_v11.$ === 'DfaMode') {
 				return A2(
 					$elm$core$Maybe$map,
 					A2($elm$core$Basics$composeR, $elm$core$Tuple$first, $elm$core$String$fromChar),
@@ -15124,9 +15372,32 @@ var $author$project$Pages$Simulator$view = F2(
 				return t.symbol === 'ε';
 			},
 			model.automaton.transitions);
+		var efficientHighlights = function () {
+			var _v10 = model.efficientResult;
+			if (_v10.$ === 'Just') {
+				var result = _v10.a;
+				return A2(
+					$elm$core$List$map,
+					function (stId) {
+						var isEnd = A2(
+							$elm$core$Maybe$withDefault,
+							false,
+							A2(
+								$elm$core$Maybe$map,
+								function ($) {
+									return $.isEnd;
+								},
+								A2($author$project$Utils$AutomatonHelpers$getStateById, stId, model.automaton.states)));
+						return {isAccepted: isEnd, stateId: stId};
+					},
+					result.reachedStates);
+			} else {
+				return _List_Nil;
+			}
+		}();
 		var activeStateId = function () {
-			var _v7 = model.mode;
-			if (_v7.$ === 'DfaMode') {
+			var _v9 = model.mode;
+			if (_v9.$ === 'DfaMode') {
 				return model.currentStateId;
 			} else {
 				return $author$project$Pages$Simulator$nfaActiveStateId(model);
@@ -15197,7 +15468,11 @@ var $author$project$Pages$Simulator$view = F2(
 											A2($elm$html$Html$Attributes$style, 'background-color', '#1a2f4a'),
 											A2($elm$html$Html$Attributes$style, 'flex-shrink', '0')
 										]),
-									_List_fromArray(
+									model.efficientMode ? _List_fromArray(
+										[
+											$author$project$Pages$Simulator$viewDisabledToggleTab('Automat'),
+											$author$project$Pages$Simulator$viewDisabledToggleTab('Strom')
+										]) : _List_fromArray(
 										[
 											A3($author$project$Pages$Simulator$viewToggleTab, 'Automat', model.showCanvas, $author$project$Pages$Simulator$ToggleCanvas),
 											A3($author$project$Pages$Simulator$viewToggleTab, 'Strom', model.showTree, $author$project$Pages$Simulator$ToggleTree)
@@ -15213,22 +15488,22 @@ var $author$project$Pages$Simulator$view = F2(
 										]),
 									_List_fromArray(
 										[
-											(_Utils_eq(model.mode, $author$project$Pages$Simulator$DfaMode) || model.showCanvas) ? A2(
+											(_Utils_eq(model.mode, $author$project$Pages$Simulator$DfaMode) || (model.showCanvas || model.efficientMode)) ? A2(
 											$elm$html$Html$div,
 											_List_fromArray(
 												[
-													(_Utils_eq(model.mode, $author$project$Pages$Simulator$NfaMode) && (model.showCanvas && model.showTree)) ? A2(
+													(_Utils_eq(model.mode, $author$project$Pages$Simulator$NfaMode) && (model.showCanvas && (model.showTree && (!model.efficientMode)))) ? A2(
 													$elm$html$Html$Attributes$style,
 													'flex-basis',
 													$elm$core$String$fromFloat(model.splitRatio * 100) + '%') : A2($elm$html$Html$Attributes$style, 'flex', '1'),
 													A2(
 													$elm$html$Html$Attributes$style,
 													'flex-shrink',
-													(_Utils_eq(model.mode, $author$project$Pages$Simulator$NfaMode) && (model.showCanvas && model.showTree)) ? '0' : '1'),
+													(_Utils_eq(model.mode, $author$project$Pages$Simulator$NfaMode) && (model.showCanvas && (model.showTree && (!model.efficientMode)))) ? '0' : '1'),
 													A2(
 													$elm$html$Html$Attributes$style,
 													'flex-grow',
-													(_Utils_eq(model.mode, $author$project$Pages$Simulator$NfaMode) && (model.showCanvas && model.showTree)) ? '0' : '1'),
+													(_Utils_eq(model.mode, $author$project$Pages$Simulator$NfaMode) && (model.showCanvas && (model.showTree && (!model.efficientMode)))) ? '0' : '1'),
 													A2($elm$html$Html$Attributes$style, 'min-width', '150px'),
 													A2($elm$html$Html$Attributes$style, 'overflow', 'auto'),
 													A2($elm$html$Html$Attributes$style, 'background-color', '#ecf0f1')
@@ -15238,12 +15513,31 @@ var $author$project$Pages$Simulator$view = F2(
 													$author$project$Components$Canvas$view(
 													{
 														activeStateId: activeStateId,
+														activeStateVerdict: function () {
+															var _v0 = model.mode;
+															if (_v0.$ === 'DfaMode') {
+																return A2(
+																	$elm$core$Maybe$map,
+																	function ($) {
+																		return $.isAccepted;
+																	},
+																	model.verdict);
+															} else {
+																return A2(
+																	$elm$core$Maybe$map,
+																	function ($) {
+																		return $.isAccepted;
+																	},
+																	selectedInstanceVerdict);
+															}
+														}(),
 														activeTransition: model.activeTransition,
 														height: 600,
+														highlightedStateIds: efficientHighlights,
 														isSimulateMode: true,
 														onCanvasClick: $author$project$Pages$Simulator$CanvasClick,
 														onCanvasDoubleClick: F2(
-															function (_v0, _v1) {
+															function (_v1, _v2) {
 																return A2($author$project$Pages$Simulator$CanvasClick, 0, 0);
 															}),
 														onCanvasMouseDown: $author$project$Pages$Simulator$CanvasMouseDown,
@@ -15251,12 +15545,12 @@ var $author$project$Pages$Simulator$view = F2(
 														onEndDrag: $author$project$Pages$Simulator$EndDrag,
 														onStartDrag: $author$project$Pages$Simulator$StartDrag,
 														onStateClick: $author$project$Pages$Simulator$StateClick,
-														onStateDoubleClick: function (_v2) {
+														onStateDoubleClick: function (_v3) {
 															return A2($author$project$Pages$Simulator$CanvasClick, 0, 0);
 														},
 														onTransitionClick: $author$project$Pages$Simulator$TransitionClick,
 														onTransitionDoubleClick: F3(
-															function (_v3, _v4, _v5) {
+															function (_v4, _v5, _v6) {
 																return A2($author$project$Pages$Simulator$CanvasClick, 0, 0);
 															}),
 														onWheel: F3(
@@ -15276,7 +15570,7 @@ var $author$project$Pages$Simulator$view = F2(
 														zoom: model.zoom
 													})
 												])) : A2($elm$html$Html$div, _List_Nil, _List_Nil),
-											(_Utils_eq(model.mode, $author$project$Pages$Simulator$NfaMode) && (model.showCanvas && model.showTree)) ? A2(
+											(_Utils_eq(model.mode, $author$project$Pages$Simulator$NfaMode) && (model.showCanvas && (model.showTree && (!model.efficientMode)))) ? A2(
 											$elm$html$Html$div,
 											_List_fromArray(
 												[
@@ -15293,7 +15587,7 @@ var $author$project$Pages$Simulator$view = F2(
 														$author$project$Pages$Simulator$StartDividerDrag,
 														A2($elm$json$Json$Decode$field, 'clientX', $elm$json$Json$Decode$float)))
 												]),
-											_List_Nil) : ((_Utils_eq(model.mode, $author$project$Pages$Simulator$NfaMode) && model.showTree) ? A2(
+											_List_Nil) : ((_Utils_eq(model.mode, $author$project$Pages$Simulator$NfaMode) && (model.showTree && (!model.efficientMode))) ? A2(
 											$elm$html$Html$div,
 											_List_fromArray(
 												[
@@ -15301,7 +15595,7 @@ var $author$project$Pages$Simulator$view = F2(
 													A2($elm$html$Html$Attributes$style, 'background-color', '#ccc')
 												]),
 											_List_Nil) : A2($elm$html$Html$div, _List_Nil, _List_Nil)),
-											(_Utils_eq(model.mode, $author$project$Pages$Simulator$NfaMode) && model.showTree) ? A7($elm$html$Html$Lazy$lazy6, $author$project$Pages$Simulator$viewNfaTree, model.nfaTree, model.nfaInstances, model.automaton.states, model.selectedInstanceId, model.nfaMergedEdges, model.treeZoom) : A2($elm$html$Html$div, _List_Nil, _List_Nil)
+											(_Utils_eq(model.mode, $author$project$Pages$Simulator$NfaMode) && (model.showTree && (!model.efficientMode))) ? A7($elm$html$Html$Lazy$lazy6, $author$project$Pages$Simulator$viewNfaTree, model.nfaTree, model.nfaInstances, model.automaton.states, model.selectedInstanceId, model.nfaMergedEdges, model.treeZoom) : A2($elm$html$Html$div, _List_Nil, _List_Nil)
 										]))
 								])),
 							A2(
@@ -15344,8 +15638,8 @@ var $author$project$Pages$Simulator$view = F2(
 										])),
 									A2($author$project$Pages$Simulator$viewReadingHead, model.inputString, readingHeadRemaining),
 									function () {
-									var _v6 = model.mode;
-									if (_v6.$ === 'DfaMode') {
+									var _v7 = model.mode;
+									if (_v7.$ === 'DfaMode') {
 										return $author$project$Components$SimulationStatus$view(
 											{
 												currentState: A2(
@@ -15368,8 +15662,8 @@ var $author$project$Pages$Simulator$view = F2(
 												]),
 											_List_fromArray(
 												[
-													$author$project$Components$SimulationStatus$view(
-													{currentState: selectedInstanceState, inputString: model.inputString, remainingInput: selectedInstanceRemaining, verdict: selectedInstanceVerdict}),
+													(!model.efficientMode) ? $author$project$Components$SimulationStatus$view(
+													{currentState: selectedInstanceState, inputString: model.inputString, remainingInput: selectedInstanceRemaining, verdict: selectedInstanceVerdict}) : A2($elm$html$Html$div, _List_Nil, _List_Nil),
 													A2(
 													$elm$html$Html$div,
 													_List_fromArray(
@@ -15475,6 +15769,173 @@ var $author$project$Pages$Simulator$view = F2(
 																]))
 														])),
 													A2(
+													$elm$html$Html$div,
+													_List_fromArray(
+														[
+															A2($elm$html$Html$Attributes$style, 'padding', '6px 15px'),
+															A2($elm$html$Html$Attributes$style, 'border-top', '1px solid #e0e0e0'),
+															A2($elm$html$Html$Attributes$style, 'display', 'flex'),
+															A2($elm$html$Html$Attributes$style, 'align-items', 'center'),
+															A2($elm$html$Html$Attributes$style, 'gap', '6px')
+														]),
+													_List_fromArray(
+														[
+															A2(
+															$elm$html$Html$label,
+															_List_fromArray(
+																[
+																	A2($elm$html$Html$Attributes$style, 'display', 'flex'),
+																	A2($elm$html$Html$Attributes$style, 'align-items', 'center'),
+																	A2($elm$html$Html$Attributes$style, 'gap', '6px'),
+																	A2($elm$html$Html$Attributes$style, 'font-size', '12px'),
+																	A2($elm$html$Html$Attributes$style, 'user-select', 'none'),
+																	A2($elm$html$Html$Attributes$style, 'cursor', 'pointer'),
+																	A2($elm$html$Html$Attributes$style, 'color', '#546e7a')
+																]),
+															_List_fromArray(
+																[
+																	A2(
+																	$elm$html$Html$input,
+																	_List_fromArray(
+																		[
+																			$elm$html$Html$Attributes$type_('checkbox'),
+																			$elm$html$Html$Attributes$checked(model.efficientMode),
+																			$elm$html$Html$Events$onClick($author$project$Pages$Simulator$ToggleEfficientMode),
+																			A2($elm$html$Html$Attributes$style, 'cursor', 'pointer')
+																		]),
+																	_List_Nil),
+																	$elm$html$Html$text('Efektívny režim')
+																])),
+															A2(
+															$elm$html$Html$span,
+															_List_fromArray(
+																[
+																	A2($elm$html$Html$Attributes$style, 'display', 'inline-flex'),
+																	A2($elm$html$Html$Attributes$style, 'align-items', 'center'),
+																	A2($elm$html$Html$Attributes$style, 'justify-content', 'center'),
+																	A2($elm$html$Html$Attributes$style, 'width', '14px'),
+																	A2($elm$html$Html$Attributes$style, 'height', '14px'),
+																	A2($elm$html$Html$Attributes$style, 'border-radius', '50%'),
+																	A2($elm$html$Html$Attributes$style, 'background', '#90a4ae'),
+																	A2($elm$html$Html$Attributes$style, 'color', 'white'),
+																	A2($elm$html$Html$Attributes$style, 'font-size', '9px'),
+																	A2($elm$html$Html$Attributes$style, 'font-weight', 'bold'),
+																	A2($elm$html$Html$Attributes$style, 'cursor', 'help'),
+																	A2($elm$html$Html$Attributes$style, 'flex-shrink', '0'),
+																	$elm$html$Html$Attributes$title('Efektívny režim spustí simuláciu naraz bez budovania stromu inštancií. Vhodné pre komplexné NFA s dlhým vstupom, kde by klasická simulácia bola príliš pomalá.')
+																]),
+															_List_fromArray(
+																[
+																	$elm$html$Html$text('?')
+																]))
+														])),
+													model.efficientMode ? A2(
+													$elm$html$Html$div,
+													_List_Nil,
+													_List_fromArray(
+														[
+															A2(
+															$elm$html$Html$button,
+															_List_fromArray(
+																[
+																	$elm$html$Html$Events$onClick($author$project$Pages$Simulator$RunEfficient),
+																	A2($elm$html$Html$Attributes$style, 'width', '100%'),
+																	A2($elm$html$Html$Attributes$style, 'padding', '12px 16px'),
+																	A2($elm$html$Html$Attributes$style, 'background-color', '#0277bd'),
+																	A2($elm$html$Html$Attributes$style, 'color', 'white'),
+																	A2($elm$html$Html$Attributes$style, 'border', 'none'),
+																	A2($elm$html$Html$Attributes$style, 'border-radius', '6px'),
+																	A2($elm$html$Html$Attributes$style, 'cursor', 'pointer'),
+																	A2($elm$html$Html$Attributes$style, 'font-size', '15px'),
+																	A2($elm$html$Html$Attributes$style, 'font-weight', 'bold'),
+																	A2($elm$html$Html$Attributes$style, 'margin', '8px 15px'),
+																	A2($elm$html$Html$Attributes$style, 'box-sizing', 'border-box')
+																]),
+															_List_fromArray(
+																[
+																	$elm$html$Html$text('Okamžitý beh')
+																])),
+															function () {
+															var _v8 = model.efficientResult;
+															if (_v8.$ === 'Just') {
+																var result = _v8.a;
+																return A2(
+																	$elm$html$Html$div,
+																	_List_fromArray(
+																		[
+																			A2($elm$html$Html$Attributes$style, 'padding', '10px 15px'),
+																			A2($elm$html$Html$Attributes$style, 'margin', '4px 15px'),
+																			A2($elm$html$Html$Attributes$style, 'border-radius', '6px'),
+																			A2(
+																			$elm$html$Html$Attributes$style,
+																			'background-color',
+																			result.isAccepted ? '#e8f5e9' : '#ffebee'),
+																			A2(
+																			$elm$html$Html$Attributes$style,
+																			'border-left',
+																			result.isAccepted ? '4px solid #43a047' : '4px solid #e53935')
+																		]),
+																	_List_fromArray(
+																		[
+																			A2(
+																			$elm$html$Html$div,
+																			_List_fromArray(
+																				[
+																					A2($elm$html$Html$Attributes$style, 'font-weight', 'bold'),
+																					A2($elm$html$Html$Attributes$style, 'font-size', '14px'),
+																					A2(
+																					$elm$html$Html$Attributes$style,
+																					'color',
+																					result.isAccepted ? '#2e7d32' : '#c62828')
+																				]),
+																			_List_fromArray(
+																				[
+																					$elm$html$Html$text(result.text)
+																				])),
+																			A2(
+																			$elm$html$Html$div,
+																			_List_fromArray(
+																				[
+																					A2($elm$html$Html$Attributes$style, 'font-size', '12px'),
+																					A2($elm$html$Html$Attributes$style, 'color', '#546e7a'),
+																					A2($elm$html$Html$Attributes$style, 'margin-top', '4px')
+																				]),
+																			_List_fromArray(
+																				[
+																					$elm$html$Html$text(
+																					'Dosiahnuté stavy: ' + A2(
+																						$elm$core$String$join,
+																						', ',
+																						A2(
+																							$elm$core$List$map,
+																							function (sid) {
+																								return A2($author$project$Utils$AutomatonHelpers$getStateLabel, sid, model.automaton.states);
+																							},
+																							result.reachedStates)))
+																				]))
+																		]));
+															} else {
+																return A2($elm$html$Html$div, _List_Nil, _List_Nil);
+															}
+														}(),
+															A2(
+															$elm$html$Html$div,
+															_List_fromArray(
+																[
+																	A2($elm$html$Html$Attributes$style, 'flex', '1'),
+																	A2($elm$html$Html$Attributes$style, 'display', 'flex'),
+																	A2($elm$html$Html$Attributes$style, 'align-items', 'center'),
+																	A2($elm$html$Html$Attributes$style, 'justify-content', 'center'),
+																	A2($elm$html$Html$Attributes$style, 'padding', '15px'),
+																	A2($elm$html$Html$Attributes$style, 'color', '#90a4ae'),
+																	A2($elm$html$Html$Attributes$style, 'font-size', '13px'),
+																	A2($elm$html$Html$Attributes$style, 'text-align', 'center')
+																]),
+															_List_fromArray(
+																[
+																	$elm$html$Html$text('Panel inštancií je deaktivovaný v efektívnom režime.')
+																]))
+														])) : A2(
 													$elm$html$Html$div,
 													_List_fromArray(
 														[
@@ -16025,6 +16486,15 @@ var $author$project$Main$viewGuideSimulator = A2(
 					A2($author$project$Main$guideRow, 'Prepínače Plátno / Strom', 'Zobraziť alebo skryť každú sekciu nezávisle'),
 					A2($author$project$Main$guideRow, 'Zlúčiť stavy', 'Ak zaškrtnuté: inštancie s rovnakým (stav, zostatok vstupu) sa zlúčia do jednej. Bez zlučovania môže počet inštancií rásť exponenciálne (až k^n, kde k je priemerný počet vetvení a n dĺžka vstupu). Zlučovanie obmedzuje počet aktívnych inštancií na najviac |Q| v každom kroku. Odporúčané pre komplexné NFA.'),
 					$author$project$Main$guideNote('NFA akceptuje reťazec, ak aspoň jedna inštancia dosiahne akceptujúci stav po prečítaní celého vstupu.')
+				])),
+			A2(
+			$author$project$Main$guideSection,
+			'Efektívny režim (NFA)',
+			_List_fromArray(
+				[
+					A2($author$project$Main$guideRow, 'Zaškrtnite \"Efektívny režim\"', 'V pravom paneli NFA simulátora zapne efektívny režim, ktorý nahradí strom inštancií zobrazením výsledku priamo na plátne.'),
+					A2($author$project$Main$guideRow, 'Okamžitý beh', 'Spustí kompletnú simuláciu naraz bez budovania inštancií. Výsledok (akceptované/zamietnuté) a dosiahnuté stavy sa zobrazia okamžite na plátne.'),
+					$author$project$Main$guideNote('V efektívnom režime je krokovanie, auto-run a panel inštancií deaktivovaný. Vhodné pre komplexné NFA s dlhým vstupom.')
 				])),
 			A2(
 			$author$project$Main$guideSection,

@@ -18,6 +18,7 @@ type alias Config msg =
     , transitionFrom : Maybe Int
     , transitionTo : Maybe Int
     , activeStateId : Maybe Int
+    , activeStateVerdict : Maybe Bool
     , activeTransition : Maybe { from : Int, to : Int, symbol : String }
     , onCanvasClick : Float -> Float -> msg
     , onCanvasDoubleClick : Float -> Float -> msg
@@ -38,6 +39,7 @@ type alias Config msg =
     , width : Float
     , height : Float
     , isSimulateMode : Bool
+    , highlightedStateIds : List { stateId : Int, isAccepted : Bool }
     }
 
 
@@ -145,23 +147,49 @@ svgState config state =
         isActive =
             config.activeStateId == Just state.id
 
+        highlightMatch =
+            List.filter (\h -> h.stateId == state.id) config.highlightedStateIds
+                |> List.head
+
         fillColor =
             if isSelected then
                 "#80cbc4"
             else if isTransitionStart || isTransitionEnd then
                 "#fff59d"
             else if isActive then
-                "#a5d6a7"
+                case config.activeStateVerdict of
+                    Nothing ->
+                        "#1e88e5"
+                    Just True ->
+                        "#43a047"
+                    Just False ->
+                        "#e53935"
             else
-                "#eceff1"
+                case highlightMatch of
+                    Just h ->
+                        if h.isAccepted then "#a5d6a7" else "#ef9a9a"
+
+                    Nothing ->
+                        "#eceff1"
 
         borderColor =
             if isSelected then
                 "#004d40"
             else if isActive then
-                "#1b5e20"
+                case config.activeStateVerdict of
+                    Nothing ->
+                        "#1565c0"
+                    Just True ->
+                        "#2e7d32"
+                    Just False ->
+                        "#b71c1c"
             else
-                "#455a64"
+                case highlightMatch of
+                    Just h ->
+                        if h.isAccepted then "#2e7d32" else "#b71c1c"
+
+                    Nothing ->
+                        "#455a64"
 
         borderWidth = 2
 

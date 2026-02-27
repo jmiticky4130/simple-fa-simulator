@@ -693,6 +693,11 @@ viewGuideSimulator =
             , guideRow "Zlúčiť stavy" "Ak zaškrtnuté: inštancie s rovnakým (stav, zostatok vstupu) sa zlúčia do jednej. Bez zlučovania môže počet inštancií rásť exponenciálne (až k^n, kde k je priemerný počet vetvení a n dĺžka vstupu). Zlučovanie obmedzuje počet aktívnych inštancií na najviac |Q| v každom kroku. Odporúčané pre komplexné NFA."
             , guideNote "NFA akceptuje reťazec, ak aspoň jedna inštancia dosiahne akceptujúci stav po prečítaní celého vstupu."
             ]
+        , guideSection "Efektívny režim (NFA)"
+            [ guideRow "Zaškrtnite \"Efektívny režim\"" "V pravom paneli NFA simulátora zapne efektívny režim, ktorý nahradí strom inštancií zobrazením výsledku priamo na plátne."
+            , guideRow "Okamžitý beh" "Spustí kompletnú simuláciu naraz bez budovania inštancií. Výsledok (akceptované/zamietnuté) a dosiahnuté stavy sa zobrazia okamžite na plátne."
+            , guideNote "V efektívnom režime je krokovanie, auto-run a panel inštancií deaktivovaný. Vhodné pre komplexné NFA s dlhým vstupom."
+            ]
         , guideSection "ε-prechody v NFA"
             [ guideRow "ε-rozvinutie" "Po každom symbolickom kroku sa automaticky vytvoria ε-deti"
             , guideRow "Zobrazenie" "ε-kroky sú viditeľné v strome rozhodnutí ako samostatné úrovne"

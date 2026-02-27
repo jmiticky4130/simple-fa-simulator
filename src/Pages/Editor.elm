@@ -1079,6 +1079,7 @@ view consoleOpen model =
                     , transitionFrom = model.transitionFrom
                     , transitionTo = Maybe.map .to model.editingTransition
                     , activeStateId = Nothing
+                    , activeStateVerdict = Nothing
                     , activeTransition = Nothing
                     , onCanvasClick = CanvasClick
                     , onCanvasDoubleClick = CanvasDoubleClick
@@ -1099,6 +1100,7 @@ view consoleOpen model =
                     , width = 800
                     , height = 600
                     , isSimulateMode = False
+                    , highlightedStateIds = []
                     }
                 ]
             , div

@@ -14,7 +14,8 @@ import Components.SimulateToolbar as SimulateToolbar
 import Components.SimulationStatus as SimulationStatus
 import Components.NfaInstancePanel as NfaInstancePanel
 import Components.NfaTreeView as NfaTreeView
-import Utils.AutomatonHelpers exposing (getStateLabel, getStateById, isDFA)
+import Set
+import Utils.AutomatonHelpers exposing (getStateLabel, getStateById, isDFA, epsilonClosure)
 import Json.Encode
 
 
@@ -59,6 +60,8 @@ type alias Model =
     , dividerDragStartX : Float
     , dividerDragStartRatio : Float
     , instancePanelVisible : Int
+    , efficientMode : Bool
+    , efficientResult : Maybe { text : String, isAccepted : Bool, reachedStates : List Int }
     }
 
 
@@ -110,6 +113,8 @@ init automaton =
     , dividerDragStartX = 0
     , dividerDragStartRatio = 0.667
     , instancePanelVisible = 100
+    , efficientMode = False
+    , efficientResult = Nothing
     }
 
 
@@ -144,6 +149,8 @@ type Msg
     | DividerDragMove Float
     | EndDividerDrag
     | ToggleConsole
+    | ToggleEfficientMode
+    | RunEfficient
 
 
 update : Msg -> Model -> Model
@@ -172,6 +179,7 @@ update msg model =
                 , nextInstanceId = nfaState.nextInstanceId
                 , consoleMessages = [ { text = "Vstup nastavený: " ++ str, msgType = Console.Info } ]
                 , instancePanelVisible = 100
+                , efficientResult = Nothing
             }
 
         StepForward ->
@@ -195,7 +203,7 @@ update msg model =
                 fresh =
                     update (SetInput model.inputString) (init model.automaton)
             in
-            { fresh | mergeEnabled = model.mergeEnabled, showCanvas = model.showCanvas, showTree = model.showTree, autoSpeed = model.autoSpeed, panX = model.panX, panY = model.panY, zoom = model.zoom, treeZoom = model.treeZoom, splitRatio = model.splitRatio }
+            { fresh | mergeEnabled = model.mergeEnabled, showCanvas = model.showCanvas, showTree = model.showTree, autoSpeed = model.autoSpeed, panX = model.panX, panY = model.panY, zoom = model.zoom, treeZoom = model.treeZoom, splitRatio = model.splitRatio, efficientMode = model.efficientMode, efficientResult = Nothing }
 
         SwitchToEditor ->
             model
@@ -213,7 +221,11 @@ update msg model =
             { model | mergeEnabled = not model.mergeEnabled }
 
         ToggleAutoRun ->
-            { model | autoRunning = not model.autoRunning }
+            if model.efficientMode then
+                model
+
+            else
+                { model | autoRunning = not model.autoRunning }
 
         SetAutoSpeed str ->
             case String.toFloat str of
@@ -296,6 +308,41 @@ update msg model =
 
         EndDividerDrag ->
             { model | isDraggingDivider = False }
+
+        ToggleEfficientMode ->
+            let
+                newMode =
+                    not model.efficientMode
+            in
+            if newMode then
+                { model | efficientMode = True, efficientResult = Nothing, autoRunning = False }
+
+            else
+                let
+                    nfaState =
+                        initNfaState model.automaton model.inputString
+                in
+                { model
+                    | efficientMode = False
+                    , efficientResult = Nothing
+                    , nfaInstances = nfaState.instances
+                    , nfaHistory = []
+                    , nfaTree = nfaState.tree
+                    , nfaMergedEdges = []
+                    , selectedInstanceId = Nothing
+                    , nextInstanceId = nfaState.nextInstanceId
+                    , instancePanelVisible = 100
+                }
+
+        RunEfficient ->
+            let
+                result =
+                    runEfficientNfa model.automaton model.inputString
+            in
+            { model
+                | efficientResult = Just result
+                , consoleMessages = { text = "Efektívny beh: " ++ result.text, msgType = Console.Info } :: model.consoleMessages
+            }
 
         ToggleConsole ->
             model
@@ -779,22 +826,96 @@ stepBackwardNfa model =
 
 canStepForward : Model -> Bool
 canStepForward model =
-    case model.mode of
-        DfaMode ->
-            not (String.isEmpty model.remainingInput)
+    if model.efficientMode then
+        False
 
-        NfaMode ->
-            List.any (\i -> i.verdict == Nothing) model.nfaInstances
+    else
+        case model.mode of
+            DfaMode ->
+                not (String.isEmpty model.remainingInput)
+
+            NfaMode ->
+                List.any (\i -> i.verdict == Nothing) model.nfaInstances
 
 
 canStepBackward : Model -> Bool
 canStepBackward model =
-    case model.mode of
-        DfaMode ->
-            not (List.isEmpty model.history)
+    if model.efficientMode then
+        False
 
-        NfaMode ->
-            not (List.isEmpty model.nfaHistory)
+    else
+        case model.mode of
+            DfaMode ->
+                not (List.isEmpty model.history)
+
+            NfaMode ->
+                not (List.isEmpty model.nfaHistory)
+
+
+runEfficientNfa : AutomatonState -> String -> { text : String, isAccepted : Bool, reachedStates : List Int }
+runEfficientNfa automaton inputStr =
+    let
+        startState =
+            List.filter .isStart automaton.states |> List.head |> Maybe.map .id
+
+        initialSet =
+            case startState of
+                Nothing ->
+                    Set.empty
+
+                Just sid ->
+                    epsilonClosure automaton.transitions sid
+                        |> Set.fromList
+
+        step char currentSet =
+            let
+                symbol =
+                    String.fromChar char
+
+                targets =
+                    Set.foldl
+                        (\stId acc ->
+                            List.foldl
+                                (\t innerAcc ->
+                                    if t.from == stId && t.symbol == symbol then
+                                        Set.insert t.to innerAcc
+
+                                    else
+                                        innerAcc
+                                )
+                                acc
+                                automaton.transitions
+                        )
+                        Set.empty
+                        currentSet
+
+                expanded =
+                    Set.foldl
+                        (\stId acc ->
+                            List.foldl (\x s -> Set.insert x s) acc (epsilonClosure automaton.transitions stId)
+                        )
+                        Set.empty
+                        targets
+            in
+            expanded
+
+        finalSet =
+            List.foldl step initialSet (String.toList inputStr)
+
+        endStateIds =
+            List.filter .isEnd automaton.states |> List.map .id |> Set.fromList
+
+        reachedList =
+            Set.toList finalSet
+
+        accepted =
+            not (Set.isEmpty (Set.intersect finalSet endStateIds))
+    in
+    if accepted then
+        { text = "Slovo je akceptované", isAccepted = True, reachedStates = reachedList }
+
+    else
+        { text = "Slovo nie je akceptované", isAccepted = False, reachedStates = reachedList }
 
 
 nfaActiveStateId : Model -> Maybe Int
@@ -915,6 +1036,22 @@ viewReadingHead fullInput remaining =
             ]
 
 
+viewDisabledToggleTab : String -> Html Msg
+viewDisabledToggleTab label =
+    Html.button
+        [ Html.Attributes.disabled True
+        , style "padding" "7px 18px"
+        , style "background-color" "transparent"
+        , style "color" "#78909c"
+        , style "border" "none"
+        , style "border-bottom" "2px solid transparent"
+        , style "cursor" "not-allowed"
+        , style "font-size" "13px"
+        , style "opacity" "0.5"
+        ]
+        [ Html.text label ]
+
+
 viewToggleTab : String -> Bool -> Msg -> Html Msg
 viewToggleTab label isActive msg =
     Html.button
@@ -991,6 +1128,24 @@ view consoleOpen model =
 
                 NfaMode ->
                     selectedInstanceRemaining
+
+        efficientHighlights =
+            case model.efficientResult of
+                Just result ->
+                    result.reachedStates
+                        |> List.map
+                            (\stId ->
+                                let
+                                    isEnd =
+                                        getStateById stId model.automaton.states
+                                            |> Maybe.map .isEnd
+                                            |> Maybe.withDefault False
+                                in
+                                { stateId = stId, isAccepted = isEnd }
+                            )
+
+                Nothing ->
+                    []
     in
     div
         [ style "display" "flex"
@@ -1034,9 +1189,16 @@ view consoleOpen model =
                         , style "background-color" "#1a2f4a"
                         , style "flex-shrink" "0"
                         ]
-                        [ viewToggleTab "Automat" model.showCanvas ToggleCanvas
-                        , viewToggleTab "Strom" model.showTree ToggleTree
-                        ]
+                        (if model.efficientMode then
+                            [ viewDisabledToggleTab "Automat"
+                            , viewDisabledToggleTab "Strom"
+                            ]
+
+                         else
+                            [ viewToggleTab "Automat" model.showCanvas ToggleCanvas
+                            , viewToggleTab "Strom" model.showTree ToggleTree
+                            ]
+                        )
 
                   else
                     div [] []
@@ -1047,15 +1209,15 @@ view consoleOpen model =
                     , style "flex-direction" "row"
                     , style "overflow" "hidden"
                     ]
-                    [ if model.mode == DfaMode || model.showCanvas then
+                    [ if model.mode == DfaMode || model.showCanvas || model.efficientMode then
                         div
-                            [ if model.mode == NfaMode && model.showCanvas && model.showTree then
+                            [ if model.mode == NfaMode && model.showCanvas && model.showTree && not model.efficientMode then
                                 style "flex-basis" (String.fromFloat (model.splitRatio * 100) ++ "%")
 
                               else
                                 style "flex" "1"
-                            , style "flex-shrink" (if model.mode == NfaMode && model.showCanvas && model.showTree then "0" else "1")
-                            , style "flex-grow" (if model.mode == NfaMode && model.showCanvas && model.showTree then "0" else "1")
+                            , style "flex-shrink" (if model.mode == NfaMode && model.showCanvas && model.showTree && not model.efficientMode then "0" else "1")
+                            , style "flex-grow" (if model.mode == NfaMode && model.showCanvas && model.showTree && not model.efficientMode then "0" else "1")
                             , style "min-width" "150px"
                             , style "overflow" "auto"
                             , style "background-color" "#ecf0f1"
@@ -1067,6 +1229,12 @@ view consoleOpen model =
                                 , transitionFrom = Nothing
                                 , transitionTo = Nothing
                                 , activeStateId = activeStateId
+                                , activeStateVerdict =
+                                    case model.mode of
+                                        DfaMode ->
+                                            model.verdict |> Maybe.map .isAccepted
+                                        NfaMode ->
+                                            selectedInstanceVerdict |> Maybe.map .isAccepted
                                 , activeTransition = model.activeTransition
                                 , onCanvasClick = CanvasClick
                                 , onCanvasDoubleClick = \_ _ -> CanvasClick 0 0
@@ -1087,12 +1255,13 @@ view consoleOpen model =
                                 , width = 800
                                 , height = 600
                                 , isSimulateMode = True
+                                , highlightedStateIds = efficientHighlights
                                 }
                             ]
 
                       else
                         div [] []
-                    , if model.mode == NfaMode && model.showCanvas && model.showTree then
+                    , if model.mode == NfaMode && model.showCanvas && model.showTree && not model.efficientMode then
                         div
                             [ style "width" "6px"
                             , style "background-color" "#b0bec5"
@@ -1103,7 +1272,7 @@ view consoleOpen model =
                             ]
                             []
 
-                      else if model.mode == NfaMode && model.showTree then
+                      else if model.mode == NfaMode && model.showTree && not model.efficientMode then
                         div
                             [ style "width" "1px"
                             , style "background-color" "#ccc"
@@ -1112,7 +1281,7 @@ view consoleOpen model =
 
                       else
                         div [] []
-                    , if model.mode == NfaMode && model.showTree then
+                    , if model.mode == NfaMode && model.showTree && not model.efficientMode then
                         Html.Lazy.lazy6 viewNfaTree
                             model.nfaTree
                             model.nfaInstances
@@ -1165,12 +1334,16 @@ view consoleOpen model =
                             , style "flex" "1"
                             , style "overflow" "hidden"
                             ]
-                            [ SimulationStatus.view
-                                { inputString = model.inputString
-                                , remainingInput = selectedInstanceRemaining
-                                , currentState = selectedInstanceState
-                                , verdict = selectedInstanceVerdict
-                                }
+                            [ if not model.efficientMode then
+                                SimulationStatus.view
+                                    { inputString = model.inputString
+                                    , remainingInput = selectedInstanceRemaining
+                                    , currentState = selectedInstanceState
+                                    , verdict = selectedInstanceVerdict
+                                    }
+
+                              else
+                                div [] []
                             , div
                                 [ style "padding" "6px 15px"
                                 , style "border-top" "1px solid #ccc"
@@ -1238,19 +1411,120 @@ view consoleOpen model =
                                     [ text "Inštancie NFA:" ]
                                 ]
                             , div
-                                [ style "flex" "1"
-                                , style "overflow-y" "auto"
-                                , style "padding" "4px 15px"
+                                [ style "padding" "6px 15px"
+                                , style "border-top" "1px solid #e0e0e0"
+                                , style "display" "flex"
+                                , style "align-items" "center"
+                                , style "gap" "6px"
                                 ]
-                                [ NfaInstancePanel.view
-                                    { instances = model.nfaInstances
-                                    , selectedId = model.selectedInstanceId
-                                    , onSelect = SelectNfaInstance
-                                    , states = model.automaton.states
-                                    , visibleCount = model.instancePanelVisible
-                                    , onLoadMore = LoadMoreInstances
-                                    }
+                                [ Html.label
+                                    [ style "display" "flex"
+                                    , style "align-items" "center"
+                                    , style "gap" "6px"
+                                    , style "font-size" "12px"
+                                    , style "user-select" "none"
+                                    , style "cursor" "pointer"
+                                    , style "color" "#546e7a"
+                                    ]
+                                    [ Html.input
+                                        [ type_ "checkbox"
+                                        , Html.Attributes.checked model.efficientMode
+                                        , onClick ToggleEfficientMode
+                                        , style "cursor" "pointer"
+                                        ]
+                                        []
+                                    , text "Efektívny režim"
+                                    ]
+                                , span
+                                    [ style "display" "inline-flex"
+                                    , style "align-items" "center"
+                                    , style "justify-content" "center"
+                                    , style "width" "14px"
+                                    , style "height" "14px"
+                                    , style "border-radius" "50%"
+                                    , style "background" "#90a4ae"
+                                    , style "color" "white"
+                                    , style "font-size" "9px"
+                                    , style "font-weight" "bold"
+                                    , style "cursor" "help"
+                                    , style "flex-shrink" "0"
+                                    , Html.Attributes.title "Efektívny režim spustí simuláciu naraz bez budovania stromu inštancií. Vhodné pre komplexné NFA s dlhým vstupom, kde by klasická simulácia bola príliš pomalá."
+                                    ]
+                                    [ text "?" ]
                                 ]
+                            , if model.efficientMode then
+                                div []
+                                    [ Html.button
+                                        [ onClick RunEfficient
+                                        , style "width" "100%"
+                                        , style "padding" "12px 16px"
+                                        , style "background-color" "#0277bd"
+                                        , style "color" "white"
+                                        , style "border" "none"
+                                        , style "border-radius" "6px"
+                                        , style "cursor" "pointer"
+                                        , style "font-size" "15px"
+                                        , style "font-weight" "bold"
+                                        , style "margin" "8px 15px"
+                                        , style "box-sizing" "border-box"
+                                        ]
+                                        [ text "Okamžitý beh" ]
+                                    , case model.efficientResult of
+                                        Just result ->
+                                            div
+                                                [ style "padding" "10px 15px"
+                                                , style "margin" "4px 15px"
+                                                , style "border-radius" "6px"
+                                                , style "background-color"
+                                                    (if result.isAccepted then "#e8f5e9" else "#ffebee")
+                                                , style "border-left"
+                                                    (if result.isAccepted then "4px solid #43a047" else "4px solid #e53935")
+                                                ]
+                                                [ div
+                                                    [ style "font-weight" "bold"
+                                                    , style "font-size" "14px"
+                                                    , style "color"
+                                                        (if result.isAccepted then "#2e7d32" else "#c62828")
+                                                    ]
+                                                    [ text result.text ]
+                                                , div
+                                                    [ style "font-size" "12px"
+                                                    , style "color" "#546e7a"
+                                                    , style "margin-top" "4px"
+                                                    ]
+                                                    [ text ("Dosiahnuté stavy: " ++ String.join ", " (List.map (\sid -> getStateLabel sid model.automaton.states) result.reachedStates)) ]
+                                                ]
+
+                                        Nothing ->
+                                            div [] []
+                                    , div
+                                        [ style "flex" "1"
+                                        , style "display" "flex"
+                                        , style "align-items" "center"
+                                        , style "justify-content" "center"
+                                        , style "padding" "15px"
+                                        , style "color" "#90a4ae"
+                                        , style "font-size" "13px"
+                                        , style "text-align" "center"
+                                        ]
+                                        [ text "Panel inštancií je deaktivovaný v efektívnom režime." ]
+                                    ]
+
+                              else
+                                div
+                                    [ style "flex" "1"
+                                    , style "overflow-y" "auto"
+                                    , style "padding" "4px 15px"
+                                    ]
+                                    [ NfaInstancePanel.view
+                                        { instances = model.nfaInstances
+                                        , selectedId = model.selectedInstanceId
+                                        , onSelect = SelectNfaInstance
+                                        , states = model.automaton.states
+                                        , visibleCount = model.instancePanelVisible
+                                        , onLoadMore = LoadMoreInstances
+                                        }
+                                    ]
                             ]
                 ]
             ]
