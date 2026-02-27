@@ -225,9 +225,53 @@ viewStraightEdge a b symbols isActive =
 
         strokeWidth =
             if isActive then "4" else "2"
+
+        midX =
+            (sx + ex) / 2
+
+        midY =
+            (sy + ey) / 2
+
+        angleRad =
+            atan2 uy ux
+
+        angleDeg =
+            angleRad * 180 / pi
+
+        rotationAngle =
+            if ux < 0 then angleDeg + 180 else angleDeg
+
+        n =
+            List.length symbols
+
+        spacing =
+            16
+
+        labels =
+            [ Svg.g
+                [ SA.transform
+                    ("translate(" ++ String.fromFloat midX ++ "," ++ String.fromFloat midY
+                        ++ ") rotate(" ++ String.fromFloat rotationAngle ++ ")")
+                ]
+                (List.indexedMap
+                    (\i sym ->
+                        Svg.text_
+                            [ SA.x (String.fromFloat ((toFloat i - toFloat (n - 1) / 2.0) * toFloat spacing))
+                            , SA.y "-6"
+                            , SA.textAnchor "middle"
+                            , SA.fontSize "13"
+                            , SA.fill strokeColor
+                            , SA.fontWeight "bold"
+                            , SA.style "user-select: none; pointer-events: none;"
+                            ]
+                            [ Svg.text sym ]
+                    )
+                    symbols
+                )
+            ]
     in
     Svg.g []
-        [ Svg.path
+        ([ Svg.path
             [ SA.d ("M " ++ String.fromFloat sx ++ " " ++ String.fromFloat sy ++ " L " ++ String.fromFloat ex ++ " " ++ String.fromFloat ey)
             , SA.fill "none"
             , SA.stroke strokeColor
@@ -235,8 +279,9 @@ viewStraightEdge a b symbols isActive =
             ]
             []
         , Svg.polygon [ SA.points arrowPts, SA.fill strokeColor ] []
-        , edgeLabel ((sx + ex) / 2) ((sy + ey) / 2 - 8) (String.join "," symbols) strokeColor
         ]
+            ++ labels
+        )
 
 
 viewCurvedEdge : DfaSubsetState -> DfaSubsetState -> List String -> Bool -> Svg msg
@@ -326,14 +371,52 @@ viewCurvedEdge a b symbols isActive =
         strokeWidth =
             if isActive then "4" else "2"
 
-        labelX =
+        curveMidX =
             0.25 * sx + 0.5 * cx + 0.25 * ex
 
-        labelY =
-            0.25 * sy + 0.5 * cy + 0.25 * ey - 8
+        curveMidY =
+            0.25 * sy + 0.5 * cy + 0.25 * ey
+
+        angleRad =
+            atan2 uy ux
+
+        angleDeg =
+            angleRad * 180 / pi
+
+        rotationAngle =
+            if ux < 0 then angleDeg + 180 else angleDeg
+
+        n =
+            List.length symbols
+
+        spacing =
+            16
+
+        labels =
+            [ Svg.g
+                [ SA.transform
+                    ("translate(" ++ String.fromFloat curveMidX ++ "," ++ String.fromFloat curveMidY
+                        ++ ") rotate(" ++ String.fromFloat rotationAngle ++ ")")
+                ]
+                (List.indexedMap
+                    (\i sym ->
+                        Svg.text_
+                            [ SA.x (String.fromFloat ((toFloat i - toFloat (n - 1) / 2.0) * toFloat spacing))
+                            , SA.y "-6"
+                            , SA.textAnchor "middle"
+                            , SA.fontSize "13"
+                            , SA.fill strokeColor
+                            , SA.fontWeight "bold"
+                            , SA.style "user-select: none; pointer-events: none;"
+                            ]
+                            [ Svg.text sym ]
+                    )
+                    symbols
+                )
+            ]
     in
     Svg.g []
-        [ Svg.path
+        ([ Svg.path
             [ SA.d
                 ("M " ++ String.fromFloat sx ++ " " ++ String.fromFloat sy
                     ++ " Q " ++ String.fromFloat cx ++ " " ++ String.fromFloat cy
@@ -345,8 +428,9 @@ viewCurvedEdge a b symbols isActive =
             ]
             []
         , Svg.polygon [ SA.points arrowPts, SA.fill strokeColor ] []
-        , edgeLabel labelX labelY (String.join "," symbols) strokeColor
         ]
+            ++ labels
+        )
 
 
 viewSelfLoop : DfaSubsetState -> List String -> Bool -> Svg msg

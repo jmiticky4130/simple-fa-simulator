@@ -1,6 +1,6 @@
 # DFA/NFA Simulator
 
-Webový editor a simulátor deterministických (DFA) a nedeterministických (NFA) konečných automatov napísaný v jazyku Elm. Aplikácia umožňuje vizuálne vytvárať automaty, upravovať ich a krokovať simuláciu vstupného slova.
+Webový editor a simulátor deterministických (DFA) a nedeterministických (NFA) konečných automatov napísaný v jazyku Elm. Aplikácia umožňuje vizuálne vytvárať automaty, upravovať ich a krokovať simuláciu vstupné ho slova.
 
 ## Spustenie projektu lokálne
 
@@ -33,66 +33,58 @@ Webový editor a simulátor deterministických (DFA) a nedeterministických (NFA
 
 ### Nástroje (Toolbar)
 
-| Nástroj | Funkcia | Použitie |
-|---------|---------|----------|
-| Výber | Výber a presun stavov | Kliknite na stav, ťahajte myšou |
-| Pridať stav | Vytvorenie nového stavu | Kliknite na plátno |
-| Pridať prechod | Vytvorenie prechodu | Kliknite na 2 stavy postupne |
-| Odstrániť | Odstránenie prvkov | Kliknite na stav/prechod |
-| Počiatočný stav | Nastavenie q₀ | Kliknite na stav |
-| Koncový stav | Nastavenie koncového stavu | Kliknite na stav (môže byť viac) |
-| Undo/Redo | Vrátenie/opakovanie akcie | Tlačidlá v toolbare |
+| Nástroj | Klávesová skratka | Funkcia |
+|---------|-------------------|---------|
+| Stavať | Shift+B | Predvolený nástroj – vytváranie stavov a prechodov na plátne |
+| Odstrániť | Shift+D | Klik na stav alebo prechod ho vymaže; opätovné kliknutie prepne späť na Stavať |
+| Undo / Redo | Ctrl+Z / Ctrl+Y | Vrátenie / zopakovanie zmeny |
 
-### Vizuálne označenia
+### Akcie na plátne (nástroj Stavať)
 
-| Prvok | Význam |
-|-------|--------|
-| Sivý kruh | Normálny stav |
-| Zlatý kruh | Stav v procese pridávania prechodu |
-| Zelený kruh | Aktívny stav (počas simulácie) |
-| Dvojitý kruh | Koncový (akceptujúci) stav |
-| Šípka do stavu | Počiatočný stav |
-| Čierna čiara s modrým symbolom | Prechod |
+| Čo chcem urobiť | Ako to dosiahnuť |
+|-----------------|-----------------|
+| Pridanie stavu | Dvojklik na prázdne plátno (predvolený názov q0, q1, …) |
+| Premenovanie stavu | Rýchly dvojklik na stav → upraviť názov v modáli |
+| Nastavenie počiatočného stavu | Rýchly dvojklik na stav → zaškrtnúť Počiatočný stav |
+| Nastavenie koncového stavu | Rýchly dvojklik na stav → zaškrtnúť Koncový stav |
+| Pridanie prechodu | Kliknutie na zdrojový stav, potom kliknutie na cieľový stav |
+| Pridanie slučky (self-loop) | Pomalý dvojklik na stav |
+| Epsilon prechod | Nechajte vstupné pole prázdne |
+| Viac prechodov naraz | Symboly oddeľte čiarkou, napr. a,b |
+| Úprava symbolu prechodu | Dvojklik na symbol prechodu |
+| Presun stavu | Ťahanie stavu myšou |
+| Posúvanie plátna | Ťahanie prázdneho plátna |
+| Priblíženie / oddialenie | Koliesko myši alebo ± tlačidlá |
+| Zrušenie akcie / výberu | Klik na prázdne plátno alebo Escape |
 
 ### Vytvorenie automatu – krok za krokom
 
-1. **Vytvorte stavy**:
-   - Kliknite na „Pridať stav"
-   - Klikajte na plátno pre vytvorenie stavov (automatickicé pomenovania: q0, q1, q2, ...)
+1. **Vytvorte stavy**: dvojklikom na prázdne plátno (automatické mená q0, q1, …)
 
-2. **Nastavte počiatočný stav**:
-   - Kliknite na „Počiatočný stav"
-   - Kliknite na stav → zobrazí sa šípka
+2. **Nastavte počiatočný a koncový stav**: rýchlym dvojklikom na stav otvorte modál → zaškrtnite *Počiatočný stav* alebo *Koncový stav*
 
-3. **Vytvorte prechody**:
-   - Kliknite na „Pridať prechod"
-   - Kliknite na zdrojový stav, potom na cieľový stav
-   - Pre slučku (self-loop) kliknite dvakrát na ten istý stav
-   - Zadajte symbol, alebo symboly oddelené čiarkou.
+3. **Vytvorte prechody**: kliknite na zdrojový stav, potom na cieľový stav → zadajte symbol
+   - Viac symbolov naraz: oddeľte čiarkou, napr. `a,b`
+   - Epsilon prechod: nechajte pole prázdne alebo zadajte `ε`
+   - Slučka (self-loop): kliknite na zdrojový stav, potom znovu na ten istý (pomalý dvojklik)
 
-4. **Nastavte koncové stavy**:
-   - Kliknite na „Koncový stav"
-   - Kliknite na stav → získa dvojitý kruh
-
-5. **Skontrolujte formálny zápis**:
-   - Pravý panel zobrazuje Q, q₀, F, Σ a prechodovú tabuľku δ
+4. **Skontrolujte formálny zápis**: pravý panel zobrazuje Q, q₀, F, Σ a prechodovú funkciu δ a označenie DFA / NFA
 
 ### Simulácia
 
-1. Prepnite do režimu **Simulátor** (tlačidlo v toolbare)
-2. Zadajte vstupné slovo
-3. Použite tlačidlá na **krokovanie** simulácie (vpred/späť)
+1. Prepnite do režimu **Simulátor** (tlačidlo v toolbare, aktívne keď má automat počiatočný aj aspoň jeden koncový stav)
+2. Zadajte vstupné slovo v pravom paneli
+3. Použite tlačidlá na **krokovanie** (vpred / späť) alebo spustite automatický beh
 4. Sledujte:
-   - Aktuálny stav (zvýraznený zelenou)
+   - Aktuálny stav (zvýraznený na plátne)
    - Zostávajúci vstup
-   - Výsledok (akceptované / neakceptované)
+   - Výsledok (akceptované / zamietnuté)
+5. V režime **NFA**: ľavý panel zobrazuje všetky paralelné inštancie výpočtu, vpravo je strom rozhodnutí
+6. Pre komplexné NFA odporúčame zapnúť **Zlúčiť stavy**: bez zlučovania môže počet inštancií rásť exponenciálne (až k^n, kde k je priemerný počet vetvení a n je dĺžka vstupu); zlučovanie obmedzuje počet aktívnych inštancií na najviac |Q|
 
 ### Konzola
 
-V spodnej časti obrazovky sa zobrazujú správy:
-- Úspešné akcie (pridanie stavov, prechodov)
-- Upozornenia
-- Chyby
+Spodná lišta zobrazuje informačné a chybové správy. Konzola je **skrývateľná** – kliknutím na lištu ju zrolujete alebo rozbalíte.
 
 ## Architektúra projektu
 
@@ -126,19 +118,22 @@ src/
 
 ## Často kladené otázky
 
-**Ako zmením symbol na prechode?**  
-Treba najprv vymazať prechod a následne vytvoriť nový s požadovaným symbolom .
+**Ako zmením symbol na prechode?**
+Dvojklikom na symbol prechodu otvoríte vstupné pole predvyplnené aktuálnym symbolom – upravte ho a potvrďte Enterom.
 
-**Môžem mať viac počiatočných stavov?**  
-Nie, DFA má len jeden počiatočný stav. Pri nastavení nového sa predošlý odstráni - presune sa.
+**Môžem mať viac počiatočných stavov?**
+Nie, automat má len jeden počiatočný stav. Nastavením nového sa predošlý odznačí.
 
-**Môžem mať viac koncových stavov?**  
-Áno, kliknutím na „Koncový stav" môžete pridať/odobrať koncové stavy.
+**Môžem mať viac koncových stavov?**
+Áno. Rýchlym dvojklikom na stav otvorte modál a zaškrtnite / odškrtnite *Koncový stav*.
 
-**Ako vytvorím slučku (prechod do toho istého stavu)?**  
-Pri vytváraní prechodu kliknite dvakrát na ten istý stav.
+**Ako vytvorím slučku (prechod do toho istého stavu)?**
+Kliknite raz na stav (vyberie sa ako zdrojový), potom naňho kliknite znova pomaly – otvorí sa vstupné pole pre symbol slučky.
 
-**Ako presuniem stavy?**  
-Vyberte nástroj „Výber" a ťahajte stav myšou (drag & drop).
+**Ako presuniem stav?**
+V nástroji Stavať stačí ťahať stav myšou.
+
+**Ako skryjem konzolu?**
+Kliknite na lištu konzoly v spodnej časti obrazovky.
 
 ---

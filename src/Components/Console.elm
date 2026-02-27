@@ -2,6 +2,7 @@ module Components.Console exposing (view, Message, MessageType(..))
 
 import Html exposing (Html, div, text, p)
 import Html.Attributes exposing (style)
+import Html.Events exposing (onClick)
 
 
 type MessageType
@@ -15,39 +16,65 @@ type alias Message =
     }
 
 
-type alias Config =
+type alias Config msg =
     { messages : List Message
+    , isOpen : Bool
+    , onToggle : msg
     }
 
 
-view : Config -> Html msg
+view : Config msg -> Html msg
 view config =
     div
         [ style "display" "flex"
         , style "flex-direction" "column"
-        , style "border-top" "2px solid #34495e"
+        , style "border-top" "2px solid #0d1e30"
         ]
         [ div
-            [ style "background-color" "#2c3e50"
+            [ style "background-color" "#1a2f4a"
             , style "color" "#ecf0f1"
             , style "padding" "2px 10px"
             , style "font-size" "12px"
             , style "font-family" "sans-serif"
             , style "font-weight" "bold"
-            ]
-            [ text "Konzola" ]
-        , div
-            [ style "background-color" "#000000"
-            , style "color" "#d4d4d4"
-            , style "padding" "10px"
-            , style "height" "150px"
-            , style "overflow-y" "auto"
-            , style "font-family" "Consolas, monospace"
-            , style "font-size" "13px"
             , style "display" "flex"
-            , style "flex-direction" "column-reverse"
+            , style "align-items" "center"
             ]
-            (List.map viewMessage config.messages)
+            [ div [ style "flex" "0" ] [ text "Konzola" ]
+            , div
+                [ style "flex" "1"
+                , style "display" "flex"
+                , style "justify-content" "center"
+                , style "cursor" "pointer"
+                , onClick config.onToggle
+                ]
+                [ Html.img
+                    [ Html.Attributes.src "transparent_double_arrow.png"
+                    , style "width" "14px"
+                    , style "height" "14px"
+                    , style "opacity" "0.8"
+                    , style "transform" (if config.isOpen then "rotate(180deg)" else "rotate(0deg)")
+                    , style "transition" "transform 0.2s"
+                    ]
+                    []
+                ]
+            ]
+        , if config.isOpen then
+            div
+                [ style "background-color" "#000000"
+                , style "color" "#d4d4d4"
+                , style "padding" "10px"
+                , style "height" "150px"
+                , style "overflow-y" "auto"
+                , style "font-family" "Consolas, monospace"
+                , style "font-size" "13px"
+                , style "display" "flex"
+                , style "flex-direction" "column-reverse"
+                ]
+                (List.map viewMessage config.messages)
+
+          else
+            div [] []
         ]
 
 

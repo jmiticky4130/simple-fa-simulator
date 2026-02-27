@@ -1,6 +1,6 @@
 module Components.NfaInstancePanel exposing (Config, view)
 
-import Html exposing (Html, div, span, text)
+import Html exposing (Html, button, div, span, text)
 import Html.Attributes exposing (style)
 import Html.Events exposing (onClick)
 import Shared exposing (NfaInstance, State)
@@ -11,17 +11,51 @@ type alias Config msg =
     , selectedId : Maybe Int
     , onSelect : Int -> msg
     , states : List State
+    , visibleCount : Int
+    , onLoadMore : msg
     }
 
 
 view : Config msg -> Html msg
 view config =
+    let
+        total =
+            List.length config.instances
+
+        visible =
+            List.take config.visibleCount config.instances
+
+        hasMore =
+            total > config.visibleCount
+    in
     div
         [ style "overflow-y" "auto"
         , style "flex" "1"
         , style "padding" "0 2px"
         ]
-        (List.indexedMap (\idx inst -> viewInstance config (idx + 1) inst) config.instances)
+        (List.indexedMap (\idx inst -> viewInstance config (idx + 1) inst) visible
+            ++ (if hasMore then
+                    [ div
+                        [ style "text-align" "center"
+                        , style "padding" "8px 0"
+                        ]
+                        [ button
+                            [ onClick config.onLoadMore
+                            , style "padding" "6px 16px"
+                            , style "cursor" "pointer"
+                            , style "border" "1px solid #aaa"
+                            , style "border-radius" "4px"
+                            , style "background" "#f5f5f5"
+                            , style "font-size" "12px"
+                            ]
+                            [ text ("Načítať ďalšie (zobrazených " ++ String.fromInt config.visibleCount ++ " z " ++ String.fromInt total ++ ")") ]
+                        ]
+                    ]
+
+                else
+                    []
+               )
+        )
 
 
 viewInstance : Config msg -> Int -> NfaInstance -> Html msg

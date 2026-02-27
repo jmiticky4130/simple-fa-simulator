@@ -1,27 +1,19 @@
-module Components.AutomatonDisplay exposing (view, TransitionDisplayMode(..))
+module Components.AutomatonDisplay exposing (view)
 
-import Html exposing (Html, div, h3, h4, p, text, table, thead, tbody, tr, th, td, button, span)
+import Html exposing (Html, div, h3, p, text, span)
 import Html.Attributes exposing (style)
-import Html.Events exposing (onClick)
 import Set
 import Shared exposing (State, Transition)
 import Utils.AutomatonHelpers exposing (getStateLabel)
 
 
-type TransitionDisplayMode
-    = Table
-    | Formal
-
-
-type alias Config msg =
+type alias Config =
     { states : List State
     , transitions : List Transition
-    , displayMode : TransitionDisplayMode
-    , onModeChange : TransitionDisplayMode -> msg
     }
 
 
-view : Config msg -> Html msg
+view : Config -> Html msg
 view config =
     let
         isNFA =
@@ -50,12 +42,10 @@ view config =
                 "#358cc7ff"
     in
     div
-        [ style "background-color" "#f8f9fa"
-        , style "padding" "15px"
-        , style "border-left" "2px solid #34495e"
+        [ style "padding" "15px"
         , style "height" "100%"
         , style "overflow-y" "auto"
-        , style "width" "300px"
+        , style "box-sizing" "border-box"
         ]
         [ h3
             [ style "margin-top" "0"
@@ -67,93 +57,20 @@ view config =
             , span [ style "color" typeColor ] [ text typeLabel ]
             ]
         , viewDefinition config
-        , viewTransitionControls config
-        , case config.displayMode of
-            Table ->
-                viewTransitions config.states config.transitions
-            
-            Formal ->
-                viewFormalTransitions config.states config.transitions
         ]
 
 
-viewTransitionControls : Config msg -> Html msg
-viewTransitionControls config =
-    div
-        [ style "display" "flex"
-        , style "gap" "10px"
-        , style "margin-bottom" "10px"
-        ]
-        [ viewModeButton "Prechody" Table config
-        , viewModeButton "Formálny zápis" Formal config
-        ]
-
-
-viewModeButton : String -> TransitionDisplayMode -> Config msg -> Html msg
-viewModeButton label mode config =
-    let
-        isActive = config.displayMode == mode
-        bgColor = if isActive then "#359ee4ff" else "#ecf0f2"
-        textColor = if isActive then "white" else "#263442ff"
-    in
-    button
-        [ onClick (config.onModeChange mode)
-        , style "padding" "5px 10px"
-        , style "border" "none"
-        , style "border-radius" "4px"
-        , style "background-color" bgColor
-        , style "color" textColor
-        , style "cursor" "pointer"
-        , style "font-size" "12px"
-        , style "font-weight" "bold"
-        ]
-        [ text label ]
-
-
-viewFormalTransitions : List State -> List Transition -> Html msg
-viewFormalTransitions states transitions =
-    div []
-        [ if List.isEmpty transitions then
-            p
-                [ style "color" "#95a5a6"
-                , style "font-style" "italic"
-                ]
-                [ text "Žiadne prechody" ]
-
-          else
-            div
-                [ style "font-family" "monospace"
-                , style "background-color" "white"
-                , style "padding" "10px"
-                , style "border" "1px solid #ddddddff"
-                , style "border-radius" "4px"
-                ]
-                (List.map (viewFormalTransitionRow states) transitions)
-        ]
-
-
-viewFormalTransitionRow : List State -> Transition -> Html msg
-viewFormalTransitionRow states transition =
-    let
-        fromLabel = getStateLabel transition.from states
-        toLabel = getStateLabel transition.to states
-    in
-    p
-        [ style "margin" "5px 0" ]
-        [ text ("δ(" ++ fromLabel ++ ", " ++ transition.symbol ++ ") = " ++ toLabel) ]
-
-
-viewDefinition : Config msg -> Html msg
+viewDefinition : Config -> Html msg
 viewDefinition config =
     div
-        [ style "margin-bottom" "20px"
-        , style "font-family" "monospace"
+        [ style "font-family" "monospace"
         , style "font-size" "14px"
         ]
         [ viewSetQ config.states
         , viewSetSigma config.transitions
         , viewStartQ0 config.states
         , viewSetF config.states
+        , viewDelta config.states config.transitions
         ]
 
 
@@ -177,7 +94,7 @@ viewSetSigma transitions =
                 |> Set.fromList
                 |> Set.toList
                 |> List.sort
-        
+
         content =
             if List.isEmpty alphabet then
                 "{∅}"
@@ -194,7 +111,7 @@ viewStartQ0 states =
             List.filter .isStart states
                 |> List.head
                 |> Maybe.map .label
-        
+
         content =
             case startState of
                 Just label ->
@@ -211,7 +128,7 @@ viewSetF states =
         endStates =
             List.filter .isEnd states
                 |> List.map .label
-        
+
         content =
             if List.isEmpty endStates then
                 "{∅}"
@@ -221,84 +138,21 @@ viewSetF states =
     p [ style "margin" "10px 0" ] [ text ("F = " ++ content) ]
 
 
-viewTransitions : List State -> List Transition -> Html msg
-viewTransitions states transitions =
-    div []
-        [ if List.isEmpty transitions then
-            p
-                [ style "color" "#97a9aaff"
-                , style "font-style" "italic"
-                ]
-                [ text "Žiadne prechody" ]
-
-          else
-            table
-                [ style "width" "100%"
-                , style "border-collapse" "collapse"
-                , style "background-color" "white"
-                ]
-                [ thead []
-                    [ tr []
-                        [ th
-                            [ style "border" "1px solid #dbd9d9ff"
-                            , style "padding" "8px"
-                            , style "background-color" "#358cc7ff"
-                            , style "color" "white"
-                            , style "text-align" "left"
-                            ]
-                            [ text "Z" ]
-                        , th
-                            [ style "border" "1px solid #dbd9d9ff"
-                            , style "padding" "8px"
-                            , style "background-color" "#358cc7ff"
-                            , style "color" "white"
-                            , style "text-align" "left"
-                            ]
-                            [ text "Symbol" ]
-                        , th
-                            [ style "border" "1px solid #dbd9d9ff"
-                            , style "padding" "8px"
-                            , style "background-color" "#358cc7ff"
-                            , style "color" "white"
-                            , style "text-align" "left"
-                            ]
-                            [ text "Do" ]
-                        ]
-                    ]
-                , tbody []
-                    (List.map (viewTransitionRow states) transitions)
-                ]
-        ]
-
-
-viewTransitionRow : List State -> Transition -> Html msg
-viewTransitionRow states transition =
+viewDelta : List State -> List Transition -> Html msg
+viewDelta states transitions =
     let
-        fromLabel =
-            getStateLabel transition.from states
-
-        toLabel =
-            getStateLabel transition.to states
+        sortedTransitions =
+            List.sortBy (\t -> (t.from, t.to, t.symbol)) transitions
     in
-    tr []
-        [ td
-            [ style "border" "1px solid #dbd9d9ff"
-            , style "padding" "8px"
-            ]
-            [ text fromLabel ]
-        , td
-            [ style "border" "1px solid #dbd9d9ff"
-            , style "padding" "8px"
-            , style "font-weight" "bold"
-            , style "color" "#e74c3c"
-            ]
-            [ text transition.symbol ]
-        , td
-            [ style "border" "1px solid #dbd9d9ff"
-            , style "padding" "8px"
-            ]
-            [ text toLabel ]
-        ]
+    div []
+        (List.map (viewDeltaRow states) sortedTransitions)
 
 
-
+viewDeltaRow : List State -> Transition -> Html msg
+viewDeltaRow states transition =
+    let
+        fromLabel = getStateLabel transition.from states
+        toLabel = getStateLabel transition.to states
+    in
+    p [ style "margin" "10px 0" ]
+        [ text ("δ(" ++ fromLabel ++ ", " ++ transition.symbol ++ ") = " ++ toLabel) ]

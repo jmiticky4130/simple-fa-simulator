@@ -2,7 +2,10 @@ module Pages.Simulator exposing (Model, Msg(..), init, update, view, subscriptio
 
 import Html exposing (Html, div, text, input, span)
 import Html.Attributes exposing (style, placeholder, value, disabled, type_)
-import Html.Events exposing (onClick, onInput)
+import Html.Events exposing (onClick, onInput, on)
+import Html.Lazy
+import Json.Decode as Decode
+import Browser.Events
 import Time
 import Shared exposing (AutomatonState, State, Transition, NfaInstance, NfaTreeNode)
 import Components.Canvas as Canvas
@@ -50,6 +53,12 @@ type alias Model =
     , isPanning : Bool
     , panLastX : Float
     , panLastY : Float
+    , treeZoom : Float
+    , isDraggingDivider : Bool
+    , splitRatio : Float
+    , dividerDragStartX : Float
+    , dividerDragStartRatio : Float
+    , instancePanelVisible : Int
     }
 
 
@@ -95,6 +104,12 @@ init automaton =
     , isPanning = False
     , panLastX = 0
     , panLastY = 0
+    , treeZoom = 1.0
+    , isDraggingDivider = False
+    , splitRatio = 0.667
+    , dividerDragStartX = 0
+    , dividerDragStartRatio = 0.667
+    , instancePanelVisible = 100
     }
 
 
@@ -110,6 +125,7 @@ type Msg
     | ToggleMerge
     | ToggleAutoRun
     | SetAutoSpeed String
+    | LoadMoreInstances
     | AutoStep Time.Posix
     | CanvasClick Float Float
     | StateClick Int
@@ -121,6 +137,13 @@ type Msg
     | ZoomIn
     | ZoomOut
     | Wheel Float Float Float
+    | TreeZoomIn
+    | TreeZoomOut
+    | ShowGuide
+    | StartDividerDrag Float
+    | DividerDragMove Float
+    | EndDividerDrag
+    | ToggleConsole
 
 
 update : Msg -> Model -> Model
@@ -148,6 +171,7 @@ update msg model =
                 , selectedInstanceId = Nothing
                 , nextInstanceId = nfaState.nextInstanceId
                 , consoleMessages = [ { text = "Vstup nastavený: " ++ str, msgType = Console.Info } ]
+                , instancePanelVisible = 100
             }
 
         StepForward ->
@@ -169,9 +193,9 @@ update msg model =
         ResetSimulation ->
             let
                 fresh =
-                    init model.automaton
+                    update (SetInput model.inputString) (init model.automaton)
             in
-            { fresh | mergeEnabled = model.mergeEnabled, showCanvas = model.showCanvas, showTree = model.showTree, autoSpeed = model.autoSpeed, panX = model.panX, panY = model.panY, zoom = model.zoom }
+            { fresh | mergeEnabled = model.mergeEnabled, showCanvas = model.showCanvas, showTree = model.showTree, autoSpeed = model.autoSpeed, panX = model.panX, panY = model.panY, zoom = model.zoom, treeZoom = model.treeZoom, splitRatio = model.splitRatio }
 
         SwitchToEditor ->
             model
@@ -198,6 +222,9 @@ update msg model =
 
                 Nothing ->
                     model
+
+        LoadMoreInstances ->
+            { model | instancePanelVisible = model.instancePanelVisible + 100 }
 
         AutoStep _ ->
             if canStepForward model then
@@ -247,17 +274,62 @@ update msg model =
             in
             { model | zoom = newZoom, panX = newPanX, panY = newPanY }
 
+        TreeZoomIn ->
+            { model | treeZoom = min 3.0 (model.treeZoom * 1.2) }
+
+        TreeZoomOut ->
+            { model | treeZoom = max 0.2 (model.treeZoom / 1.2) }
+
+        StartDividerDrag clientX ->
+            { model | isDraggingDivider = True, dividerDragStartX = clientX, dividerDragStartRatio = model.splitRatio }
+
+        DividerDragMove clientX ->
+            if model.isDraggingDivider && model.dividerDragStartX > 0 then
+                let
+                    newRatio =
+                        clientX * model.dividerDragStartRatio / model.dividerDragStartX
+                in
+                { model | splitRatio = clamp 0.1 0.9 newRatio }
+
+            else
+                model
+
+        EndDividerDrag ->
+            { model | isDraggingDivider = False }
+
+        ToggleConsole ->
+            model
+
         _ ->
             model
 
 
 subscriptions : Model -> Sub Msg
 subscriptions model =
-    if model.autoRunning then
-        Time.every model.autoSpeed AutoStep
+    let
+        autoSub =
+            if model.autoRunning then
+                Time.every model.autoSpeed AutoStep
 
-    else
-        Sub.none
+            else
+                Sub.none
+
+        dividerMoveSub =
+            if model.isDraggingDivider then
+                Browser.Events.onMouseMove
+                    (Decode.map DividerDragMove (Decode.field "clientX" Decode.float))
+
+            else
+                Sub.none
+
+        dividerUpSub =
+            if model.isDraggingDivider then
+                Browser.Events.onMouseUp (Decode.succeed EndDividerDrag)
+
+            else
+                Sub.none
+    in
+    Sub.batch [ autoSub, dividerMoveSub, dividerUpSub ]
 
 
 stepForwardDfa : Model -> Model
@@ -753,6 +825,21 @@ encodeNode node =
         ]
 
 
+viewNfaTree : List NfaTreeNode -> List NfaInstance -> List State -> Maybe Int -> List { from : Int, to : Int } -> Float -> Html Msg
+viewNfaTree treeNodes instances states selectedId mergedEdges zoom =
+    NfaTreeView.view
+        { treeNodes = treeNodes
+        , instances = instances
+        , states = states
+        , selectedId = selectedId
+        , onSelect = SelectNfaInstance
+        , mergedEdges = mergedEdges
+        , zoom = zoom
+        , onZoomIn = TreeZoomIn
+        , onZoomOut = TreeZoomOut
+        }
+
+
 viewReadingHead : String -> String -> Html Msg
 viewReadingHead fullInput remaining =
     let
@@ -844,9 +931,12 @@ viewToggleTab label isActive msg =
         [ Html.text label ]
 
 
-view : Model -> Html Msg
-view model =
+view : Bool -> Model -> Html Msg
+view consoleOpen model =
     let
+        hasEpsilon =
+            List.any (\t -> t.symbol == "ε") model.automaton.transitions
+
         activeStateId =
             case model.mode of
                 DfaMode ->
@@ -908,6 +998,8 @@ view model =
         , style "height" "100vh"
         , style "width" "100vw"
         , style "overflow" "hidden"
+        , style "user-select" (if model.isDraggingDivider then "none" else "auto")
+        , style "cursor" (if model.isDraggingDivider then "col-resize" else "auto")
         ]
         [ SimulateToolbar.view
             { onStepBackward = StepBackward
@@ -921,6 +1013,7 @@ view model =
             , autoRunning = model.autoRunning
             , autoSpeed = model.autoSpeed
             , onSetAutoSpeed = SetAutoSpeed
+            , onShowGuide = ShowGuide
             }
         , div
             [ style "display" "flex"
@@ -938,7 +1031,7 @@ view model =
                   if model.mode == NfaMode then
                     div
                         [ style "display" "flex"
-                        , style "background-color" "#455a64"
+                        , style "background-color" "#1a2f4a"
                         , style "flex-shrink" "0"
                         ]
                         [ viewToggleTab "Automat" model.showCanvas ToggleCanvas
@@ -956,7 +1049,14 @@ view model =
                     ]
                     [ if model.mode == DfaMode || model.showCanvas then
                         div
-                            [ style "flex" "1"
+                            [ if model.mode == NfaMode && model.showCanvas && model.showTree then
+                                style "flex-basis" (String.fromFloat (model.splitRatio * 100) ++ "%")
+
+                              else
+                                style "flex" "1"
+                            , style "flex-shrink" (if model.mode == NfaMode && model.showCanvas && model.showTree then "0" else "1")
+                            , style "flex-grow" (if model.mode == NfaMode && model.showCanvas && model.showTree then "0" else "1")
+                            , style "min-width" "150px"
                             , style "overflow" "auto"
                             , style "background-color" "#ecf0f1"
                             ]
@@ -965,6 +1065,7 @@ view model =
                                 , transitions = model.automaton.transitions
                                 , selectedState = Nothing
                                 , transitionFrom = Nothing
+                                , transitionTo = Nothing
                                 , activeStateId = activeStateId
                                 , activeTransition = model.activeTransition
                                 , onCanvasClick = CanvasClick
@@ -991,7 +1092,18 @@ view model =
 
                       else
                         div [] []
-                    , if model.mode == NfaMode && model.showTree then
+                    , if model.mode == NfaMode && model.showCanvas && model.showTree then
+                        div
+                            [ style "width" "6px"
+                            , style "background-color" "#b0bec5"
+                            , style "cursor" "col-resize"
+                            , style "flex-shrink" "0"
+                            , style "transition" "background-color 0.15s"
+                            , on "mousedown" (Decode.map StartDividerDrag (Decode.field "clientX" Decode.float))
+                            ]
+                            []
+
+                      else if model.mode == NfaMode && model.showTree then
                         div
                             [ style "width" "1px"
                             , style "background-color" "#ccc"
@@ -1001,14 +1113,13 @@ view model =
                       else
                         div [] []
                     , if model.mode == NfaMode && model.showTree then
-                        NfaTreeView.view
-                            { treeNodes = model.nfaTree
-                            , instances = model.nfaInstances
-                            , states = model.automaton.states
-                            , selectedId = model.selectedInstanceId
-                            , onSelect = SelectNfaInstance
-                            , mergedEdges = model.nfaMergedEdges
-                            }
+                        Html.Lazy.lazy6 viewNfaTree
+                            model.nfaTree
+                            model.nfaInstances
+                            model.automaton.states
+                            model.selectedInstanceId
+                            model.nfaMergedEdges
+                            model.treeZoom
 
                       else
                         div [] []
@@ -1067,22 +1178,58 @@ view model =
                                 , style "align-items" "center"
                                 , style "justify-content" "space-between"
                                 ]
-                                [ Html.label
+                                [ div
                                     [ style "display" "flex"
                                     , style "align-items" "center"
-                                    , style "gap" "6px"
-                                    , style "cursor" "pointer"
-                                    , style "font-size" "12px"
-                                    , style "color" "#546e7a"
-                                    , style "user-select" "none"
+                                    , style "gap" "4px"
                                     ]
-                                    [ Html.input
-                                        [ type_ "checkbox"
-                                        , Html.Attributes.checked model.mergeEnabled
-                                        , onClick ToggleMerge
+                                    [ Html.label
+                                        ([ style "display" "flex"
+                                         , style "align-items" "center"
+                                         , style "gap" "6px"
+                                         , style "font-size" "12px"
+                                         , style "user-select" "none"
+                                         , style "cursor" (if hasEpsilon then "not-allowed" else "pointer")
+                                         , style "color" (if hasEpsilon then "#b0bec5" else "#546e7a")
+                                         ]
+                                            ++ (if hasEpsilon then
+                                                    [ Html.Attributes.title "Zlúčenie stavov nie je dostupné pre automaty s ε-prechodmi" ]
+
+                                                else
+                                                    []
+                                               )
+                                        )
+                                        [ Html.input
+                                            ([ type_ "checkbox"
+                                             , Html.Attributes.checked model.mergeEnabled
+                                             , style "cursor" (if hasEpsilon then "not-allowed" else "pointer")
+                                             ]
+                                                ++ (if hasEpsilon then
+                                                        [ Html.Attributes.disabled True ]
+
+                                                    else
+                                                        [ onClick ToggleMerge ]
+                                                   )
+                                            )
+                                            []
+                                        , text "Zlúčiť stavy"
                                         ]
-                                        []
-                                    , text "Zlúčiť stavy"
+                                    , span
+                                        [ style "display" "inline-flex"
+                                        , style "align-items" "center"
+                                        , style "justify-content" "center"
+                                        , style "width" "14px"
+                                        , style "height" "14px"
+                                        , style "border-radius" "50%"
+                                        , style "background" "#90a4ae"
+                                        , style "color" "white"
+                                        , style "font-size" "9px"
+                                        , style "font-weight" "bold"
+                                        , style "cursor" "help"
+                                        , style "flex-shrink" "0"
+                                        , Html.Attributes.title "Bez zlucenia moze pocet instancii rst exponencialne s dlzkou vstupu (az k^n, kde k je priemer vetveni a n dlzka vstupu). Zlucenie redukuje pocet aktivnych instancii na najviac |Q| v kazdom kroku - rovnaky princip ako algoritmus podmnozin. Odporucane pre komplexne NFA."
+                                        ]
+                                        [ text "?" ]
                                     ]
                                 , div
                                     [ style "font-weight" "bold"
@@ -1100,10 +1247,16 @@ view model =
                                     , selectedId = model.selectedInstanceId
                                     , onSelect = SelectNfaInstance
                                     , states = model.automaton.states
+                                    , visibleCount = model.instancePanelVisible
+                                    , onLoadMore = LoadMoreInstances
                                     }
                                 ]
                             ]
                 ]
             ]
-        , Console.view { messages = model.consoleMessages }
+        , Console.view
+            { messages = model.consoleMessages
+            , isOpen = consoleOpen
+            , onToggle = ToggleConsole
+            }
         ]

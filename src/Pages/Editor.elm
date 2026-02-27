@@ -65,7 +65,6 @@ type alias Model =
     , stateLabelInput : String
     , stateModalIsStart : Bool
     , stateModalIsEnd : Bool
-    , transitionDisplayMode : AutomatonDisplay.TransitionDisplayMode
     , showLoadModal : Bool
     , showSaveModal : Bool
     , saveNameInput : String
@@ -104,7 +103,6 @@ type Msg
     | DismissStateModal
     | SetStateModalIsStart Bool
     | SetStateModalIsEnd Bool
-    | SetTransitionDisplayMode AutomatonDisplay.TransitionDisplayMode
     | ResetAutomaton
     | Undo
     | Redo
@@ -132,6 +130,9 @@ type Msg
     | DismissLoadModal
     | DismissStorageSelectModal
     | SwitchToConversion
+    | ShowGuide
+    | ShowError String
+    | ToggleConsole
 
 
 init : Model
@@ -152,7 +153,6 @@ init =
     , stateLabelInput = ""
     , stateModalIsStart = False
     , stateModalIsEnd = False
-    , transitionDisplayMode = AutomatonDisplay.Table
     , showLoadModal = False
     , showSaveModal = False
     , saveNameInput = ""
@@ -191,6 +191,9 @@ update msg model =
             ( model, Cmd.none )
 
         SwitchToConversion ->
+            ( model, Cmd.none )
+
+        ToggleConsole ->
             ( model, Cmd.none )
 
         ExportJson ->
@@ -674,9 +677,6 @@ update msg model =
         SetStateModalIsEnd val ->
             ( { model | stateModalIsEnd = val }, Cmd.none )
 
-        SetTransitionDisplayMode mode ->
-            ( { model | transitionDisplayMode = mode }, Cmd.none )
-
         ResetAutomaton ->
             let
                 newAutomaton =
@@ -700,7 +700,6 @@ update msg model =
                 , stateLabelInput = ""
                 , stateModalIsStart = False
                 , stateModalIsEnd = False
-                , transitionDisplayMode = AutomatonDisplay.Table
                 , panX = 0
                 , panY = 0
                 , zoom = 1.0
@@ -730,7 +729,15 @@ update msg model =
                                 -- Check duplicate
                                 isDuplicate = List.any (\t -> t.from == from && t.to == to && t.symbol == newSymbol) filteredTransitions
                             in
-                            if isDuplicate then
+                            if from == to && newSymbol == "ε" then
+                                ( { model | consoleMessages = { text = "Slučka nemôže byť ε-prechodom.", msgType = Console.Error } :: model.consoleMessages }
+                                , Cmd.none
+                                )
+                            else if symbolHasSpaces newSymbol && newSymbol /= "ε" then
+                                ( { model | consoleMessages = { text = "Symbol nemôže obsahovať medzery.", msgType = Console.Error } :: model.consoleMessages }
+                                , Cmd.none
+                                )
+                            else if isDuplicate then
                                 ( { model | consoleMessages = { text = "Prechod '" ++ newSymbol ++ "' už existuje.", msgType = Console.Error } :: model.consoleMessages }
                                 , Cmd.none
                                 )
@@ -754,7 +761,11 @@ update msg model =
                         Nothing ->
                             -- Create mode: existing behavior
                             if String.isEmpty (String.trim model.transitionInput) then
-                                if transitionExists from to "ε" currentAutomaton.transitions then
+                                if from == to then
+                                    ( { model | consoleMessages = { text = "Slučka nemôže byť ε-prechodom.", msgType = Console.Error } :: model.consoleMessages }
+                                    , Cmd.none
+                                    )
+                                else if transitionExists from to "ε" currentAutomaton.transitions then
                                     ( { model
                                         | consoleMessages = { text = "ε-prechod už existuje.", msgType = Console.Error } :: model.consoleMessages
                                       }
@@ -783,6 +794,9 @@ update msg model =
                                             |> List.map String.trim
                                             |> List.filter (not << String.isEmpty)
 
+                                    symbolsWithSpaces =
+                                        List.filter symbolHasSpaces rawSymbols
+
                                     symbols =
                                         Set.fromList rawSymbols
                                             |> Set.toList
@@ -794,7 +808,15 @@ update msg model =
                                     uniqueSymbols =
                                         List.filter (\sym -> not (transitionExists from to sym currentAutomaton.transitions)) symbols
                                 in
-                                if not (List.isEmpty duplicates) then
+                                if not (List.isEmpty symbolsWithSpaces) then
+                                    ( { model | consoleMessages = { text = "Symbol nemôže obsahovať medzery: " ++ String.join ", " symbolsWithSpaces, msgType = Console.Error } :: model.consoleMessages }
+                                    , Cmd.none
+                                    )
+                                else if from == to && List.member "ε" symbols then
+                                    ( { model | consoleMessages = { text = "Slučka nemôže byť ε-prechodom.", msgType = Console.Error } :: model.consoleMessages }
+                                    , Cmd.none
+                                    )
+                                else if not (List.isEmpty duplicates) then
                                     let
                                         errorMsg = "Prechod(y) už existujú: " ++ String.join ", " duplicates
                                     in
@@ -879,6 +901,19 @@ update msg model =
         NoOp ->
             ( model, Cmd.none )
 
+        ShowGuide ->
+            ( model, Cmd.none )
+
+        ShowError text ->
+            ( { model | consoleMessages = { text = text, msgType = Console.Error } :: model.consoleMessages }
+            , Cmd.none
+            )
+
+
+symbolHasSpaces : String -> Bool
+symbolHasSpaces symbol =
+    String.contains " " symbol
+
 
 handleStateClick : Int -> Model -> ( Model, Cmd Msg )
 handleStateClick stateId model =
@@ -961,12 +996,34 @@ toolToString tool =
             "DeleteTool"
 
 
-view : Model -> Html Msg
-view model =
+view : Bool -> Model -> Html Msg
+view consoleOpen model =
     let
         { states, transitions } = model.automaton.present
-        isSimulateEnabled = not (List.isEmpty states)
-        isConvertEnabled = not (List.isEmpty states) && not (isDFA states transitions)
+        hasStart = List.any .isStart states
+        hasEnd = List.any .isEnd states
+        isSimulateEnabled = not (List.isEmpty states) && hasStart && hasEnd
+        isConvertEnabled = not (List.isEmpty states) && hasStart && hasEnd && not (isDFA states transitions)
+        simulateDisabledReason =
+            if List.isEmpty states then
+                Just "Pridajte aspoň jeden stav."
+            else if not hasStart then
+                Just "Nastavte počiatočný stav."
+            else if not hasEnd then
+                Just "Nastavte aspoň jeden koncový stav."
+            else
+                Nothing
+        convertDisabledReason =
+            if List.isEmpty states then
+                Just "Pridajte aspoň jeden stav."
+            else if not hasStart then
+                Just "Nastavte počiatočný stav."
+            else if not hasEnd then
+                Just "Nastavte aspoň jeden koncový stav."
+            else if isDFA states transitions then
+                Just "Preveďte NFA (musí obsahovať ε-prechody alebo viacero prechodov na rovnakej abecede)."
+            else
+                Nothing
     in
     div
         [ style "display" "flex"
@@ -988,12 +1045,17 @@ view model =
                 , canRedo = UndoList.hasFuture model.automaton
                 , currentTool = toolToString model.currentTool
                 , isSimulateEnabled = isSimulateEnabled
+                , simulateDisabledReason = simulateDisabledReason
+                , onSimulateDisabledClick = ShowError (Maybe.withDefault "" simulateDisabledReason)
                 , onExport = ExportJson
                 , onSave = SaveRequested
                 , onLoad = LoadRequested
                 , onShare = ShareUrl
                 , onSwitchToConversion = SwitchToConversion
                 , isConvertEnabled = isConvertEnabled
+                , convertDisabledReason = convertDisabledReason
+                , onConvertDisabledClick = ShowError (Maybe.withDefault "" convertDisabledReason)
+                , onShowGuide = ShowGuide
                 }
             ]
         ,
@@ -1015,6 +1077,7 @@ view model =
                     , transitions = transitions
                     , selectedState = model.selectedState
                     , transitionFrom = model.transitionFrom
+                    , transitionTo = Maybe.map .to model.editingTransition
                     , activeStateId = Nothing
                     , activeTransition = Nothing
                     , onCanvasClick = CanvasClick
@@ -1038,17 +1101,26 @@ view model =
                     , isSimulateMode = False
                     }
                 ]
-            ,
-              AutomatonDisplay.view
-                { states = states
-                , transitions = transitions
-                , displayMode = model.transitionDisplayMode
-                , onModeChange = SetTransitionDisplayMode
-                }
+            , div
+                [ style "width" "300px"
+                , style "flex-shrink" "0"
+                , style "background-color" "#f8f9fa"
+                , style "border-left" "2px solid #34495e"
+                , style "display" "flex"
+                , style "flex-direction" "column"
+                , style "overflow" "hidden"
+                ]
+                [ AutomatonDisplay.view
+                    { states = states
+                    , transitions = transitions
+                    }
+                ]
             ]
         ,
           Console.view
             { messages = model.consoleMessages
+            , isOpen = consoleOpen
+            , onToggle = ToggleConsole
             }
         ,
           viewInlineTransitionInput model

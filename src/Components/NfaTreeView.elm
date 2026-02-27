@@ -1,7 +1,8 @@
 module Components.NfaTreeView exposing (Config, view)
 
-import Html exposing (Html, div)
+import Html exposing (Html, div, button, text)
 import Html.Attributes exposing (style)
+import Html.Events exposing (onClick)
 import Svg exposing (Svg)
 import Svg.Attributes as SA
 import Svg.Events as SE
@@ -15,6 +16,9 @@ type alias Config msg =
     , selectedId : Maybe Int
     , onSelect : Int -> msg
     , mergedEdges : List { from : Int, to : Int }
+    , zoom : Float
+    , onZoomIn : msg
+    , onZoomOut : msg
     }
 
 
@@ -356,18 +360,122 @@ view config =
                 )
                 config.mergedEdges
 
-        -- Collect level symbol labels (one per depth d > 0)
+        -- For a depth, return Just sym if all nodes share the same symbol, else Nothing
+        uniformSymbolAt : Int -> Maybe String
+        uniformSymbolAt d =
+            let
+                syms =
+                    nodes
+                        |> List.filter (\n -> getDepth n.id nodes == d)
+                        |> List.filterMap .symbol
+            in
+            case syms of
+                [] ->
+                    Nothing
+
+                first :: rest ->
+                    if List.all (\s -> s == first) rest then
+                        Just first
+
+                    else
+                        Nothing
+
+        -- Collect level symbol labels (one per depth d > 0, only when uniform)
         levelSymbols : List (Svg msg)
         levelSymbols =
             List.range 1 maxDepth
                 |> List.filterMap
+                    (\d -> Maybe.map (renderLevelSymbol d) (uniformSymbolAt d))
+
+        -- For mixed-symbol levels: render separator line only (no right-side box)
+        mixedSeparators : List (Svg msg)
+        mixedSeparators =
+            List.range 1 maxDepth
+                |> List.filterMap
                     (\d ->
-                        -- Get symbol from first node at this depth
-                        nodes
-                            |> List.filter (\n -> getDepth n.id nodes == d)
-                            |> List.head
-                            |> Maybe.andThen .symbol
-                            |> Maybe.map (\sym -> renderLevelSymbol d sym)
+                        case uniformSymbolAt d of
+                            Just _ ->
+                                Nothing
+
+                            Nothing ->
+                                let
+                                    y =
+                                        toFloat d * levelH + topPad
+                                in
+                                Just
+                                    (Svg.line
+                                        [ SA.x1 (String.fromFloat (leftPad + 4))
+                                        , SA.y1 (String.fromFloat (y - levelH / 2))
+                                        , SA.x2 (String.fromFloat (leftPad + contentW - 4))
+                                        , SA.y2 (String.fromFloat (y - levelH / 2))
+                                        , SA.stroke "#cfd8dc"
+                                        , SA.strokeWidth "1"
+                                        , SA.strokeDasharray "4,3"
+                                        ]
+                                        []
+                                    )
+                    )
+
+        -- Small symbol badge rendered at edge midpoint
+        renderEdgeSymbol : Float -> Float -> String -> Svg msg
+        renderEdgeSymbol mx my sym =
+            Svg.g []
+                [ Svg.rect
+                    [ SA.x (String.fromFloat (mx - 12))
+                    , SA.y (String.fromFloat (my - 9))
+                    , SA.width "24"
+                    , SA.height "18"
+                    , SA.rx "3"
+                    , SA.fill "#eceff1"
+                    , SA.stroke "#90a4ae"
+                    , SA.strokeWidth "1"
+                    ]
+                    []
+                , Svg.text_
+                    [ SA.x (String.fromFloat mx)
+                    , SA.y (String.fromFloat my)
+                    , SA.textAnchor "middle"
+                    , SA.dominantBaseline "central"
+                    , SA.fill "#37474f"
+                    , SA.fontSize "11"
+                    , SA.fontWeight "bold"
+                    , SA.pointerEvents "none"
+                    ]
+                    [ Svg.text sym ]
+                ]
+
+        -- Per-edge symbol labels for mixed levels
+        mixedEdgeLabels : List (Svg msg)
+        mixedEdgeLabels =
+            List.range 1 maxDepth
+                |> List.concatMap
+                    (\d ->
+                        case uniformSymbolAt d of
+                            Just _ ->
+                                []
+
+                            Nothing ->
+                                nodes
+                                    |> List.filter (\n -> getDepth n.id nodes == d)
+                                    |> List.filterMap
+                                        (\n ->
+                                            case ( n.parentId, n.symbol ) of
+                                                ( Just pid, Just sym ) ->
+                                                    case ( findPos n.id, findPos pid ) of
+                                                        ( Just cp, Just pp ) ->
+                                                            Just
+                                                                (renderEdgeSymbol
+                                                                    ((pp.x + cp.x) / 2)
+                                                                    ((pp.y + cp.y) / 2)
+                                                                    sym
+                                                                )
+
+                                                        _ ->
+                                                            Nothing
+
+                                                _ ->
+                                                    Nothing
+                                        )
                     )
 
         -- Collect all node renderings
@@ -391,19 +499,73 @@ view config =
                                 )
                 )
                 posMap
+        scaledW =
+            svgW * config.zoom
+
+        scaledH =
+            svgH * config.zoom
     in
     div
         [ style "flex" "1"
-        , style "overflow" "auto"
-        , style "background-color" "#ecf0f1"
+        , style "min-width" "150px"
+        , style "position" "relative"
+        , style "overflow" "hidden"
         ]
-        [ Svg.svg
-            [ SA.width (String.fromFloat svgW)
-            , SA.height (String.fromFloat svgH)
+        [ div
+            [ style "width" "100%"
+            , style "height" "100%"
+            , style "overflow" "auto"
+            , style "background-color" "#ecf0f1"
             ]
-            [ Svg.g [] allEdges
-            , Svg.g [] mergeEdgesSvg
-            , Svg.g [] levelSymbols
-            , Svg.g [] allNodes
+            [ Svg.svg
+                [ SA.width (String.fromFloat scaledW)
+                , SA.height (String.fromFloat scaledH)
+                , SA.viewBox ("0 0 " ++ String.fromFloat svgW ++ " " ++ String.fromFloat svgH)
+                , SA.style "display: block;"
+                ]
+                [ Svg.g [] allEdges
+                , Svg.g [] mergeEdgesSvg
+                , Svg.g [] levelSymbols
+                , Svg.g [] mixedSeparators
+                , Svg.g [] mixedEdgeLabels
+                , Svg.g [] allNodes
+                ]
+            ]
+        , div
+            [ style "position" "absolute"
+            , style "bottom" "16px"
+            , style "right" "16px"
+            , style "display" "flex"
+            , style "flex-direction" "column"
+            , style "gap" "4px"
+            ]
+            [ button
+                [ onClick config.onZoomIn
+                , style "width" "32px"
+                , style "height" "32px"
+                , style "font-size" "18px"
+                , style "font-weight" "bold"
+                , style "background-color" "#546e7a"
+                , style "color" "white"
+                , style "border" "none"
+                , style "border-radius" "4px"
+                , style "cursor" "pointer"
+                , style "line-height" "1"
+                ]
+                [ text "+" ]
+            , button
+                [ onClick config.onZoomOut
+                , style "width" "32px"
+                , style "height" "32px"
+                , style "font-size" "18px"
+                , style "font-weight" "bold"
+                , style "background-color" "#546e7a"
+                , style "color" "white"
+                , style "border" "none"
+                , style "border-radius" "4px"
+                , style "cursor" "pointer"
+                , style "line-height" "1"
+                ]
+                [ text "−" ]
             ]
         ]

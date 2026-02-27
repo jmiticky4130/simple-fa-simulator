@@ -1,7 +1,7 @@
 module Components.SimulateToolbar exposing (view)
 
-import Html exposing (Html, div, button, text, input)
-import Html.Attributes exposing (style, type_, value, step, disabled)
+import Html exposing (Html, div, button, text, input, img)
+import Html.Attributes exposing (style, type_, value, step, disabled, src)
 import Html.Attributes as HA
 import Html.Events exposing (onClick, onInput)
 
@@ -18,6 +18,7 @@ type alias Config msg =
     , autoRunning : Bool
     , autoSpeed : Float
     , onSetAutoSpeed : String -> msg
+    , onShowGuide : msg
     }
 
 
@@ -35,10 +36,10 @@ view config =
     div
         [ style "display" "flex"
         , style "flex-direction" "row"
-        , style "padding" "10px"
-        , style "background-color" "#37474f"
+        , style "padding" "14px 12px"
+        , style "background-color" "#1a2f4a"
         , style "gap" "10px"
-        , style "border-bottom" "2px solid #263238"
+        , style "border-bottom" "2px solid white"
         , style "align-items" "center"
         ]
         [ toolButton "Reset" config.onReset True False
@@ -79,7 +80,16 @@ view config =
                 ]
                 [ text (speedLabel config.autoSpeed) ]
             ]
-        , actionButton "Späť do editora" config.onSwitchToEditor True
+        , div [ style "flex" "1" ] []
+        , div
+            [ style "width" "300px"
+            , style "display" "flex"
+            , style "justify-content" "flex-end"
+            , style "gap" "8px"
+            ]
+            [ guideButton config.onShowGuide
+            , actionButton "<- Editor" config.onSwitchToEditor True
+            ]
         ]
 
 
@@ -87,11 +97,11 @@ autoRunButton : msg -> Bool -> Html msg
 autoRunButton onToggle running =
     button
         [ onClick onToggle
-        , style "padding" "10px 16px"
+        , style "padding" "10px 14px"
         , style "background-color" (if running then "#00897b" else "#546e7a")
         , style "color" "white"
         , style "border" "none"
-        , style "border-radius" "5px"
+        , style "border-radius" "4px"
         , style "cursor" "pointer"
         , style "font-size" "14px"
         , style "font-weight" (if running then "bold" else "normal")
@@ -105,11 +115,11 @@ toolButton label onClickMsg isEnabled isActive =
     button
         [ onClick onClickMsg
         , Html.Attributes.disabled (not isEnabled)
-        , style "padding" "10px 20px"
+        , style "padding" "10px 14px"
         , style "background-color" (if isActive then "#00897b" else if isEnabled then "#546e7a" else "#b0bec5")
         , style "color" "white"
         , style "border" "none"
-        , style "border-radius" "5px"
+        , style "border-radius" "4px"
         , style "cursor" (if isEnabled then "pointer" else "not-allowed")
         , style "font-size" "14px"
         , style "font-weight" (if isActive then "bold" else "normal")
@@ -122,15 +132,41 @@ actionButton : String -> msg -> Bool -> Html msg
 actionButton label onClickMsg isEnabled =
     button
         [ onClick onClickMsg
-        , style "padding" "10px 20px"
+        , style "padding" "11px 18px"
         , style "background-color" (if isEnabled then "#0277bd" else "#b3e5fc")
         , style "color" "white"
         , style "border" "none"
         , style "border-radius" "5px"
         , style "cursor" (if isEnabled then "pointer" else "not-allowed")
         , style "font-size" "14px"
-        , style "margin-left" "auto"
         , style "font-weight" "bold"
         , Html.Attributes.disabled (not isEnabled)
         ]
         [ text label ]
+
+
+guideButton : msg -> Html msg
+guideButton onClickMsg =
+    button
+        [ onClick onClickMsg
+        , style "padding" "11px 18px"
+        , style "background-color" "#00796b"
+        , style "color" "white"
+        , style "border" "none"
+        , style "border-radius" "5px"
+        , style "cursor" "pointer"
+        , style "font-size" "14px"
+        , style "font-weight" "bold"
+        , style "display" "flex"
+        , style "align-items" "center"
+        , style "gap" "6px"
+        ]
+        [ img
+            [ src "guide_icon.png"
+            , style "width" "20px"
+            , style "height" "20px"
+            , style "filter" "brightness(0) invert(1)"
+            ]
+            []
+        , text "Sprievodca"
+        ]

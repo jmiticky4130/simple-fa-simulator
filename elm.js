@@ -5392,6 +5392,7 @@ var $elm$core$Task$perform = F2(
 	});
 var $elm$browser$Browser$element = _Browser_element;
 var $author$project$Main$EditorPage = {$: 'EditorPage'};
+var $author$project$Main$GuideEditor = {$: 'GuideEditor'};
 var $elm$core$Maybe$andThen = F2(
 	function (callback, maybeValue) {
 		if (maybeValue.$ === 'Just') {
@@ -5454,6 +5455,7 @@ var $author$project$Utils$AutomatonCodec$decoder = A4(
 		'transitions',
 		$elm$json$Json$Decode$list($author$project$Utils$AutomatonCodec$transitionDecoder)),
 	A2($elm$json$Json$Decode$field, 'nextStateId', $elm$json$Json$Decode$int));
+var $author$project$Components$Console$Info = {$: 'Info'};
 var $author$project$Utils$ConversionHelpers$StepDone = {$: 'StepDone'};
 var $author$project$Utils$ConversionHelpers$StepInit = function (a) {
 	return {$: 'StepInit', a: a};
@@ -6327,6 +6329,10 @@ var $author$project$Pages$Conversion$updateHighlight = function (model) {
 var $author$project$Pages$Conversion$init = function (nfa) {
 	return $author$project$Pages$Conversion$updateHighlight(
 		{
+			consoleMessages: _List_fromArray(
+				[
+					{msgType: $author$project$Components$Console$Info, text: 'Konverzia NFA -> DFA spustena.'}
+				]),
 			currentStep: 0,
 			dragOffsetX: 0,
 			dragOffsetY: 0,
@@ -6347,7 +6353,6 @@ var $author$project$Pages$Conversion$init = function (nfa) {
 		});
 };
 var $author$project$Pages$Simulator$DfaMode = {$: 'DfaMode'};
-var $author$project$Components$Console$Info = {$: 'Info'};
 var $author$project$Pages$Simulator$NfaMode = {$: 'NfaMode'};
 var $author$project$Pages$Simulator$expandEpsChain = F5(
 	function (automaton, remaining, visited, source, acc) {
@@ -6510,8 +6515,12 @@ var $author$project$Pages$Simulator$init = function (automaton) {
 				{msgType: $author$project$Components$Console$Info, text: 'Simulátor pripravený. Zadajte vstupné slovo.'}
 			]),
 		currentStateId: startState,
+		dividerDragStartRatio: 0.667,
+		dividerDragStartX: 0,
 		history: _List_Nil,
 		inputString: '',
+		instancePanelVisible: 100,
+		isDraggingDivider: false,
 		isPanning: false,
 		mergeEnabled: false,
 		mode: mode,
@@ -6528,6 +6537,8 @@ var $author$project$Pages$Simulator$init = function (automaton) {
 		selectedInstanceId: $elm$core$Maybe$Nothing,
 		showCanvas: true,
 		showTree: false,
+		splitRatio: 0.667,
+		treeZoom: 1.0,
 		verdict: $elm$core$Maybe$Nothing,
 		zoom: 1.0
 	};
@@ -6540,13 +6551,12 @@ var $elm_community$undo_redo$UndoList$fresh = function (state) {
 	return A3($elm_community$undo_redo$UndoList$UndoList, _List_Nil, state, _List_Nil);
 };
 var $author$project$Pages$Editor$BuildTool = {$: 'BuildTool'};
-var $author$project$Components$AutomatonDisplay$Table = {$: 'Table'};
 var $author$project$Pages$Editor$init = {
 	automaton: $elm_community$undo_redo$UndoList$fresh(
 		{nextStateId: 0, states: _List_Nil, transitions: _List_Nil}),
 	consoleMessages: _List_fromArray(
 		[
-			{msgType: $author$project$Components$Console$Info, text: 'Vítajte v simulátore DFA/NFA. Dvojklikom na plátno pridajte stav.'}
+			{msgType: $author$project$Components$Console$Info, text: 'Vitajte v simulátore DFA/NFA. Dvojklikom na plátno pridajte stav.'}
 		]),
 	currentTool: $author$project$Pages$Editor$BuildTool,
 	dragStartX: 0,
@@ -6571,7 +6581,6 @@ var $author$project$Pages$Editor$init = {
 	stateModalIsEnd: false,
 	stateModalIsStart: false,
 	storedAutomata: _List_Nil,
-	transitionDisplayMode: $author$project$Components$AutomatonDisplay$Table,
 	transitionFrom: $elm$core$Maybe$Nothing,
 	transitionInput: '',
 	zoom: 1.0
@@ -6616,7 +6625,7 @@ var $author$project$Main$init = function (maybeJson) {
 	var conversionInit = $author$project$Pages$Conversion$init(
 		{nextStateId: 0, states: _List_Nil, transitions: _List_Nil});
 	return _Utils_Tuple2(
-		{conversionModel: conversionInit, currentPage: $author$project$Main$EditorPage, editorModel: editorInit, simulatorModel: simulatorInit},
+		{consoleOpen: true, conversionModel: conversionInit, currentPage: $author$project$Main$EditorPage, editorModel: editorInit, guideTab: $author$project$Main$GuideEditor, showGuide: false, simulatorModel: simulatorInit},
 		$elm$core$Platform$Cmd$none);
 };
 var $elm$json$Json$Decode$null = _Json_decodeNull;
@@ -6635,6 +6644,7 @@ var $author$project$Pages$Editor$CancelAction = {$: 'CancelAction'};
 var $author$project$Pages$Editor$ChangeTool = function (a) {
 	return {$: 'ChangeTool', a: a};
 };
+var $author$project$Main$CloseGuide = {$: 'CloseGuide'};
 var $author$project$Pages$Editor$DeleteTool = {$: 'DeleteTool'};
 var $author$project$Pages$Editor$DismissLoadModal = {$: 'DismissLoadModal'};
 var $author$project$Pages$Editor$DismissSaveModal = {$: 'DismissSaveModal'};
@@ -6648,7 +6658,7 @@ var $author$project$Main$keyDecoder = function (model) {
 			function (key, ctrl, shift) {
 				return (ctrl && ((key === 'z') || (key === 'Z'))) ? $author$project$Main$EditorMsg($author$project$Pages$Editor$Undo) : ((ctrl && ((key === 'y') || (key === 'Y'))) ? $author$project$Main$EditorMsg($author$project$Pages$Editor$Redo) : ((shift && ((key === 'b') || (key === 'B'))) ? $author$project$Main$EditorMsg(
 					$author$project$Pages$Editor$ChangeTool($author$project$Pages$Editor$BuildTool)) : ((shift && ((key === 'd') || (key === 'D'))) ? $author$project$Main$EditorMsg(
-					$author$project$Pages$Editor$ChangeTool($author$project$Pages$Editor$DeleteTool)) : ((key === 'Escape') ? (model.editorModel.showSaveModal ? $author$project$Main$EditorMsg($author$project$Pages$Editor$DismissSaveModal) : (model.editorModel.showLoadModal ? $author$project$Main$EditorMsg($author$project$Pages$Editor$DismissLoadModal) : $author$project$Main$EditorMsg($author$project$Pages$Editor$CancelAction))) : $author$project$Main$EditorMsg($author$project$Pages$Editor$NoOp)))));
+					$author$project$Pages$Editor$ChangeTool($author$project$Pages$Editor$DeleteTool)) : ((key === 'Escape') ? (model.showGuide ? $author$project$Main$CloseGuide : (model.editorModel.showSaveModal ? $author$project$Main$EditorMsg($author$project$Pages$Editor$DismissSaveModal) : (model.editorModel.showLoadModal ? $author$project$Main$EditorMsg($author$project$Pages$Editor$DismissLoadModal) : $author$project$Main$EditorMsg($author$project$Pages$Editor$CancelAction)))) : $author$project$Main$EditorMsg($author$project$Pages$Editor$NoOp)))));
 			}),
 		A2($elm$json$Json$Decode$field, 'key', $elm$json$Json$Decode$string),
 		A2($elm$json$Json$Decode$field, 'ctrlKey', $elm$json$Json$Decode$bool),
@@ -6947,6 +6957,10 @@ var $author$project$Main$storedAutomataLoaded = _Platform_incomingPort(
 var $author$project$Pages$Simulator$AutoStep = function (a) {
 	return {$: 'AutoStep', a: a};
 };
+var $author$project$Pages$Simulator$DividerDragMove = function (a) {
+	return {$: 'DividerDragMove', a: a};
+};
+var $author$project$Pages$Simulator$EndDividerDrag = {$: 'EndDividerDrag'};
 var $elm$time$Time$Every = F2(
 	function (a, b) {
 		return {$: 'Every', a: a, b: b};
@@ -7163,8 +7177,20 @@ var $elm$time$Time$every = F2(
 		return $elm$time$Time$subscription(
 			A2($elm$time$Time$Every, interval, tagger));
 	});
+var $elm$browser$Browser$Events$onMouseMove = A2($elm$browser$Browser$Events$on, $elm$browser$Browser$Events$Document, 'mousemove');
+var $elm$browser$Browser$Events$onMouseUp = A2($elm$browser$Browser$Events$on, $elm$browser$Browser$Events$Document, 'mouseup');
 var $author$project$Pages$Simulator$subscriptions = function (model) {
-	return model.autoRunning ? A2($elm$time$Time$every, model.autoSpeed, $author$project$Pages$Simulator$AutoStep) : $elm$core$Platform$Sub$none;
+	var dividerUpSub = model.isDraggingDivider ? $elm$browser$Browser$Events$onMouseUp(
+		$elm$json$Json$Decode$succeed($author$project$Pages$Simulator$EndDividerDrag)) : $elm$core$Platform$Sub$none;
+	var dividerMoveSub = model.isDraggingDivider ? $elm$browser$Browser$Events$onMouseMove(
+		A2(
+			$elm$json$Json$Decode$map,
+			$author$project$Pages$Simulator$DividerDragMove,
+			A2($elm$json$Json$Decode$field, 'clientX', $elm$json$Json$Decode$float))) : $elm$core$Platform$Sub$none;
+	var autoSub = model.autoRunning ? A2($elm$time$Time$every, model.autoSpeed, $author$project$Pages$Simulator$AutoStep) : $elm$core$Platform$Sub$none;
+	return $elm$core$Platform$Sub$batch(
+		_List_fromArray(
+			[autoSub, dividerMoveSub, dividerUpSub]));
 };
 var $author$project$Main$subscriptions = function (model) {
 	var _v0 = model.currentPage;
@@ -7192,6 +7218,8 @@ var $author$project$Main$subscriptions = function (model) {
 };
 var $author$project$Main$ConversionPage = {$: 'ConversionPage'};
 var $author$project$Pages$Conversion$DismissSaveModal = {$: 'DismissSaveModal'};
+var $author$project$Main$GuideConversion = {$: 'GuideConversion'};
+var $author$project$Main$GuideSimulator = {$: 'GuideSimulator'};
 var $author$project$Main$SimulatorPage = {$: 'SimulatorPage'};
 var $author$project$Utils$ConversionHelpers$dfaSubsetStateToState = function (ds) {
 	return {id: ds.id, isEnd: ds.isEnd, isStart: ds.isStart, label: ds.label, x: ds.x, y: ds.y};
@@ -7377,12 +7405,16 @@ var $author$project$Pages$Conversion$update = F2(
 		var total = $elm$core$List$length(model.snapshots);
 		switch (msg.$) {
 			case 'StepForward':
+				var newStep = A2($elm$core$Basics$min, total - 1, model.currentStep + 1);
+				var isNowDone = (_Utils_cmp(newStep, total - 1) > -1) && (_Utils_cmp(model.currentStep, total - 1) < 0);
+				var msgs = isNowDone ? A2(
+					$elm$core$List$cons,
+					{msgType: $author$project$Components$Console$Info, text: 'Konverzia dokoncena.'},
+					model.consoleMessages) : model.consoleMessages;
 				return $author$project$Pages$Conversion$updateHighlight(
 					_Utils_update(
 						model,
-						{
-							currentStep: A2($elm$core$Basics$min, total - 1, model.currentStep + 1)
-						}));
+						{consoleMessages: msgs, currentStep: newStep}));
 			case 'StepBackward':
 				return $author$project$Pages$Conversion$updateHighlight(
 					_Utils_update(
@@ -7391,10 +7423,15 @@ var $author$project$Pages$Conversion$update = F2(
 							currentStep: A2($elm$core$Basics$max, 0, model.currentStep - 1)
 						}));
 			case 'JumpToEnd':
+				var isNowDone = _Utils_cmp(model.currentStep, total - 1) < 0;
+				var msgs = isNowDone ? A2(
+					$elm$core$List$cons,
+					{msgType: $author$project$Components$Console$Info, text: 'Konverzia dokoncena.'},
+					model.consoleMessages) : model.consoleMessages;
 				return $author$project$Pages$Conversion$updateHighlight(
 					_Utils_update(
 						model,
-						{currentStep: total - 1}));
+						{consoleMessages: msgs, currentStep: total - 1}));
 			case 'JumpToStart':
 				return $author$project$Pages$Conversion$updateHighlight(
 					_Utils_update(
@@ -7403,7 +7440,14 @@ var $author$project$Pages$Conversion$update = F2(
 			case 'SwitchToEditor':
 				return model;
 			case 'ReplaceAutomaton':
-				return model;
+				return _Utils_update(
+					model,
+					{
+						consoleMessages: A2(
+							$elm$core$List$cons,
+							{msgType: $author$project$Components$Console$Info, text: 'Automat nahradeny konvertovanym DFA.'},
+							model.consoleMessages)
+					});
 			case 'ShowSaveModal':
 				return _Utils_update(
 					model,
@@ -7414,7 +7458,14 @@ var $author$project$Pages$Conversion$update = F2(
 					model,
 					{saveNameInput: s});
 			case 'ConfirmSaveToStorage':
-				return model;
+				return _Utils_update(
+					model,
+					{
+						consoleMessages: A2(
+							$elm$core$List$cons,
+							{msgType: $author$project$Components$Console$Info, text: 'DFA ulozeny: ' + model.saveNameInput},
+							model.consoleMessages)
+					});
 			case 'DismissSaveModal':
 				return _Utils_update(
 					model,
@@ -7490,6 +7541,10 @@ var $author$project$Pages$Conversion$update = F2(
 				return _Utils_update(
 					model,
 					{panX: mouseX - ((mouseX - model.panX) * scale), panY: mouseY - ((mouseY - model.panY) * scale), zoom: newZoom});
+			case 'NoOp':
+				return model;
+			case 'ShowGuide':
+				return model;
 			default:
 				return model;
 		}
@@ -7676,6 +7731,9 @@ var $elm$file$File$Download$string = F3(
 			$elm$core$Basics$never,
 			A3(_File_download, name, mime, content));
 	});
+var $author$project$Pages$Editor$symbolHasSpaces = function (symbol) {
+	return A2($elm$core$String$contains, ' ', symbol);
+};
 var $elm$file$File$toString = _File_toString;
 var $author$project$Utils$AutomatonHelpers$transitionExists = F4(
 	function (from, to, symbol, transitions) {
@@ -7742,6 +7800,8 @@ var $author$project$Pages$Editor$update = F2(
 			case 'SwitchToSimulator':
 				return _Utils_Tuple2(model, $elm$core$Platform$Cmd$none);
 			case 'SwitchToConversion':
+				return _Utils_Tuple2(model, $elm$core$Platform$Cmd$none);
+			case 'ToggleConsole':
 				return _Utils_Tuple2(model, $elm$core$Platform$Cmd$none);
 			case 'ExportJson':
 				return _Utils_Tuple2(
@@ -8486,13 +8546,6 @@ var $author$project$Pages$Editor$update = F2(
 						model,
 						{stateModalIsEnd: val}),
 					$elm$core$Platform$Cmd$none);
-			case 'SetTransitionDisplayMode':
-				var mode = msg.a;
-				return _Utils_Tuple2(
-					_Utils_update(
-						model,
-						{transitionDisplayMode: mode}),
-					$elm$core$Platform$Cmd$none);
 			case 'ResetAutomaton':
 				var newAutomaton = {nextStateId: 0, states: _List_Nil, transitions: _List_Nil};
 				return _Utils_Tuple2(
@@ -8520,7 +8573,6 @@ var $author$project$Pages$Editor$update = F2(
 							stateLabelInput: '',
 							stateModalIsEnd: false,
 							stateModalIsStart: false,
-							transitionDisplayMode: $author$project$Components$AutomatonDisplay$Table,
 							transitionFrom: $elm$core$Maybe$Nothing,
 							transitionInput: '',
 							zoom: 1.0
@@ -8555,83 +8607,122 @@ var $author$project$Pages$Editor$update = F2(
 								return _Utils_eq(t.from, from) && (_Utils_eq(t.to, to) && _Utils_eq(t.symbol, newSymbol));
 							},
 							filteredTransitions);
-						if (isDuplicate) {
+						if (_Utils_eq(from, to) && (newSymbol === 'ε')) {
 							return _Utils_Tuple2(
 								_Utils_update(
 									model,
 									{
 										consoleMessages: A2(
 											$elm$core$List$cons,
-											{msgType: $author$project$Components$Console$Error, text: 'Prechod \'' + (newSymbol + '\' už existuje.')},
+											{msgType: $author$project$Components$Console$Error, text: 'Slučka nemôže byť ε-prechodom.'},
 											model.consoleMessages)
 									}),
 								$elm$core$Platform$Cmd$none);
 						} else {
-							var newTransitions = _Utils_ap(
-								filteredTransitions,
-								_List_fromArray(
-									[
-										{from: from, symbol: newSymbol, to: to}
-									]));
-							var newAutomaton = _Utils_update(
-								currentAutomaton,
-								{transitions: newTransitions});
-							var message = 'Prechod zmenený na: ' + newSymbol;
-							return _Utils_Tuple2(
-								_Utils_update(
-									model,
-									{
-										automaton: A2($elm_community$undo_redo$UndoList$new, newAutomaton, model.automaton),
-										consoleMessages: A2(
-											$elm$core$List$cons,
-											{msgType: $author$project$Components$Console$Info, text: message},
-											model.consoleMessages),
-										editingTransition: $elm$core$Maybe$Nothing,
-										editingTransitionOldSymbol: $elm$core$Maybe$Nothing,
-										transitionFrom: $elm$core$Maybe$Nothing,
-										transitionInput: ''
-									}),
-								$elm$core$Platform$Cmd$none);
-						}
-					} else {
-						if ($elm$core$String$isEmpty(
-							$elm$core$String$trim(model.transitionInput))) {
-							if (A4($author$project$Utils$AutomatonHelpers$transitionExists, from, to, 'ε', currentAutomaton.transitions)) {
+							if ($author$project$Pages$Editor$symbolHasSpaces(newSymbol) && (newSymbol !== 'ε')) {
 								return _Utils_Tuple2(
 									_Utils_update(
 										model,
 										{
 											consoleMessages: A2(
 												$elm$core$List$cons,
-												{msgType: $author$project$Components$Console$Error, text: 'ε-prechod už existuje.'},
+												{msgType: $author$project$Components$Console$Error, text: 'Symbol nemôže obsahovať medzery.'},
 												model.consoleMessages)
 										}),
 									$elm$core$Platform$Cmd$none);
 							} else {
-								var newAutomaton = _Utils_update(
-									currentAutomaton,
-									{
-										transitions: _Utils_ap(
-											currentAutomaton.transitions,
-											_List_fromArray(
-												[
-													{from: from, symbol: 'ε', to: to}
-												]))
-									});
+								if (isDuplicate) {
+									return _Utils_Tuple2(
+										_Utils_update(
+											model,
+											{
+												consoleMessages: A2(
+													$elm$core$List$cons,
+													{msgType: $author$project$Components$Console$Error, text: 'Prechod \'' + (newSymbol + '\' už existuje.')},
+													model.consoleMessages)
+											}),
+										$elm$core$Platform$Cmd$none);
+								} else {
+									var newTransitions = _Utils_ap(
+										filteredTransitions,
+										_List_fromArray(
+											[
+												{from: from, symbol: newSymbol, to: to}
+											]));
+									var newAutomaton = _Utils_update(
+										currentAutomaton,
+										{transitions: newTransitions});
+									var message = 'Prechod zmenený na: ' + newSymbol;
+									return _Utils_Tuple2(
+										_Utils_update(
+											model,
+											{
+												automaton: A2($elm_community$undo_redo$UndoList$new, newAutomaton, model.automaton),
+												consoleMessages: A2(
+													$elm$core$List$cons,
+													{msgType: $author$project$Components$Console$Info, text: message},
+													model.consoleMessages),
+												editingTransition: $elm$core$Maybe$Nothing,
+												editingTransitionOldSymbol: $elm$core$Maybe$Nothing,
+												transitionFrom: $elm$core$Maybe$Nothing,
+												transitionInput: ''
+											}),
+										$elm$core$Platform$Cmd$none);
+								}
+							}
+						}
+					} else {
+						if ($elm$core$String$isEmpty(
+							$elm$core$String$trim(model.transitionInput))) {
+							if (_Utils_eq(from, to)) {
 								return _Utils_Tuple2(
 									_Utils_update(
 										model,
 										{
-											automaton: A2($elm_community$undo_redo$UndoList$new, newAutomaton, model.automaton),
 											consoleMessages: A2(
 												$elm$core$List$cons,
-												{msgType: $author$project$Components$Console$Info, text: 'Pridaný ε-prechod.'},
-												model.consoleMessages),
-											editingTransition: $elm$core$Maybe$Nothing,
-											transitionFrom: $elm$core$Maybe$Nothing,
-											transitionInput: ''
+												{msgType: $author$project$Components$Console$Error, text: 'Slučka nemôže byť ε-prechodom.'},
+												model.consoleMessages)
 										}),
 									$elm$core$Platform$Cmd$none);
+							} else {
+								if (A4($author$project$Utils$AutomatonHelpers$transitionExists, from, to, 'ε', currentAutomaton.transitions)) {
+									return _Utils_Tuple2(
+										_Utils_update(
+											model,
+											{
+												consoleMessages: A2(
+													$elm$core$List$cons,
+													{msgType: $author$project$Components$Console$Error, text: 'ε-prechod už existuje.'},
+													model.consoleMessages)
+											}),
+										$elm$core$Platform$Cmd$none);
+								} else {
+									var newAutomaton = _Utils_update(
+										currentAutomaton,
+										{
+											transitions: _Utils_ap(
+												currentAutomaton.transitions,
+												_List_fromArray(
+													[
+														{from: from, symbol: 'ε', to: to}
+													]))
+										});
+									return _Utils_Tuple2(
+										_Utils_update(
+											model,
+											{
+												automaton: A2($elm_community$undo_redo$UndoList$new, newAutomaton, model.automaton),
+												consoleMessages: A2(
+													$elm$core$List$cons,
+													{msgType: $author$project$Components$Console$Info, text: 'Pridaný ε-prechod.'},
+													model.consoleMessages),
+												editingTransition: $elm$core$Maybe$Nothing,
+												transitionFrom: $elm$core$Maybe$Nothing,
+												transitionInput: ''
+											}),
+										$elm$core$Platform$Cmd$none);
+								}
 							}
 						} else {
 							var rawSymbols = A2(
@@ -8650,57 +8741,87 @@ var $author$project$Pages$Editor$update = F2(
 									return !A4($author$project$Utils$AutomatonHelpers$transitionExists, from, to, sym, currentAutomaton.transitions);
 								},
 								symbols);
+							var symbolsWithSpaces = A2($elm$core$List$filter, $author$project$Pages$Editor$symbolHasSpaces, rawSymbols);
 							var duplicates = A2(
 								$elm$core$List$filter,
 								function (sym) {
 									return A4($author$project$Utils$AutomatonHelpers$transitionExists, from, to, sym, currentAutomaton.transitions);
 								},
 								symbols);
-							if (!$elm$core$List$isEmpty(duplicates)) {
-								var errorMsg = 'Prechod(y) už existujú: ' + A2($elm$core$String$join, ', ', duplicates);
+							if (!$elm$core$List$isEmpty(symbolsWithSpaces)) {
 								return _Utils_Tuple2(
 									_Utils_update(
 										model,
 										{
 											consoleMessages: A2(
 												$elm$core$List$cons,
-												{msgType: $author$project$Components$Console$Error, text: errorMsg},
+												{
+													msgType: $author$project$Components$Console$Error,
+													text: 'Symbol nemôže obsahovať medzery: ' + A2($elm$core$String$join, ', ', symbolsWithSpaces)
+												},
 												model.consoleMessages)
 										}),
 									$elm$core$Platform$Cmd$none);
 							} else {
-								var newTransitions = A3(
-									$elm$core$List$foldl,
-									F2(
-										function (symbol, acc) {
-											return _Utils_ap(
-												acc,
-												_List_fromArray(
-													[
-														{from: from, symbol: symbol, to: to}
-													]));
-										}),
-									currentAutomaton.transitions,
-									uniqueSymbols);
-								var newAutomaton = _Utils_update(
-									currentAutomaton,
-									{transitions: newTransitions});
-								var addedCount = $elm$core$List$length(newTransitions) - $elm$core$List$length(currentAutomaton.transitions);
-								var message = (!addedCount) ? 'Všetky prechody už existujú.' : ((addedCount === 1) ? ('Pridaný prechod: ' + A2($elm$core$String$join, ', ', uniqueSymbols)) : ('Pridaných ' + ($elm$core$String$fromInt(addedCount) + ' prechodov.')));
-								return _Utils_Tuple2(
-									_Utils_update(
-										model,
-										{
-											automaton: A2($elm_community$undo_redo$UndoList$new, newAutomaton, model.automaton),
-											consoleMessages: A2(
-												$elm$core$List$cons,
-												{msgType: $author$project$Components$Console$Info, text: message},
-												model.consoleMessages),
-											editingTransition: $elm$core$Maybe$Nothing,
-											transitionFrom: $elm$core$Maybe$Nothing,
-											transitionInput: ''
-										}),
-									$elm$core$Platform$Cmd$none);
+								if (_Utils_eq(from, to) && A2($elm$core$List$member, 'ε', symbols)) {
+									return _Utils_Tuple2(
+										_Utils_update(
+											model,
+											{
+												consoleMessages: A2(
+													$elm$core$List$cons,
+													{msgType: $author$project$Components$Console$Error, text: 'Slučka nemôže byť ε-prechodom.'},
+													model.consoleMessages)
+											}),
+										$elm$core$Platform$Cmd$none);
+								} else {
+									if (!$elm$core$List$isEmpty(duplicates)) {
+										var errorMsg = 'Prechod(y) už existujú: ' + A2($elm$core$String$join, ', ', duplicates);
+										return _Utils_Tuple2(
+											_Utils_update(
+												model,
+												{
+													consoleMessages: A2(
+														$elm$core$List$cons,
+														{msgType: $author$project$Components$Console$Error, text: errorMsg},
+														model.consoleMessages)
+												}),
+											$elm$core$Platform$Cmd$none);
+									} else {
+										var newTransitions = A3(
+											$elm$core$List$foldl,
+											F2(
+												function (symbol, acc) {
+													return _Utils_ap(
+														acc,
+														_List_fromArray(
+															[
+																{from: from, symbol: symbol, to: to}
+															]));
+												}),
+											currentAutomaton.transitions,
+											uniqueSymbols);
+										var newAutomaton = _Utils_update(
+											currentAutomaton,
+											{transitions: newTransitions});
+										var addedCount = $elm$core$List$length(newTransitions) - $elm$core$List$length(currentAutomaton.transitions);
+										var message = (!addedCount) ? 'Všetky prechody už existujú.' : ((addedCount === 1) ? ('Pridaný prechod: ' + A2($elm$core$String$join, ', ', uniqueSymbols)) : ('Pridaných ' + ($elm$core$String$fromInt(addedCount) + ' prechodov.')));
+										return _Utils_Tuple2(
+											_Utils_update(
+												model,
+												{
+													automaton: A2($elm_community$undo_redo$UndoList$new, newAutomaton, model.automaton),
+													consoleMessages: A2(
+														$elm$core$List$cons,
+														{msgType: $author$project$Components$Console$Info, text: message},
+														model.consoleMessages),
+													editingTransition: $elm$core$Maybe$Nothing,
+													transitionFrom: $elm$core$Maybe$Nothing,
+													transitionInput: ''
+												}),
+											$elm$core$Platform$Cmd$none);
+									}
+								}
 							}
 						}
 					}
@@ -8778,10 +8899,27 @@ var $author$project$Pages$Editor$update = F2(
 						model,
 						{panX: newPanX, panY: newPanY, zoom: newZoom}),
 					$elm$core$Platform$Cmd$none);
-			default:
+			case 'NoOp':
 				return _Utils_Tuple2(model, $elm$core$Platform$Cmd$none);
+			case 'ShowGuide':
+				return _Utils_Tuple2(model, $elm$core$Platform$Cmd$none);
+			default:
+				var text = msg.a;
+				return _Utils_Tuple2(
+					_Utils_update(
+						model,
+						{
+							consoleMessages: A2(
+								$elm$core$List$cons,
+								{msgType: $author$project$Components$Console$Error, text: text},
+								model.consoleMessages)
+						}),
+					$elm$core$Platform$Cmd$none);
 		}
 	});
+var $author$project$Pages$Simulator$SetInput = function (a) {
+	return {$: 'SetInput', a: a};
+};
 var $author$project$Pages$Simulator$canStepForward = function (model) {
 	var _v0 = model.mode;
 	if (_v0.$ === 'DfaMode') {
@@ -8795,6 +8933,10 @@ var $author$project$Pages$Simulator$canStepForward = function (model) {
 			model.nfaInstances);
 	}
 };
+var $elm$core$Basics$clamp = F3(
+	function (low, high, number) {
+		return (_Utils_cmp(number, low) < 0) ? low : ((_Utils_cmp(number, high) > 0) ? high : number);
+	});
 var $author$project$Pages$Simulator$stepBackwardDfa = function (model) {
 	var _v0 = model.history;
 	if (_v0.b) {
@@ -9285,6 +9427,7 @@ var $author$project$Pages$Simulator$update = F2(
 						currentStateId: startState,
 						history: _List_Nil,
 						inputString: str,
+						instancePanelVisible: 100,
 						nextInstanceId: nfaState.nextInstanceId,
 						nfaHistory: _List_Nil,
 						nfaInstances: nfaState.instances,
@@ -9309,10 +9452,13 @@ var $author$project$Pages$Simulator$update = F2(
 					return $author$project$Pages$Simulator$stepBackwardNfa(model);
 				}
 			case 'ResetSimulation':
-				var fresh = $author$project$Pages$Simulator$init(model.automaton);
+				var fresh = A2(
+					$author$project$Pages$Simulator$update,
+					$author$project$Pages$Simulator$SetInput(model.inputString),
+					$author$project$Pages$Simulator$init(model.automaton));
 				return _Utils_update(
 					fresh,
-					{autoSpeed: model.autoSpeed, mergeEnabled: model.mergeEnabled, panX: model.panX, panY: model.panY, showCanvas: model.showCanvas, showTree: model.showTree, zoom: model.zoom});
+					{autoSpeed: model.autoSpeed, mergeEnabled: model.mergeEnabled, panX: model.panX, panY: model.panY, showCanvas: model.showCanvas, showTree: model.showTree, splitRatio: model.splitRatio, treeZoom: model.treeZoom, zoom: model.zoom});
 			case 'SwitchToEditor':
 				return model;
 			case 'SelectNfaInstance':
@@ -9349,6 +9495,10 @@ var $author$project$Pages$Simulator$update = F2(
 				} else {
 					return model;
 				}
+			case 'LoadMoreInstances':
+				return _Utils_update(
+					model,
+					{instancePanelVisible: model.instancePanelVisible + 100});
 			case 'AutoStep':
 				if ($author$project$Pages$Simulator$canStepForward(model)) {
 					var _v4 = model.mode;
@@ -9409,6 +9559,41 @@ var $author$project$Pages$Simulator$update = F2(
 				return _Utils_update(
 					model,
 					{panX: newPanX, panY: newPanY, zoom: newZoom});
+			case 'TreeZoomIn':
+				return _Utils_update(
+					model,
+					{
+						treeZoom: A2($elm$core$Basics$min, 3.0, model.treeZoom * 1.2)
+					});
+			case 'TreeZoomOut':
+				return _Utils_update(
+					model,
+					{
+						treeZoom: A2($elm$core$Basics$max, 0.2, model.treeZoom / 1.2)
+					});
+			case 'StartDividerDrag':
+				var clientX = msg.a;
+				return _Utils_update(
+					model,
+					{dividerDragStartRatio: model.splitRatio, dividerDragStartX: clientX, isDraggingDivider: true});
+			case 'DividerDragMove':
+				var clientX = msg.a;
+				if (model.isDraggingDivider && (model.dividerDragStartX > 0)) {
+					var newRatio = (clientX * model.dividerDragStartRatio) / model.dividerDragStartX;
+					return _Utils_update(
+						model,
+						{
+							splitRatio: A3($elm$core$Basics$clamp, 0.1, 0.9, newRatio)
+						});
+				} else {
+					return model;
+				}
+			case 'EndDividerDrag':
+				return _Utils_update(
+					model,
+					{isDraggingDivider: false});
+			case 'ToggleConsole':
+				return model;
 			default:
 				return model;
 		}
@@ -9419,6 +9604,18 @@ var $author$project$Main$update = F2(
 			case 'EditorMsg':
 				var editorMsg = msg.a;
 				switch (editorMsg.$) {
+					case 'ToggleConsole':
+						return _Utils_Tuple2(
+							_Utils_update(
+								model,
+								{consoleOpen: !model.consoleOpen}),
+							$elm$core$Platform$Cmd$none);
+					case 'ShowGuide':
+						return _Utils_Tuple2(
+							_Utils_update(
+								model,
+								{guideTab: $author$project$Main$GuideEditor, showGuide: true}),
+							$elm$core$Platform$Cmd$none);
 					case 'SwitchToConversion':
 						return _Utils_Tuple2(
 							_Utils_update(
@@ -9531,33 +9728,58 @@ var $author$project$Main$update = F2(
 			case 'SimulatorMsg':
 				var simulatorMsg = msg.a;
 				var sim = model.simulatorModel;
-				if (simulatorMsg.$ === 'SwitchToEditor') {
-					return _Utils_Tuple2(
-						_Utils_update(
-							model,
-							{
-								currentPage: $author$project$Main$EditorPage,
-								simulatorModel: _Utils_update(
-									sim,
-									{autoRunning: false})
-							}),
-						$elm$core$Platform$Cmd$none);
-				} else {
-					var newSimulatorModel = A2($author$project$Pages$Simulator$update, simulatorMsg, model.simulatorModel);
-					return _Utils_Tuple2(
-						_Utils_update(
-							model,
-							{simulatorModel: newSimulatorModel}),
-						$elm$core$Platform$Cmd$none);
+				switch (simulatorMsg.$) {
+					case 'ToggleConsole':
+						return _Utils_Tuple2(
+							_Utils_update(
+								model,
+								{consoleOpen: !model.consoleOpen}),
+							$elm$core$Platform$Cmd$none);
+					case 'SwitchToEditor':
+						return _Utils_Tuple2(
+							_Utils_update(
+								model,
+								{
+									currentPage: $author$project$Main$EditorPage,
+									simulatorModel: _Utils_update(
+										sim,
+										{autoRunning: false})
+								}),
+							$elm$core$Platform$Cmd$none);
+					case 'ShowGuide':
+						return _Utils_Tuple2(
+							_Utils_update(
+								model,
+								{guideTab: $author$project$Main$GuideSimulator, showGuide: true}),
+							$elm$core$Platform$Cmd$none);
+					default:
+						var newSimulatorModel = A2($author$project$Pages$Simulator$update, simulatorMsg, model.simulatorModel);
+						return _Utils_Tuple2(
+							_Utils_update(
+								model,
+								{simulatorModel: newSimulatorModel}),
+							$elm$core$Platform$Cmd$none);
 				}
 			case 'ConversionMsg':
 				var convMsg = msg.a;
 				switch (convMsg.$) {
+					case 'ToggleConsole':
+						return _Utils_Tuple2(
+							_Utils_update(
+								model,
+								{consoleOpen: !model.consoleOpen}),
+							$elm$core$Platform$Cmd$none);
 					case 'SwitchToEditor':
 						return _Utils_Tuple2(
 							_Utils_update(
 								model,
 								{currentPage: $author$project$Main$EditorPage}),
+							$elm$core$Platform$Cmd$none);
+					case 'ShowGuide':
+						return _Utils_Tuple2(
+							_Utils_update(
+								model,
+								{guideTab: $author$project$Main$GuideConversion, showGuide: true}),
 							$elm$core$Platform$Cmd$none);
 					case 'ReplaceAutomaton':
 						var em = model.editorModel;
@@ -9596,12 +9818,43 @@ var $author$project$Main$update = F2(
 								}),
 							$elm$core$Platform$Cmd$none);
 				}
-			default:
+			case 'SwitchToEditor':
 				return _Utils_Tuple2(
 					_Utils_update(
 						model,
 						{currentPage: $author$project$Main$EditorPage}),
 					$elm$core$Platform$Cmd$none);
+			case 'CloseGuide':
+				return _Utils_Tuple2(
+					_Utils_update(
+						model,
+						{showGuide: false}),
+					$elm$core$Platform$Cmd$none);
+			case 'SetGuideTab':
+				var tab = msg.a;
+				return _Utils_Tuple2(
+					_Utils_update(
+						model,
+						{guideTab: tab}),
+					$elm$core$Platform$Cmd$none);
+			case 'GuideLoadExample':
+				var automaton = msg.a;
+				var em = model.editorModel;
+				return _Utils_Tuple2(
+					_Utils_update(
+						model,
+						{
+							currentPage: $author$project$Main$EditorPage,
+							editorModel: _Utils_update(
+								em,
+								{
+									automaton: $elm_community$undo_redo$UndoList$fresh(automaton)
+								}),
+							showGuide: false
+						}),
+					$elm$core$Platform$Cmd$none);
+			default:
+				return _Utils_Tuple2(model, $elm$core$Platform$Cmd$none);
 		}
 	});
 var $author$project$Main$ConversionMsg = function (a) {
@@ -9612,6 +9865,145 @@ var $elm$virtual_dom$VirtualDom$map = _VirtualDom_map;
 var $elm$html$Html$map = $elm$virtual_dom$VirtualDom$map;
 var $elm$virtual_dom$VirtualDom$style = _VirtualDom_style;
 var $elm$html$Html$Attributes$style = $elm$virtual_dom$VirtualDom$style;
+var $elm$virtual_dom$VirtualDom$text = _VirtualDom_text;
+var $elm$html$Html$text = $elm$virtual_dom$VirtualDom$text;
+var $author$project$Pages$Conversion$ToggleConsole = {$: 'ToggleConsole'};
+var $elm$html$Html$img = _VirtualDom_node('img');
+var $elm$virtual_dom$VirtualDom$Normal = function (a) {
+	return {$: 'Normal', a: a};
+};
+var $elm$virtual_dom$VirtualDom$on = _VirtualDom_on;
+var $elm$html$Html$Events$on = F2(
+	function (event, decoder) {
+		return A2(
+			$elm$virtual_dom$VirtualDom$on,
+			event,
+			$elm$virtual_dom$VirtualDom$Normal(decoder));
+	});
+var $elm$html$Html$Events$onClick = function (msg) {
+	return A2(
+		$elm$html$Html$Events$on,
+		'click',
+		$elm$json$Json$Decode$succeed(msg));
+};
+var $elm$html$Html$Attributes$stringProperty = F2(
+	function (key, string) {
+		return A2(
+			_VirtualDom_property,
+			key,
+			$elm$json$Json$Encode$string(string));
+	});
+var $elm$html$Html$Attributes$src = function (url) {
+	return A2(
+		$elm$html$Html$Attributes$stringProperty,
+		'src',
+		_VirtualDom_noJavaScriptOrHtmlUri(url));
+};
+var $elm$html$Html$p = _VirtualDom_node('p');
+var $author$project$Components$Console$viewMessage = function (message) {
+	var borderColor = function () {
+		var _v0 = message.msgType;
+		if (_v0.$ === 'Info') {
+			return '#3498db';
+		} else {
+			return '#e74c3c';
+		}
+	}();
+	return A2(
+		$elm$html$Html$p,
+		_List_fromArray(
+			[
+				A2($elm$html$Html$Attributes$style, 'margin', '2px 0'),
+				A2($elm$html$Html$Attributes$style, 'padding', '2px 5px'),
+				A2($elm$html$Html$Attributes$style, 'border-left', '3px solid ' + borderColor)
+			]),
+		_List_fromArray(
+			[
+				$elm$html$Html$text(message.text)
+			]));
+};
+var $author$project$Components$Console$view = function (config) {
+	return A2(
+		$elm$html$Html$div,
+		_List_fromArray(
+			[
+				A2($elm$html$Html$Attributes$style, 'display', 'flex'),
+				A2($elm$html$Html$Attributes$style, 'flex-direction', 'column'),
+				A2($elm$html$Html$Attributes$style, 'border-top', '2px solid #0d1e30')
+			]),
+		_List_fromArray(
+			[
+				A2(
+				$elm$html$Html$div,
+				_List_fromArray(
+					[
+						A2($elm$html$Html$Attributes$style, 'background-color', '#1a2f4a'),
+						A2($elm$html$Html$Attributes$style, 'color', '#ecf0f1'),
+						A2($elm$html$Html$Attributes$style, 'padding', '2px 10px'),
+						A2($elm$html$Html$Attributes$style, 'font-size', '12px'),
+						A2($elm$html$Html$Attributes$style, 'font-family', 'sans-serif'),
+						A2($elm$html$Html$Attributes$style, 'font-weight', 'bold'),
+						A2($elm$html$Html$Attributes$style, 'display', 'flex'),
+						A2($elm$html$Html$Attributes$style, 'align-items', 'center')
+					]),
+				_List_fromArray(
+					[
+						A2(
+						$elm$html$Html$div,
+						_List_fromArray(
+							[
+								A2($elm$html$Html$Attributes$style, 'flex', '0')
+							]),
+						_List_fromArray(
+							[
+								$elm$html$Html$text('Konzola')
+							])),
+						A2(
+						$elm$html$Html$div,
+						_List_fromArray(
+							[
+								A2($elm$html$Html$Attributes$style, 'flex', '1'),
+								A2($elm$html$Html$Attributes$style, 'display', 'flex'),
+								A2($elm$html$Html$Attributes$style, 'justify-content', 'center'),
+								A2($elm$html$Html$Attributes$style, 'cursor', 'pointer'),
+								$elm$html$Html$Events$onClick(config.onToggle)
+							]),
+						_List_fromArray(
+							[
+								A2(
+								$elm$html$Html$img,
+								_List_fromArray(
+									[
+										$elm$html$Html$Attributes$src('transparent_double_arrow.png'),
+										A2($elm$html$Html$Attributes$style, 'width', '14px'),
+										A2($elm$html$Html$Attributes$style, 'height', '14px'),
+										A2($elm$html$Html$Attributes$style, 'opacity', '0.8'),
+										A2(
+										$elm$html$Html$Attributes$style,
+										'transform',
+										config.isOpen ? 'rotate(180deg)' : 'rotate(0deg)'),
+										A2($elm$html$Html$Attributes$style, 'transition', 'transform 0.2s')
+									]),
+								_List_Nil)
+							]))
+					])),
+				config.isOpen ? A2(
+				$elm$html$Html$div,
+				_List_fromArray(
+					[
+						A2($elm$html$Html$Attributes$style, 'background-color', '#000000'),
+						A2($elm$html$Html$Attributes$style, 'color', '#d4d4d4'),
+						A2($elm$html$Html$Attributes$style, 'padding', '10px'),
+						A2($elm$html$Html$Attributes$style, 'height', '150px'),
+						A2($elm$html$Html$Attributes$style, 'overflow-y', 'auto'),
+						A2($elm$html$Html$Attributes$style, 'font-family', 'Consolas, monospace'),
+						A2($elm$html$Html$Attributes$style, 'font-size', '13px'),
+						A2($elm$html$Html$Attributes$style, 'display', 'flex'),
+						A2($elm$html$Html$Attributes$style, 'flex-direction', 'column-reverse')
+					]),
+				A2($elm$core$List$map, $author$project$Components$Console$viewMessage, config.messages)) : A2($elm$html$Html$div, _List_Nil, _List_Nil)
+			]));
+};
 var $author$project$Pages$Conversion$CanvasMouseDown = F2(
 	function (a, b) {
 		return {$: 'CanvasMouseDown', a: a, b: b};
@@ -9697,20 +10089,10 @@ var $author$project$Components$ConversionCanvas$groupDfaTransitions = function (
 var $elm$svg$Svg$Attributes$height = _VirtualDom_attribute('height');
 var $author$project$Components$ConversionCanvas$offsetX = A2($elm$json$Json$Decode$field, 'offsetX', $elm$json$Json$Decode$float);
 var $author$project$Components$ConversionCanvas$offsetY = A2($elm$json$Json$Decode$field, 'offsetY', $elm$json$Json$Decode$float);
-var $elm$virtual_dom$VirtualDom$Normal = function (a) {
-	return {$: 'Normal', a: a};
-};
-var $elm$virtual_dom$VirtualDom$on = _VirtualDom_on;
-var $elm$html$Html$Events$on = F2(
-	function (event, decoder) {
-		return A2(
-			$elm$virtual_dom$VirtualDom$on,
-			event,
-			$elm$virtual_dom$VirtualDom$Normal(decoder));
-	});
 var $elm$svg$Svg$Events$on = $elm$html$Html$Events$on;
 var $elm$svg$Svg$svg = $elm$svg$Svg$trustedNode('svg');
 var $elm$svg$Svg$Attributes$transform = _VirtualDom_attribute('transform');
+var $elm$core$Basics$atan2 = _Basics_atan2;
 var $author$project$Utils$AutomatonHelpers$calculateArrowHead = F4(
 	function (tipX, tipY, ux, uy) {
 		var py = ux;
@@ -9737,13 +10119,124 @@ var $elm$svg$Svg$Attributes$d = _VirtualDom_attribute('d');
 var $elm$svg$Svg$Attributes$fill = _VirtualDom_attribute('fill');
 var $elm$svg$Svg$Attributes$fontSize = _VirtualDom_attribute('font-size');
 var $elm$svg$Svg$Attributes$fontWeight = _VirtualDom_attribute('font-weight');
+var $elm$svg$Svg$path = $elm$svg$Svg$trustedNode('path');
+var $elm$core$Basics$pi = _Basics_pi;
+var $elm$svg$Svg$Attributes$points = _VirtualDom_attribute('points');
+var $elm$svg$Svg$polygon = $elm$svg$Svg$trustedNode('polygon');
+var $elm$core$Basics$pow = _Basics_pow;
+var $elm$svg$Svg$Attributes$stroke = _VirtualDom_attribute('stroke');
+var $elm$svg$Svg$Attributes$strokeWidth = _VirtualDom_attribute('stroke-width');
 var $elm$svg$Svg$Attributes$style = _VirtualDom_attribute('style');
-var $elm$virtual_dom$VirtualDom$text = _VirtualDom_text;
 var $elm$svg$Svg$text = $elm$virtual_dom$VirtualDom$text;
 var $elm$svg$Svg$Attributes$textAnchor = _VirtualDom_attribute('text-anchor');
 var $elm$svg$Svg$text_ = $elm$svg$Svg$trustedNode('text');
 var $elm$svg$Svg$Attributes$x = _VirtualDom_attribute('x');
 var $elm$svg$Svg$Attributes$y = _VirtualDom_attribute('y');
+var $author$project$Components$ConversionCanvas$viewCurvedEdge = F4(
+	function (a, b, symbols, isActive) {
+		var vy = b.y - a.y;
+		var vx = b.x - a.x;
+		var strokeWidth = isActive ? '4' : '2';
+		var strokeColor = isActive ? '#e74c3c' : '#222';
+		var spacing = 16;
+		var r = 35.0;
+		var n = $elm$core$List$length(symbols);
+		var midY = (a.y + b.y) / 2;
+		var midX = (a.x + b.x) / 2;
+		var len = $elm$core$Basics$sqrt((vx * vx) + (vy * vy));
+		var ux = (!len) ? 1 : (vx / len);
+		var py = ux;
+		var uy = (!len) ? 0 : (vy / len);
+		var px = -uy;
+		var cy = midY + (40.0 * py);
+		var cx = midX + (40.0 * px);
+		var bcLen = $elm$core$Basics$sqrt(
+			A2($elm$core$Basics$pow, cx - b.x, 2) + A2($elm$core$Basics$pow, cy - b.y, 2));
+		var bcUx = (!bcLen) ? 1 : ((cx - b.x) / bcLen);
+		var ex = b.x + (bcUx * r);
+		var bcUy = (!bcLen) ? 0 : ((cy - b.y) / bcLen);
+		var ey = b.y + (bcUy * r);
+		var tLen = $elm$core$Basics$sqrt(
+			A2($elm$core$Basics$pow, ex - cx, 2) + A2($elm$core$Basics$pow, ey - cy, 2));
+		var tUx = (!tLen) ? 1 : ((ex - cx) / tLen);
+		var tUy = (!tLen) ? 0 : ((ey - cy) / tLen);
+		var arrowPts = A4($author$project$Utils$AutomatonHelpers$calculateArrowHead, ex, ey, tUx, tUy);
+		var angleRad = A2($elm$core$Basics$atan2, uy, ux);
+		var angleDeg = (angleRad * 180) / $elm$core$Basics$pi;
+		var rotationAngle = (ux < 0) ? (angleDeg + 180) : angleDeg;
+		var acLen = $elm$core$Basics$sqrt(
+			A2($elm$core$Basics$pow, cx - a.x, 2) + A2($elm$core$Basics$pow, cy - a.y, 2));
+		var acUx = (!acLen) ? 1 : ((cx - a.x) / acLen);
+		var sx = a.x + (acUx * r);
+		var curveMidX = ((0.25 * sx) + (0.5 * cx)) + (0.25 * ex);
+		var acUy = (!acLen) ? 0 : ((cy - a.y) / acLen);
+		var sy = a.y + (acUy * r);
+		var curveMidY = ((0.25 * sy) + (0.5 * cy)) + (0.25 * ey);
+		var labels = _List_fromArray(
+			[
+				A2(
+				$elm$svg$Svg$g,
+				_List_fromArray(
+					[
+						$elm$svg$Svg$Attributes$transform(
+						'translate(' + ($elm$core$String$fromFloat(curveMidX) + (',' + ($elm$core$String$fromFloat(curveMidY) + (') rotate(' + ($elm$core$String$fromFloat(rotationAngle) + ')'))))))
+					]),
+				A2(
+					$elm$core$List$indexedMap,
+					F2(
+						function (i, sym) {
+							return A2(
+								$elm$svg$Svg$text_,
+								_List_fromArray(
+									[
+										$elm$svg$Svg$Attributes$x(
+										$elm$core$String$fromFloat((i - ((n - 1) / 2.0)) * spacing)),
+										$elm$svg$Svg$Attributes$y('-6'),
+										$elm$svg$Svg$Attributes$textAnchor('middle'),
+										$elm$svg$Svg$Attributes$fontSize('13'),
+										$elm$svg$Svg$Attributes$fill(strokeColor),
+										$elm$svg$Svg$Attributes$fontWeight('bold'),
+										$elm$svg$Svg$Attributes$style('user-select: none; pointer-events: none;')
+									]),
+								_List_fromArray(
+									[
+										$elm$svg$Svg$text(sym)
+									]));
+						}),
+					symbols))
+			]);
+		return A2(
+			$elm$svg$Svg$g,
+			_List_Nil,
+			_Utils_ap(
+				_List_fromArray(
+					[
+						A2(
+						$elm$svg$Svg$path,
+						_List_fromArray(
+							[
+								$elm$svg$Svg$Attributes$d(
+								'M ' + ($elm$core$String$fromFloat(sx) + (' ' + ($elm$core$String$fromFloat(sy) + (' Q ' + ($elm$core$String$fromFloat(cx) + (' ' + ($elm$core$String$fromFloat(cy) + (' ' + ($elm$core$String$fromFloat(ex) + (' ' + $elm$core$String$fromFloat(ey)))))))))))),
+								$elm$svg$Svg$Attributes$fill('none'),
+								$elm$svg$Svg$Attributes$stroke(strokeColor),
+								$elm$svg$Svg$Attributes$strokeWidth(strokeWidth)
+							]),
+						_List_Nil),
+						A2(
+						$elm$svg$Svg$polygon,
+						_List_fromArray(
+							[
+								$elm$svg$Svg$Attributes$points(arrowPts),
+								$elm$svg$Svg$Attributes$fill(strokeColor)
+							]),
+						_List_Nil)
+					]),
+				labels));
+	});
+var $elm$core$Basics$cos = _Basics_cos;
+var $elm$core$Basics$degrees = function (angleInDegrees) {
+	return (angleInDegrees * $elm$core$Basics$pi) / 180;
+};
 var $author$project$Components$ConversionCanvas$edgeLabel = F4(
 	function (x, y, label, color) {
 		return A2(
@@ -9765,84 +10258,6 @@ var $author$project$Components$ConversionCanvas$edgeLabel = F4(
 					$elm$svg$Svg$text(label)
 				]));
 	});
-var $elm$svg$Svg$path = $elm$svg$Svg$trustedNode('path');
-var $elm$svg$Svg$Attributes$points = _VirtualDom_attribute('points');
-var $elm$svg$Svg$polygon = $elm$svg$Svg$trustedNode('polygon');
-var $elm$core$Basics$pow = _Basics_pow;
-var $elm$svg$Svg$Attributes$stroke = _VirtualDom_attribute('stroke');
-var $elm$svg$Svg$Attributes$strokeWidth = _VirtualDom_attribute('stroke-width');
-var $author$project$Components$ConversionCanvas$viewCurvedEdge = F4(
-	function (a, b, symbols, isActive) {
-		var vy = b.y - a.y;
-		var vx = b.x - a.x;
-		var strokeWidth = isActive ? '4' : '2';
-		var strokeColor = isActive ? '#e74c3c' : '#222';
-		var r = 35.0;
-		var midY = (a.y + b.y) / 2;
-		var midX = (a.x + b.x) / 2;
-		var len = $elm$core$Basics$sqrt((vx * vx) + (vy * vy));
-		var ux = (!len) ? 1 : (vx / len);
-		var py = ux;
-		var uy = (!len) ? 0 : (vy / len);
-		var px = -uy;
-		var cy = midY + (40.0 * py);
-		var cx = midX + (40.0 * px);
-		var bcLen = $elm$core$Basics$sqrt(
-			A2($elm$core$Basics$pow, cx - b.x, 2) + A2($elm$core$Basics$pow, cy - b.y, 2));
-		var bcUx = (!bcLen) ? 1 : ((cx - b.x) / bcLen);
-		var ex = b.x + (bcUx * r);
-		var bcUy = (!bcLen) ? 0 : ((cy - b.y) / bcLen);
-		var ey = b.y + (bcUy * r);
-		var tLen = $elm$core$Basics$sqrt(
-			A2($elm$core$Basics$pow, ex - cx, 2) + A2($elm$core$Basics$pow, ey - cy, 2));
-		var tUx = (!tLen) ? 1 : ((ex - cx) / tLen);
-		var tUy = (!tLen) ? 0 : ((ey - cy) / tLen);
-		var arrowPts = A4($author$project$Utils$AutomatonHelpers$calculateArrowHead, ex, ey, tUx, tUy);
-		var acLen = $elm$core$Basics$sqrt(
-			A2($elm$core$Basics$pow, cx - a.x, 2) + A2($elm$core$Basics$pow, cy - a.y, 2));
-		var acUx = (!acLen) ? 1 : ((cx - a.x) / acLen);
-		var sx = a.x + (acUx * r);
-		var labelX = ((0.25 * sx) + (0.5 * cx)) + (0.25 * ex);
-		var acUy = (!acLen) ? 0 : ((cy - a.y) / acLen);
-		var sy = a.y + (acUy * r);
-		var labelY = (((0.25 * sy) + (0.5 * cy)) + (0.25 * ey)) - 8;
-		return A2(
-			$elm$svg$Svg$g,
-			_List_Nil,
-			_List_fromArray(
-				[
-					A2(
-					$elm$svg$Svg$path,
-					_List_fromArray(
-						[
-							$elm$svg$Svg$Attributes$d(
-							'M ' + ($elm$core$String$fromFloat(sx) + (' ' + ($elm$core$String$fromFloat(sy) + (' Q ' + ($elm$core$String$fromFloat(cx) + (' ' + ($elm$core$String$fromFloat(cy) + (' ' + ($elm$core$String$fromFloat(ex) + (' ' + $elm$core$String$fromFloat(ey)))))))))))),
-							$elm$svg$Svg$Attributes$fill('none'),
-							$elm$svg$Svg$Attributes$stroke(strokeColor),
-							$elm$svg$Svg$Attributes$strokeWidth(strokeWidth)
-						]),
-					_List_Nil),
-					A2(
-					$elm$svg$Svg$polygon,
-					_List_fromArray(
-						[
-							$elm$svg$Svg$Attributes$points(arrowPts),
-							$elm$svg$Svg$Attributes$fill(strokeColor)
-						]),
-					_List_Nil),
-					A4(
-					$author$project$Components$ConversionCanvas$edgeLabel,
-					labelX,
-					labelY,
-					A2($elm$core$String$join, ',', symbols),
-					strokeColor)
-				]));
-	});
-var $elm$core$Basics$cos = _Basics_cos;
-var $elm$core$Basics$pi = _Basics_pi;
-var $elm$core$Basics$degrees = function (angleInDegrees) {
-	return (angleInDegrees * $elm$core$Basics$pi) / 180;
-};
 var $elm$core$Basics$sin = _Basics_sin;
 var $elm$svg$Svg$Attributes$strokeLinecap = _VirtualDom_attribute('stroke-linecap');
 var $author$project$Components$ConversionCanvas$viewSelfLoop = F3(
@@ -9907,46 +10322,82 @@ var $author$project$Components$ConversionCanvas$viewStraightEdge = F4(
 		var vx = b.x - a.x;
 		var strokeWidth = isActive ? '4' : '2';
 		var strokeColor = isActive ? '#e74c3c' : '#222';
+		var spacing = 16;
 		var r = 35.0;
+		var n = $elm$core$List$length(symbols);
 		var len = $elm$core$Basics$sqrt((vx * vx) + (vy * vy));
 		var ux = (!len) ? 1 : (vx / len);
 		var sx = a.x + (ux * r);
 		var uy = (!len) ? 0 : (vy / len);
 		var sy = a.y + (uy * r);
 		var ey = b.y - (uy * r);
+		var midY = (sy + ey) / 2;
 		var ex = b.x - (ux * r);
+		var midX = (sx + ex) / 2;
 		var arrowPts = A4($author$project$Utils$AutomatonHelpers$calculateArrowHead, ex, ey, ux, uy);
+		var angleRad = A2($elm$core$Basics$atan2, uy, ux);
+		var angleDeg = (angleRad * 180) / $elm$core$Basics$pi;
+		var rotationAngle = (ux < 0) ? (angleDeg + 180) : angleDeg;
+		var labels = _List_fromArray(
+			[
+				A2(
+				$elm$svg$Svg$g,
+				_List_fromArray(
+					[
+						$elm$svg$Svg$Attributes$transform(
+						'translate(' + ($elm$core$String$fromFloat(midX) + (',' + ($elm$core$String$fromFloat(midY) + (') rotate(' + ($elm$core$String$fromFloat(rotationAngle) + ')'))))))
+					]),
+				A2(
+					$elm$core$List$indexedMap,
+					F2(
+						function (i, sym) {
+							return A2(
+								$elm$svg$Svg$text_,
+								_List_fromArray(
+									[
+										$elm$svg$Svg$Attributes$x(
+										$elm$core$String$fromFloat((i - ((n - 1) / 2.0)) * spacing)),
+										$elm$svg$Svg$Attributes$y('-6'),
+										$elm$svg$Svg$Attributes$textAnchor('middle'),
+										$elm$svg$Svg$Attributes$fontSize('13'),
+										$elm$svg$Svg$Attributes$fill(strokeColor),
+										$elm$svg$Svg$Attributes$fontWeight('bold'),
+										$elm$svg$Svg$Attributes$style('user-select: none; pointer-events: none;')
+									]),
+								_List_fromArray(
+									[
+										$elm$svg$Svg$text(sym)
+									]));
+						}),
+					symbols))
+			]);
 		return A2(
 			$elm$svg$Svg$g,
 			_List_Nil,
-			_List_fromArray(
-				[
-					A2(
-					$elm$svg$Svg$path,
-					_List_fromArray(
-						[
-							$elm$svg$Svg$Attributes$d(
-							'M ' + ($elm$core$String$fromFloat(sx) + (' ' + ($elm$core$String$fromFloat(sy) + (' L ' + ($elm$core$String$fromFloat(ex) + (' ' + $elm$core$String$fromFloat(ey)))))))),
-							$elm$svg$Svg$Attributes$fill('none'),
-							$elm$svg$Svg$Attributes$stroke(strokeColor),
-							$elm$svg$Svg$Attributes$strokeWidth(strokeWidth)
-						]),
-					_List_Nil),
-					A2(
-					$elm$svg$Svg$polygon,
-					_List_fromArray(
-						[
-							$elm$svg$Svg$Attributes$points(arrowPts),
-							$elm$svg$Svg$Attributes$fill(strokeColor)
-						]),
-					_List_Nil),
-					A4(
-					$author$project$Components$ConversionCanvas$edgeLabel,
-					(sx + ex) / 2,
-					((sy + ey) / 2) - 8,
-					A2($elm$core$String$join, ',', symbols),
-					strokeColor)
-				]));
+			_Utils_ap(
+				_List_fromArray(
+					[
+						A2(
+						$elm$svg$Svg$path,
+						_List_fromArray(
+							[
+								$elm$svg$Svg$Attributes$d(
+								'M ' + ($elm$core$String$fromFloat(sx) + (' ' + ($elm$core$String$fromFloat(sy) + (' L ' + ($elm$core$String$fromFloat(ex) + (' ' + $elm$core$String$fromFloat(ey)))))))),
+								$elm$svg$Svg$Attributes$fill('none'),
+								$elm$svg$Svg$Attributes$stroke(strokeColor),
+								$elm$svg$Svg$Attributes$strokeWidth(strokeWidth)
+							]),
+						_List_Nil),
+						A2(
+						$elm$svg$Svg$polygon,
+						_List_fromArray(
+							[
+								$elm$svg$Svg$Attributes$points(arrowPts),
+								$elm$svg$Svg$Attributes$fill(strokeColor)
+							]),
+						_List_Nil)
+					]),
+				labels));
 	});
 var $author$project$Components$ConversionCanvas$viewDfaEdge = F4(
 	function (allTransitions, allStates, highlightTransition, grouped) {
@@ -10150,13 +10601,6 @@ var $author$project$Components$ConversionCanvas$viewDfaState = F5(
 var $author$project$Components$ConversionCanvas$wheelDeltaY = A2($elm$json$Json$Decode$field, 'deltaY', $elm$json$Json$Decode$float);
 var $elm$svg$Svg$Attributes$width = _VirtualDom_attribute('width');
 var $elm$html$Html$button = _VirtualDom_node('button');
-var $elm$html$Html$Events$onClick = function (msg) {
-	return A2(
-		$elm$html$Html$Events$on,
-		'click',
-		$elm$json$Json$Decode$succeed(msg));
-};
-var $elm$html$Html$text = $elm$virtual_dom$VirtualDom$text;
 var $author$project$Components$ConversionCanvas$zoomBtn = F2(
 	function (label, msg) {
 		return A2(
@@ -10627,10 +11071,10 @@ var $author$project$Pages$Conversion$viewRightPanel = F2(
 			$elm$html$Html$div,
 			_List_fromArray(
 				[
-					A2($elm$html$Html$Attributes$style, 'width', '340px'),
+					A2($elm$html$Html$Attributes$style, 'width', '300px'),
 					A2($elm$html$Html$Attributes$style, 'flex-shrink', '0'),
-					A2($elm$html$Html$Attributes$style, 'background-color', '#f5f5f5'),
-					A2($elm$html$Html$Attributes$style, 'border-left', '2px solid #ccc'),
+					A2($elm$html$Html$Attributes$style, 'background-color', '#f8f9fa'),
+					A2($elm$html$Html$Attributes$style, 'border-left', '2px solid #34495e'),
 					A2($elm$html$Html$Attributes$style, 'display', 'flex'),
 					A2($elm$html$Html$Attributes$style, 'flex-direction', 'column'),
 					A2($elm$html$Html$Attributes$style, 'overflow', 'hidden')
@@ -10726,13 +11170,6 @@ var $elm$html$Html$Events$onInput = function (tagger) {
 			$elm$html$Html$Events$alwaysStop,
 			A2($elm$json$Json$Decode$map, tagger, $elm$html$Html$Events$targetValue)));
 };
-var $elm$html$Html$Attributes$stringProperty = F2(
-	function (key, string) {
-		return A2(
-			_VirtualDom_property,
-			key,
-			$elm$json$Json$Encode$string(string));
-	});
 var $elm$html$Html$Attributes$placeholder = $elm$html$Html$Attributes$stringProperty('placeholder');
 var $elm$html$Html$Attributes$type_ = $elm$html$Html$Attributes$stringProperty('type');
 var $elm$html$Html$Attributes$value = $elm$html$Html$Attributes$stringProperty('value');
@@ -10834,6 +11271,7 @@ var $author$project$Pages$Conversion$viewSaveModal = function (model) {
 var $author$project$Pages$Conversion$JumpToEnd = {$: 'JumpToEnd'};
 var $author$project$Pages$Conversion$JumpToStart = {$: 'JumpToStart'};
 var $author$project$Pages$Conversion$ReplaceAutomaton = {$: 'ReplaceAutomaton'};
+var $author$project$Pages$Conversion$ShowGuide = {$: 'ShowGuide'};
 var $author$project$Pages$Conversion$ShowSaveModal = {$: 'ShowSaveModal'};
 var $author$project$Pages$Conversion$StepBackward = {$: 'StepBackward'};
 var $author$project$Pages$Conversion$StepForward = {$: 'StepForward'};
@@ -10846,7 +11284,7 @@ var $author$project$Pages$Conversion$actionBtn = F3(
 			_List_fromArray(
 				[
 					$elm$html$Html$Events$onClick(msg),
-					A2($elm$html$Html$Attributes$style, 'padding', '8px 14px'),
+					A2($elm$html$Html$Attributes$style, 'padding', '11px 18px'),
 					A2(
 					$elm$html$Html$Attributes$style,
 					'background-color',
@@ -10867,6 +11305,67 @@ var $author$project$Pages$Conversion$actionBtn = F3(
 					$elm$html$Html$text(label)
 				]));
 	});
+var $author$project$Pages$Conversion$colorBtn = F4(
+	function (label, color, msg, isEnabled) {
+		return A2(
+			$elm$html$Html$button,
+			_List_fromArray(
+				[
+					$elm$html$Html$Events$onClick(msg),
+					A2($elm$html$Html$Attributes$style, 'padding', '11px 18px'),
+					A2(
+					$elm$html$Html$Attributes$style,
+					'background-color',
+					isEnabled ? color : '#b0bec5'),
+					A2($elm$html$Html$Attributes$style, 'color', 'white'),
+					A2($elm$html$Html$Attributes$style, 'border', 'none'),
+					A2($elm$html$Html$Attributes$style, 'border-radius', '5px'),
+					A2(
+					$elm$html$Html$Attributes$style,
+					'cursor',
+					isEnabled ? 'pointer' : 'not-allowed'),
+					A2($elm$html$Html$Attributes$style, 'font-size', '14px'),
+					A2($elm$html$Html$Attributes$style, 'font-weight', 'bold'),
+					$elm$html$Html$Attributes$disabled(!isEnabled)
+				]),
+			_List_fromArray(
+				[
+					$elm$html$Html$text(label)
+				]));
+	});
+var $author$project$Pages$Conversion$guideColorBtn = function (msg) {
+	return A2(
+		$elm$html$Html$button,
+		_List_fromArray(
+			[
+				$elm$html$Html$Events$onClick(msg),
+				A2($elm$html$Html$Attributes$style, 'padding', '11px 18px'),
+				A2($elm$html$Html$Attributes$style, 'background-color', '#00796b'),
+				A2($elm$html$Html$Attributes$style, 'color', 'white'),
+				A2($elm$html$Html$Attributes$style, 'border', 'none'),
+				A2($elm$html$Html$Attributes$style, 'border-radius', '5px'),
+				A2($elm$html$Html$Attributes$style, 'cursor', 'pointer'),
+				A2($elm$html$Html$Attributes$style, 'font-size', '14px'),
+				A2($elm$html$Html$Attributes$style, 'font-weight', 'bold'),
+				A2($elm$html$Html$Attributes$style, 'display', 'flex'),
+				A2($elm$html$Html$Attributes$style, 'align-items', 'center'),
+				A2($elm$html$Html$Attributes$style, 'gap', '6px')
+			]),
+		_List_fromArray(
+			[
+				A2(
+				$elm$html$Html$img,
+				_List_fromArray(
+					[
+						$elm$html$Html$Attributes$src('guide_icon.png'),
+						A2($elm$html$Html$Attributes$style, 'width', '20px'),
+						A2($elm$html$Html$Attributes$style, 'height', '20px'),
+						A2($elm$html$Html$Attributes$style, 'filter', 'brightness(0) invert(1)')
+					]),
+				_List_Nil),
+				$elm$html$Html$text('Sprievodca')
+			]));
+};
 var $author$project$Pages$Conversion$navBtn = F3(
 	function (label, msg, isDisabled) {
 		return A2(
@@ -10874,7 +11373,7 @@ var $author$project$Pages$Conversion$navBtn = F3(
 			_List_fromArray(
 				[
 					$elm$html$Html$Events$onClick(msg),
-					A2($elm$html$Html$Attributes$style, 'padding', '8px 14px'),
+					A2($elm$html$Html$Attributes$style, 'padding', '11px 16px'),
 					A2(
 					$elm$html$Html$Attributes$style,
 					'background-color',
@@ -10902,8 +11401,8 @@ var $author$project$Pages$Conversion$viewTopBar = F4(
 				[
 					A2($elm$html$Html$Attributes$style, 'display', 'flex'),
 					A2($elm$html$Html$Attributes$style, 'flex-direction', 'row'),
-					A2($elm$html$Html$Attributes$style, 'padding', '10px'),
-					A2($elm$html$Html$Attributes$style, 'background-color', '#37474f'),
+					A2($elm$html$Html$Attributes$style, 'padding', '14px 12px'),
+					A2($elm$html$Html$Attributes$style, 'background-color', '#1a2f4a'),
 					A2($elm$html$Html$Attributes$style, 'gap', '8px'),
 					A2($elm$html$Html$Attributes$style, 'align-items', 'center'),
 					A2($elm$html$Html$Attributes$style, 'border-bottom', '2px solid #263238'),
@@ -10911,7 +11410,6 @@ var $author$project$Pages$Conversion$viewTopBar = F4(
 				]),
 			_List_fromArray(
 				[
-					A3($author$project$Pages$Conversion$navBtn, '← Editor', $author$project$Pages$Conversion$SwitchToEditor, false),
 					A3($author$project$Pages$Conversion$navBtn, '⏮', $author$project$Pages$Conversion$JumpToStart, isAtStart),
 					A3($author$project$Pages$Conversion$navBtn, '◀', $author$project$Pages$Conversion$StepBackward, isAtStart),
 					A3($author$project$Pages$Conversion$navBtn, '▶', $author$project$Pages$Conversion$StepForward, isAtEnd),
@@ -10933,48 +11431,75 @@ var $author$project$Pages$Conversion$viewTopBar = F4(
 					$elm$html$Html$div,
 					_List_fromArray(
 						[
-							A2($elm$html$Html$Attributes$style, 'margin-left', 'auto')
+							A2($elm$html$Html$Attributes$style, 'width', '1px'),
+							A2($elm$html$Html$Attributes$style, 'height', '28px'),
+							A2($elm$html$Html$Attributes$style, 'background-color', 'rgba(255,255,255,0.2)'),
+							A2($elm$html$Html$Attributes$style, 'margin', '0 4px')
 						]),
 					_List_Nil),
 					A3($author$project$Pages$Conversion$actionBtn, 'Nahradiť automat', $author$project$Pages$Conversion$ReplaceAutomaton, isAtEnd),
-					A3($author$project$Pages$Conversion$actionBtn, 'Uložiť DFA', $author$project$Pages$Conversion$ShowSaveModal, isAtEnd)
+					A3($author$project$Pages$Conversion$actionBtn, 'Uložiť DFA', $author$project$Pages$Conversion$ShowSaveModal, isAtEnd),
+					A2(
+					$elm$html$Html$div,
+					_List_fromArray(
+						[
+							A2($elm$html$Html$Attributes$style, 'flex', '1')
+						]),
+					_List_Nil),
+					A2(
+					$elm$html$Html$div,
+					_List_fromArray(
+						[
+							A2($elm$html$Html$Attributes$style, 'width', '300px'),
+							A2($elm$html$Html$Attributes$style, 'display', 'flex'),
+							A2($elm$html$Html$Attributes$style, 'justify-content', 'flex-end'),
+							A2($elm$html$Html$Attributes$style, 'gap', '8px')
+						]),
+					_List_fromArray(
+						[
+							$author$project$Pages$Conversion$guideColorBtn($author$project$Pages$Conversion$ShowGuide),
+							A4($author$project$Pages$Conversion$colorBtn, '← Editor', '#0277bd', $author$project$Pages$Conversion$SwitchToEditor, true)
+						]))
 				]));
 	});
-var $author$project$Pages$Conversion$view = function (model) {
-	var total = $elm$core$List$length(model.snapshots);
-	var isAtStart = model.currentStep <= 0;
-	var isAtEnd = _Utils_cmp(model.currentStep, total - 1) > -1;
-	var currentSnap = $elm$core$List$head(
-		A2($elm$core$List$drop, model.currentStep, model.snapshots));
-	return A2(
-		$elm$html$Html$div,
-		_List_fromArray(
-			[
-				A2($elm$html$Html$Attributes$style, 'display', 'flex'),
-				A2($elm$html$Html$Attributes$style, 'flex-direction', 'column'),
-				A2($elm$html$Html$Attributes$style, 'height', '100vh'),
-				A2($elm$html$Html$Attributes$style, 'overflow', 'hidden'),
-				A2($elm$html$Html$Attributes$style, 'font-family', 'sans-serif')
-			]),
-		_List_fromArray(
-			[
-				A4($author$project$Pages$Conversion$viewTopBar, model.currentStep + 1, total, isAtStart, isAtEnd),
-				A2(
-				$elm$html$Html$div,
-				_List_fromArray(
-					[
-						A2($elm$html$Html$Attributes$style, 'display', 'flex'),
-						A2($elm$html$Html$Attributes$style, 'flex', '1'),
-						A2($elm$html$Html$Attributes$style, 'overflow', 'hidden')
-					]),
-				_List_fromArray(
-					[
-						A2($author$project$Pages$Conversion$viewCanvas, model, currentSnap),
-						A2($author$project$Pages$Conversion$viewRightPanel, model, currentSnap)
-					])),
-				$author$project$Pages$Conversion$viewSaveModal(model)
-			]));
-};
+var $author$project$Pages$Conversion$view = F2(
+	function (consoleOpen, model) {
+		var total = $elm$core$List$length(model.snapshots);
+		var isAtStart = model.currentStep <= 0;
+		var isAtEnd = _Utils_cmp(model.currentStep, total - 1) > -1;
+		var currentSnap = $elm$core$List$head(
+			A2($elm$core$List$drop, model.currentStep, model.snapshots));
+		return A2(
+			$elm$html$Html$div,
+			_List_fromArray(
+				[
+					A2($elm$html$Html$Attributes$style, 'display', 'flex'),
+					A2($elm$html$Html$Attributes$style, 'flex-direction', 'column'),
+					A2($elm$html$Html$Attributes$style, 'height', '100vh'),
+					A2($elm$html$Html$Attributes$style, 'overflow', 'hidden'),
+					A2($elm$html$Html$Attributes$style, 'font-family', 'sans-serif')
+				]),
+			_List_fromArray(
+				[
+					A4($author$project$Pages$Conversion$viewTopBar, model.currentStep + 1, total, isAtStart, isAtEnd),
+					A2(
+					$elm$html$Html$div,
+					_List_fromArray(
+						[
+							A2($elm$html$Html$Attributes$style, 'display', 'flex'),
+							A2($elm$html$Html$Attributes$style, 'flex', '1'),
+							A2($elm$html$Html$Attributes$style, 'overflow', 'hidden')
+						]),
+					_List_fromArray(
+						[
+							A2($author$project$Pages$Conversion$viewCanvas, model, currentSnap),
+							A2($author$project$Pages$Conversion$viewRightPanel, model, currentSnap)
+						])),
+					$author$project$Components$Console$view(
+					{isOpen: consoleOpen, messages: model.consoleMessages, onToggle: $author$project$Pages$Conversion$ToggleConsole}),
+					$author$project$Pages$Conversion$viewSaveModal(model)
+				]));
+	});
 var $author$project$Pages$Editor$CanvasClick = F2(
 	function (a, b) {
 		return {$: 'CanvasClick', a: a, b: b};
@@ -10996,10 +11521,11 @@ var $author$project$Pages$Editor$ExportJson = {$: 'ExportJson'};
 var $author$project$Pages$Editor$LoadRequested = {$: 'LoadRequested'};
 var $author$project$Pages$Editor$ResetAutomaton = {$: 'ResetAutomaton'};
 var $author$project$Pages$Editor$SaveRequested = {$: 'SaveRequested'};
-var $author$project$Pages$Editor$SetTransitionDisplayMode = function (a) {
-	return {$: 'SetTransitionDisplayMode', a: a};
-};
 var $author$project$Pages$Editor$ShareUrl = {$: 'ShareUrl'};
+var $author$project$Pages$Editor$ShowError = function (a) {
+	return {$: 'ShowError', a: a};
+};
+var $author$project$Pages$Editor$ShowGuide = {$: 'ShowGuide'};
 var $author$project$Pages$Editor$StartDrag = F3(
 	function (a, b, c) {
 		return {$: 'StartDrag', a: a, b: b, c: c};
@@ -11012,6 +11538,7 @@ var $author$project$Pages$Editor$StateDoubleClick = function (a) {
 };
 var $author$project$Pages$Editor$SwitchToConversion = {$: 'SwitchToConversion'};
 var $author$project$Pages$Editor$SwitchToSimulator = {$: 'SwitchToSimulator'};
+var $author$project$Pages$Editor$ToggleConsole = {$: 'ToggleConsole'};
 var $author$project$Pages$Editor$TransitionClick = F3(
 	function (a, b, c) {
 		return {$: 'TransitionClick', a: a, b: b, c: c};
@@ -11061,7 +11588,37 @@ var $elm$core$Set$member = F2(
 		return A2($elm$core$Dict$member, key, dict);
 	});
 var $elm$html$Html$span = _VirtualDom_node('span');
-var $elm$html$Html$p = _VirtualDom_node('p');
+var $author$project$Components$AutomatonDisplay$viewDeltaRow = F2(
+	function (states, transition) {
+		var toLabel = A2($author$project$Utils$AutomatonHelpers$getStateLabel, transition.to, states);
+		var fromLabel = A2($author$project$Utils$AutomatonHelpers$getStateLabel, transition.from, states);
+		return A2(
+			$elm$html$Html$p,
+			_List_fromArray(
+				[
+					A2($elm$html$Html$Attributes$style, 'margin', '10px 0')
+				]),
+			_List_fromArray(
+				[
+					$elm$html$Html$text('δ(' + (fromLabel + (', ' + (transition.symbol + (') = ' + toLabel)))))
+				]));
+	});
+var $author$project$Components$AutomatonDisplay$viewDelta = F2(
+	function (states, transitions) {
+		var sortedTransitions = A2(
+			$elm$core$List$sortBy,
+			function (t) {
+				return _Utils_Tuple3(t.from, t.to, t.symbol);
+			},
+			transitions);
+		return A2(
+			$elm$html$Html$div,
+			_List_Nil,
+			A2(
+				$elm$core$List$map,
+				$author$project$Components$AutomatonDisplay$viewDeltaRow(states),
+				sortedTransitions));
+	});
 var $author$project$Components$AutomatonDisplay$viewSetF = function (states) {
 	var endStates = A2(
 		$elm$core$List$map,
@@ -11166,7 +11723,6 @@ var $author$project$Components$AutomatonDisplay$viewDefinition = function (confi
 		$elm$html$Html$div,
 		_List_fromArray(
 			[
-				A2($elm$html$Html$Attributes$style, 'margin-bottom', '20px'),
 				A2($elm$html$Html$Attributes$style, 'font-family', 'monospace'),
 				A2($elm$html$Html$Attributes$style, 'font-size', '14px')
 			]),
@@ -11175,235 +11731,10 @@ var $author$project$Components$AutomatonDisplay$viewDefinition = function (confi
 				$author$project$Components$AutomatonDisplay$viewSetQ(config.states),
 				$author$project$Components$AutomatonDisplay$viewSetSigma(config.transitions),
 				$author$project$Components$AutomatonDisplay$viewStartQ0(config.states),
-				$author$project$Components$AutomatonDisplay$viewSetF(config.states)
+				$author$project$Components$AutomatonDisplay$viewSetF(config.states),
+				A2($author$project$Components$AutomatonDisplay$viewDelta, config.states, config.transitions)
 			]));
 };
-var $author$project$Components$AutomatonDisplay$viewFormalTransitionRow = F2(
-	function (states, transition) {
-		var toLabel = A2($author$project$Utils$AutomatonHelpers$getStateLabel, transition.to, states);
-		var fromLabel = A2($author$project$Utils$AutomatonHelpers$getStateLabel, transition.from, states);
-		return A2(
-			$elm$html$Html$p,
-			_List_fromArray(
-				[
-					A2($elm$html$Html$Attributes$style, 'margin', '5px 0')
-				]),
-			_List_fromArray(
-				[
-					$elm$html$Html$text('δ(' + (fromLabel + (', ' + (transition.symbol + (') = ' + toLabel)))))
-				]));
-	});
-var $author$project$Components$AutomatonDisplay$viewFormalTransitions = F2(
-	function (states, transitions) {
-		return A2(
-			$elm$html$Html$div,
-			_List_Nil,
-			_List_fromArray(
-				[
-					$elm$core$List$isEmpty(transitions) ? A2(
-					$elm$html$Html$p,
-					_List_fromArray(
-						[
-							A2($elm$html$Html$Attributes$style, 'color', '#95a5a6'),
-							A2($elm$html$Html$Attributes$style, 'font-style', 'italic')
-						]),
-					_List_fromArray(
-						[
-							$elm$html$Html$text('Žiadne prechody')
-						])) : A2(
-					$elm$html$Html$div,
-					_List_fromArray(
-						[
-							A2($elm$html$Html$Attributes$style, 'font-family', 'monospace'),
-							A2($elm$html$Html$Attributes$style, 'background-color', 'white'),
-							A2($elm$html$Html$Attributes$style, 'padding', '10px'),
-							A2($elm$html$Html$Attributes$style, 'border', '1px solid #ddddddff'),
-							A2($elm$html$Html$Attributes$style, 'border-radius', '4px')
-						]),
-					A2(
-						$elm$core$List$map,
-						$author$project$Components$AutomatonDisplay$viewFormalTransitionRow(states),
-						transitions))
-				]));
-	});
-var $author$project$Components$AutomatonDisplay$Formal = {$: 'Formal'};
-var $author$project$Components$AutomatonDisplay$viewModeButton = F3(
-	function (label, mode, config) {
-		var isActive = _Utils_eq(config.displayMode, mode);
-		var textColor = isActive ? 'white' : '#263442ff';
-		var bgColor = isActive ? '#359ee4ff' : '#ecf0f2';
-		return A2(
-			$elm$html$Html$button,
-			_List_fromArray(
-				[
-					$elm$html$Html$Events$onClick(
-					config.onModeChange(mode)),
-					A2($elm$html$Html$Attributes$style, 'padding', '5px 10px'),
-					A2($elm$html$Html$Attributes$style, 'border', 'none'),
-					A2($elm$html$Html$Attributes$style, 'border-radius', '4px'),
-					A2($elm$html$Html$Attributes$style, 'background-color', bgColor),
-					A2($elm$html$Html$Attributes$style, 'color', textColor),
-					A2($elm$html$Html$Attributes$style, 'cursor', 'pointer'),
-					A2($elm$html$Html$Attributes$style, 'font-size', '12px'),
-					A2($elm$html$Html$Attributes$style, 'font-weight', 'bold')
-				]),
-			_List_fromArray(
-				[
-					$elm$html$Html$text(label)
-				]));
-	});
-var $author$project$Components$AutomatonDisplay$viewTransitionControls = function (config) {
-	return A2(
-		$elm$html$Html$div,
-		_List_fromArray(
-			[
-				A2($elm$html$Html$Attributes$style, 'display', 'flex'),
-				A2($elm$html$Html$Attributes$style, 'gap', '10px'),
-				A2($elm$html$Html$Attributes$style, 'margin-bottom', '10px')
-			]),
-		_List_fromArray(
-			[
-				A3($author$project$Components$AutomatonDisplay$viewModeButton, 'Prechody', $author$project$Components$AutomatonDisplay$Table, config),
-				A3($author$project$Components$AutomatonDisplay$viewModeButton, 'Formálny zápis', $author$project$Components$AutomatonDisplay$Formal, config)
-			]));
-};
-var $author$project$Components$AutomatonDisplay$viewTransitionRow = F2(
-	function (states, transition) {
-		var toLabel = A2($author$project$Utils$AutomatonHelpers$getStateLabel, transition.to, states);
-		var fromLabel = A2($author$project$Utils$AutomatonHelpers$getStateLabel, transition.from, states);
-		return A2(
-			$elm$html$Html$tr,
-			_List_Nil,
-			_List_fromArray(
-				[
-					A2(
-					$elm$html$Html$td,
-					_List_fromArray(
-						[
-							A2($elm$html$Html$Attributes$style, 'border', '1px solid #dbd9d9ff'),
-							A2($elm$html$Html$Attributes$style, 'padding', '8px')
-						]),
-					_List_fromArray(
-						[
-							$elm$html$Html$text(fromLabel)
-						])),
-					A2(
-					$elm$html$Html$td,
-					_List_fromArray(
-						[
-							A2($elm$html$Html$Attributes$style, 'border', '1px solid #dbd9d9ff'),
-							A2($elm$html$Html$Attributes$style, 'padding', '8px'),
-							A2($elm$html$Html$Attributes$style, 'font-weight', 'bold'),
-							A2($elm$html$Html$Attributes$style, 'color', '#e74c3c')
-						]),
-					_List_fromArray(
-						[
-							$elm$html$Html$text(transition.symbol)
-						])),
-					A2(
-					$elm$html$Html$td,
-					_List_fromArray(
-						[
-							A2($elm$html$Html$Attributes$style, 'border', '1px solid #dbd9d9ff'),
-							A2($elm$html$Html$Attributes$style, 'padding', '8px')
-						]),
-					_List_fromArray(
-						[
-							$elm$html$Html$text(toLabel)
-						]))
-				]));
-	});
-var $author$project$Components$AutomatonDisplay$viewTransitions = F2(
-	function (states, transitions) {
-		return A2(
-			$elm$html$Html$div,
-			_List_Nil,
-			_List_fromArray(
-				[
-					$elm$core$List$isEmpty(transitions) ? A2(
-					$elm$html$Html$p,
-					_List_fromArray(
-						[
-							A2($elm$html$Html$Attributes$style, 'color', '#97a9aaff'),
-							A2($elm$html$Html$Attributes$style, 'font-style', 'italic')
-						]),
-					_List_fromArray(
-						[
-							$elm$html$Html$text('Žiadne prechody')
-						])) : A2(
-					$elm$html$Html$table,
-					_List_fromArray(
-						[
-							A2($elm$html$Html$Attributes$style, 'width', '100%'),
-							A2($elm$html$Html$Attributes$style, 'border-collapse', 'collapse'),
-							A2($elm$html$Html$Attributes$style, 'background-color', 'white')
-						]),
-					_List_fromArray(
-						[
-							A2(
-							$elm$html$Html$thead,
-							_List_Nil,
-							_List_fromArray(
-								[
-									A2(
-									$elm$html$Html$tr,
-									_List_Nil,
-									_List_fromArray(
-										[
-											A2(
-											$elm$html$Html$th,
-											_List_fromArray(
-												[
-													A2($elm$html$Html$Attributes$style, 'border', '1px solid #dbd9d9ff'),
-													A2($elm$html$Html$Attributes$style, 'padding', '8px'),
-													A2($elm$html$Html$Attributes$style, 'background-color', '#358cc7ff'),
-													A2($elm$html$Html$Attributes$style, 'color', 'white'),
-													A2($elm$html$Html$Attributes$style, 'text-align', 'left')
-												]),
-											_List_fromArray(
-												[
-													$elm$html$Html$text('Z')
-												])),
-											A2(
-											$elm$html$Html$th,
-											_List_fromArray(
-												[
-													A2($elm$html$Html$Attributes$style, 'border', '1px solid #dbd9d9ff'),
-													A2($elm$html$Html$Attributes$style, 'padding', '8px'),
-													A2($elm$html$Html$Attributes$style, 'background-color', '#358cc7ff'),
-													A2($elm$html$Html$Attributes$style, 'color', 'white'),
-													A2($elm$html$Html$Attributes$style, 'text-align', 'left')
-												]),
-											_List_fromArray(
-												[
-													$elm$html$Html$text('Symbol')
-												])),
-											A2(
-											$elm$html$Html$th,
-											_List_fromArray(
-												[
-													A2($elm$html$Html$Attributes$style, 'border', '1px solid #dbd9d9ff'),
-													A2($elm$html$Html$Attributes$style, 'padding', '8px'),
-													A2($elm$html$Html$Attributes$style, 'background-color', '#358cc7ff'),
-													A2($elm$html$Html$Attributes$style, 'color', 'white'),
-													A2($elm$html$Html$Attributes$style, 'text-align', 'left')
-												]),
-											_List_fromArray(
-												[
-													$elm$html$Html$text('Do')
-												]))
-										]))
-								])),
-							A2(
-							$elm$html$Html$tbody,
-							_List_Nil,
-							A2(
-								$elm$core$List$map,
-								$author$project$Components$AutomatonDisplay$viewTransitionRow(states),
-								transitions))
-						]))
-				]));
-	});
 var $author$project$Components$AutomatonDisplay$view = function (config) {
 	var isNFA = function () {
 		var check = F2(
@@ -11441,12 +11772,10 @@ var $author$project$Components$AutomatonDisplay$view = function (config) {
 		$elm$html$Html$div,
 		_List_fromArray(
 			[
-				A2($elm$html$Html$Attributes$style, 'background-color', '#f8f9fa'),
 				A2($elm$html$Html$Attributes$style, 'padding', '15px'),
-				A2($elm$html$Html$Attributes$style, 'border-left', '2px solid #34495e'),
 				A2($elm$html$Html$Attributes$style, 'height', '100%'),
 				A2($elm$html$Html$Attributes$style, 'overflow-y', 'auto'),
-				A2($elm$html$Html$Attributes$style, 'width', '300px')
+				A2($elm$html$Html$Attributes$style, 'box-sizing', 'border-box')
 			]),
 		_List_fromArray(
 			[
@@ -11473,16 +11802,7 @@ var $author$project$Components$AutomatonDisplay$view = function (config) {
 								$elm$html$Html$text(typeLabel)
 							]))
 					])),
-				$author$project$Components$AutomatonDisplay$viewDefinition(config),
-				$author$project$Components$AutomatonDisplay$viewTransitionControls(config),
-				function () {
-				var _v0 = config.displayMode;
-				if (_v0.$ === 'Table') {
-					return A2($author$project$Components$AutomatonDisplay$viewTransitions, config.states, config.transitions);
-				} else {
-					return A2($author$project$Components$AutomatonDisplay$viewFormalTransitions, config.states, config.transitions);
-				}
-			}()
+				$author$project$Components$AutomatonDisplay$viewDefinition(config)
 			]));
 };
 var $author$project$Components$Canvas$groupTransitions = function (transitions) {
@@ -11536,13 +11856,16 @@ var $author$project$Components$Canvas$svgState = F2(
 		var isTransitionStart = _Utils_eq(
 			config.transitionFrom,
 			$elm$core$Maybe$Just(state.id));
+		var isTransitionEnd = _Utils_eq(
+			config.transitionTo,
+			$elm$core$Maybe$Just(state.id));
 		var isSelected = _Utils_eq(
 			config.selectedState,
 			$elm$core$Maybe$Just(state.id));
 		var isActive = _Utils_eq(
 			config.activeStateId,
 			$elm$core$Maybe$Just(state.id));
-		var fillColor = isSelected ? '#80cbc4' : (isTransitionStart ? '#fff59d' : (isActive ? '#a5d6a7' : '#eceff1'));
+		var fillColor = isSelected ? '#80cbc4' : ((isTransitionStart || isTransitionEnd) ? '#fff59d' : (isActive ? '#a5d6a7' : '#eceff1'));
 		var borderWidth = 2;
 		var borderColor = isSelected ? '#004d40' : (isActive ? '#1b5e20' : '#455a64');
 		return A2(
@@ -11699,7 +12022,6 @@ var $author$project$Components$Canvas$svgState = F2(
 							}
 						}()))));
 	});
-var $elm$core$Basics$atan2 = _Basics_atan2;
 var $author$project$Components$Canvas$svgCurvedEdge = F5(
 	function (config, a, b, symbols, isActive) {
 		var vy = b.y - a.y;
@@ -12191,81 +12513,31 @@ var $author$project$Components$Canvas$view = function (config) {
 					]))
 			]));
 };
-var $author$project$Components$Console$viewMessage = function (message) {
-	var borderColor = function () {
-		var _v0 = message.msgType;
-		if (_v0.$ === 'Info') {
-			return '#3498db';
-		} else {
-			return '#e74c3c';
-		}
-	}();
-	return A2(
-		$elm$html$Html$p,
-		_List_fromArray(
-			[
-				A2($elm$html$Html$Attributes$style, 'margin', '2px 0'),
-				A2($elm$html$Html$Attributes$style, 'padding', '2px 5px'),
-				A2($elm$html$Html$Attributes$style, 'border-left', '3px solid ' + borderColor)
-			]),
-		_List_fromArray(
-			[
-				$elm$html$Html$text(message.text)
-			]));
-};
-var $author$project$Components$Console$view = function (config) {
-	return A2(
-		$elm$html$Html$div,
-		_List_fromArray(
-			[
-				A2($elm$html$Html$Attributes$style, 'display', 'flex'),
-				A2($elm$html$Html$Attributes$style, 'flex-direction', 'column'),
-				A2($elm$html$Html$Attributes$style, 'border-top', '2px solid #34495e')
-			]),
-		_List_fromArray(
-			[
-				A2(
-				$elm$html$Html$div,
-				_List_fromArray(
-					[
-						A2($elm$html$Html$Attributes$style, 'background-color', '#2c3e50'),
-						A2($elm$html$Html$Attributes$style, 'color', '#ecf0f1'),
-						A2($elm$html$Html$Attributes$style, 'padding', '2px 10px'),
-						A2($elm$html$Html$Attributes$style, 'font-size', '12px'),
-						A2($elm$html$Html$Attributes$style, 'font-family', 'sans-serif'),
-						A2($elm$html$Html$Attributes$style, 'font-weight', 'bold')
-					]),
-				_List_fromArray(
-					[
-						$elm$html$Html$text('Konzola')
-					])),
-				A2(
-				$elm$html$Html$div,
-				_List_fromArray(
-					[
-						A2($elm$html$Html$Attributes$style, 'background-color', '#000000'),
-						A2($elm$html$Html$Attributes$style, 'color', '#d4d4d4'),
-						A2($elm$html$Html$Attributes$style, 'padding', '10px'),
-						A2($elm$html$Html$Attributes$style, 'height', '150px'),
-						A2($elm$html$Html$Attributes$style, 'overflow-y', 'auto'),
-						A2($elm$html$Html$Attributes$style, 'font-family', 'Consolas, monospace'),
-						A2($elm$html$Html$Attributes$style, 'font-size', '13px'),
-						A2($elm$html$Html$Attributes$style, 'display', 'flex'),
-						A2($elm$html$Html$Attributes$style, 'flex-direction', 'column-reverse')
-					]),
-				A2($elm$core$List$map, $author$project$Components$Console$viewMessage, config.messages))
-			]));
-};
 var $elm$html$Html$Attributes$class = $elm$html$Html$Attributes$stringProperty('className');
-var $author$project$Components$Toolbar$actionButton = F4(
-	function (label, onClickMsg, isEnabled, bgColor) {
+var $elm$html$Html$Attributes$title = $elm$html$Html$Attributes$stringProperty('title');
+var $author$project$Components$Toolbar$actionButton = F6(
+	function (label, onClickMsg, isEnabled, disabledReason, onDisabledClick, bgColor) {
+		var _v0 = function () {
+			if (isEnabled) {
+				return _Utils_Tuple2(onClickMsg, false);
+			} else {
+				if (onDisabledClick.$ === 'Just') {
+					var m = onDisabledClick.a;
+					return _Utils_Tuple2(m, false);
+				} else {
+					return _Utils_Tuple2(onClickMsg, true);
+				}
+			}
+		}();
+		var effectiveClick = _v0.a;
+		var isDisabled = _v0.b;
 		return A2(
 			$elm$html$Html$button,
 			_List_fromArray(
 				[
-					$elm$html$Html$Events$onClick(onClickMsg),
+					$elm$html$Html$Events$onClick(effectiveClick),
 					$elm$html$Html$Attributes$class('elm-btn'),
-					A2($elm$html$Html$Attributes$style, 'padding', '8px 14px'),
+					A2($elm$html$Html$Attributes$style, 'padding', '11px 18px'),
 					A2(
 					$elm$html$Html$Attributes$style,
 					'background-color',
@@ -12279,72 +12551,205 @@ var $author$project$Components$Toolbar$actionButton = F4(
 					isEnabled ? 'pointer' : 'not-allowed'),
 					A2($elm$html$Html$Attributes$style, 'font-size', '14px'),
 					A2($elm$html$Html$Attributes$style, 'font-weight', 'bold'),
-					$elm$html$Html$Attributes$disabled(!isEnabled)
+					$elm$html$Html$Attributes$disabled(isDisabled),
+					$elm$html$Html$Attributes$title(
+					A2($elm$core$Maybe$withDefault, '', disabledReason))
 				]),
 			_List_fromArray(
 				[
 					$elm$html$Html$text(label)
 				]));
 	});
-var $author$project$Components$Toolbar$btn = F4(
-	function (label, onClickMsg, isDisabled, bgColor) {
+var $author$project$Components$Toolbar$btnGroup = function (children) {
+	return A2(
+		$elm$html$Html$div,
+		_List_fromArray(
+			[
+				A2($elm$html$Html$Attributes$style, 'display', 'flex'),
+				A2($elm$html$Html$Attributes$style, 'flex-direction', 'row'),
+				A2($elm$html$Html$Attributes$style, 'gap', '3px'),
+				A2($elm$html$Html$Attributes$style, 'background-color', 'rgba(0,0,0,0.25)'),
+				A2($elm$html$Html$Attributes$style, 'border-radius', '6px'),
+				A2($elm$html$Html$Attributes$style, 'padding', '3px')
+			]),
+		children);
+};
+var $author$project$Components$Toolbar$guideButton = function (onClickMsg) {
+	return A2(
+		$elm$html$Html$button,
+		_List_fromArray(
+			[
+				$elm$html$Html$Events$onClick(onClickMsg),
+				$elm$html$Html$Attributes$class('elm-btn'),
+				A2($elm$html$Html$Attributes$style, 'padding', '11px 18px'),
+				A2($elm$html$Html$Attributes$style, 'background-color', '#00796b'),
+				A2($elm$html$Html$Attributes$style, 'color', 'white'),
+				A2($elm$html$Html$Attributes$style, 'border', 'none'),
+				A2($elm$html$Html$Attributes$style, 'border-radius', '5px'),
+				A2($elm$html$Html$Attributes$style, 'cursor', 'pointer'),
+				A2($elm$html$Html$Attributes$style, 'font-size', '14px'),
+				A2($elm$html$Html$Attributes$style, 'font-weight', 'bold'),
+				A2($elm$html$Html$Attributes$style, 'display', 'flex'),
+				A2($elm$html$Html$Attributes$style, 'align-items', 'center'),
+				A2($elm$html$Html$Attributes$style, 'gap', '6px')
+			]),
+		_List_fromArray(
+			[
+				A2(
+				$elm$html$Html$img,
+				_List_fromArray(
+					[
+						$elm$html$Html$Attributes$src('guide_icon.png'),
+						A2($elm$html$Html$Attributes$style, 'width', '20px'),
+						A2($elm$html$Html$Attributes$style, 'height', '20px'),
+						A2($elm$html$Html$Attributes$style, 'filter', 'brightness(0) invert(1)')
+					]),
+				_List_Nil),
+				$elm$html$Html$text('Sprievodca')
+			]));
+};
+var $author$project$Components$Toolbar$iconBtn = F4(
+	function (icon, onClickMsg, isDisabled, tipText) {
 		return A2(
 			$elm$html$Html$button,
 			_List_fromArray(
 				[
 					$elm$html$Html$Events$onClick(onClickMsg),
 					$elm$html$Html$Attributes$class('elm-btn'),
-					A2($elm$html$Html$Attributes$style, 'padding', '8px 14px'),
+					A2($elm$html$Html$Attributes$style, 'padding', '10px 12px'),
 					A2(
 					$elm$html$Html$Attributes$style,
 					'background-color',
-					isDisabled ? '#b0bec5' : bgColor),
+					isDisabled ? '#78909c' : '#546e7a'),
 					A2(
 					$elm$html$Html$Attributes$style,
 					'color',
-					isDisabled ? '#eceff1' : 'white'),
+					isDisabled ? '#b0bec5' : 'white'),
 					A2($elm$html$Html$Attributes$style, 'border', 'none'),
-					A2($elm$html$Html$Attributes$style, 'border-radius', '5px'),
+					A2($elm$html$Html$Attributes$style, 'border-radius', '4px'),
 					A2(
 					$elm$html$Html$Attributes$style,
 					'cursor',
 					isDisabled ? 'not-allowed' : 'pointer'),
-					A2($elm$html$Html$Attributes$style, 'font-size', '14px'),
-					$elm$html$Html$Attributes$disabled(isDisabled)
+					A2($elm$html$Html$Attributes$style, 'display', 'flex'),
+					A2($elm$html$Html$Attributes$style, 'align-items', 'center'),
+					$elm$html$Html$Attributes$disabled(isDisabled),
+					$elm$html$Html$Attributes$title(tipText)
 				]),
 			_List_fromArray(
-				[
-					$elm$html$Html$text(label)
-				]));
+				[icon]));
 	});
-var $author$project$Components$Toolbar$toolBtn = F3(
-	function (label, onClickMsg, isActive) {
+var $elm$svg$Svg$Attributes$viewBox = _VirtualDom_attribute('viewBox');
+var $author$project$Components$Toolbar$redoIcon = A2(
+	$elm$svg$Svg$svg,
+	_List_fromArray(
+		[
+			$elm$svg$Svg$Attributes$width('16'),
+			$elm$svg$Svg$Attributes$height('16'),
+			$elm$svg$Svg$Attributes$viewBox('0 0 24 24'),
+			$elm$svg$Svg$Attributes$fill('currentColor')
+		]),
+	_List_fromArray(
+		[
+			A2(
+			$elm$svg$Svg$path,
+			_List_fromArray(
+				[
+					$elm$svg$Svg$Attributes$d('M18.4 10.6C16.55 8.99 14.15 8 11.5 8c-4.65 0-8.58 3.03-9.96 7.22L3.9 16c1.05-3.19 4.05-5.5 7.6-5.5 1.95 0 3.73.72 5.12 1.88L13 16h9V7l-3.6 3.6z')
+				]),
+			_List_Nil)
+		]));
+var $author$project$Components$Toolbar$toolBtn = F5(
+	function (label, onClickMsg, isActive, shortcut, activeColor) {
+		var displayLabel = isActive ? (label + ('  [' + (shortcut + ']'))) : label;
 		return A2(
 			$elm$html$Html$button,
 			_List_fromArray(
 				[
 					$elm$html$Html$Events$onClick(onClickMsg),
 					$elm$html$Html$Attributes$class('elm-btn'),
-					A2($elm$html$Html$Attributes$style, 'padding', '8px 14px'),
+					A2($elm$html$Html$Attributes$style, 'padding', '10px 14px'),
 					A2(
 					$elm$html$Html$Attributes$style,
 					'background-color',
-					isActive ? '#00897b' : '#546e7a'),
+					isActive ? activeColor : '#546e7a'),
 					A2($elm$html$Html$Attributes$style, 'color', 'white'),
 					A2($elm$html$Html$Attributes$style, 'border', 'none'),
-					A2($elm$html$Html$Attributes$style, 'border-radius', '5px'),
+					A2($elm$html$Html$Attributes$style, 'border-radius', '4px'),
 					A2($elm$html$Html$Attributes$style, 'cursor', 'pointer'),
 					A2($elm$html$Html$Attributes$style, 'font-size', '14px'),
 					A2(
 					$elm$html$Html$Attributes$style,
 					'font-weight',
-					isActive ? 'bold' : 'normal')
+					isActive ? 'bold' : 'normal'),
+					$elm$html$Html$Attributes$title(label + (' (' + (shortcut + ')')))
+				]),
+			_List_fromArray(
+				[
+					$elm$html$Html$text(displayLabel)
+				]));
+	});
+var $author$project$Components$Toolbar$toolbarBg = function (tool) {
+	switch (tool) {
+		case 'BuildTool':
+			return '#1a2f4a';
+		case 'DeleteTool':
+			return '#4a1a1a';
+		default:
+			return '#1a2f4a';
+	}
+};
+var $author$project$Components$Toolbar$tooltipBtn = F4(
+	function (label, onClickMsg, isDisabled, tipText) {
+		return A2(
+			$elm$html$Html$button,
+			_List_fromArray(
+				[
+					$elm$html$Html$Events$onClick(onClickMsg),
+					$elm$html$Html$Attributes$class('elm-btn'),
+					A2($elm$html$Html$Attributes$style, 'padding', '10px 14px'),
+					A2(
+					$elm$html$Html$Attributes$style,
+					'background-color',
+					isDisabled ? '#78909c' : '#546e7a'),
+					A2(
+					$elm$html$Html$Attributes$style,
+					'color',
+					isDisabled ? '#b0bec5' : 'white'),
+					A2($elm$html$Html$Attributes$style, 'border', 'none'),
+					A2($elm$html$Html$Attributes$style, 'border-radius', '4px'),
+					A2(
+					$elm$html$Html$Attributes$style,
+					'cursor',
+					isDisabled ? 'not-allowed' : 'pointer'),
+					A2($elm$html$Html$Attributes$style, 'font-size', '14px'),
+					$elm$html$Html$Attributes$disabled(isDisabled),
+					$elm$html$Html$Attributes$title(tipText)
 				]),
 			_List_fromArray(
 				[
 					$elm$html$Html$text(label)
 				]));
 	});
+var $author$project$Components$Toolbar$undoIcon = A2(
+	$elm$svg$Svg$svg,
+	_List_fromArray(
+		[
+			$elm$svg$Svg$Attributes$width('16'),
+			$elm$svg$Svg$Attributes$height('16'),
+			$elm$svg$Svg$Attributes$viewBox('0 0 24 24'),
+			$elm$svg$Svg$Attributes$fill('currentColor')
+		]),
+	_List_fromArray(
+		[
+			A2(
+			$elm$svg$Svg$path,
+			_List_fromArray(
+				[
+					$elm$svg$Svg$Attributes$d('M12.5 8c-2.65 0-5.05.99-6.9 2.6L2 7v9h9l-3.62-3.62c1.39-1.16 3.16-1.88 5.12-1.88 3.54 0 6.55 2.31 7.6 5.5l2.37-.78C21.08 11.03 17.15 8 12.5 8z')
+				]),
+			_List_Nil)
+		]));
 var $author$project$Components$Toolbar$view = function (config) {
 	return A2(
 		$elm$html$Html$div,
@@ -12352,32 +12757,85 @@ var $author$project$Components$Toolbar$view = function (config) {
 			[
 				A2($elm$html$Html$Attributes$style, 'display', 'flex'),
 				A2($elm$html$Html$Attributes$style, 'flex-direction', 'row'),
-				A2($elm$html$Html$Attributes$style, 'padding', '10px'),
-				A2($elm$html$Html$Attributes$style, 'background-color', '#37474f'),
+				A2($elm$html$Html$Attributes$style, 'padding', '14px 12px'),
+				A2(
+				$elm$html$Html$Attributes$style,
+				'background-color',
+				$author$project$Components$Toolbar$toolbarBg(config.currentTool)),
 				A2($elm$html$Html$Attributes$style, 'gap', '10px'),
 				A2($elm$html$Html$Attributes$style, 'border-bottom', '2px solid #263238'),
-				A2($elm$html$Html$Attributes$style, 'align-items', 'center')
+				A2($elm$html$Html$Attributes$style, 'align-items', 'center'),
+				A2($elm$html$Html$Attributes$style, 'transition', 'background-color 0.25s')
 			]),
 		_List_fromArray(
 			[
-				A4($author$project$Components$Toolbar$btn, 'Reset', config.onResetTool, false, '#546e7a'),
-				A4($author$project$Components$Toolbar$btn, '<-', config.onUndo, !config.canUndo, '#546e7a'),
-				A4($author$project$Components$Toolbar$btn, '->', config.onRedo, !config.canRedo, '#546e7a'),
-				A3($author$project$Components$Toolbar$toolBtn, 'Stavať', config.onBuildTool, config.currentTool === 'BuildTool'),
-				A3($author$project$Components$Toolbar$toolBtn, 'Odstrániť', config.onDeleteTool, config.currentTool === 'DeleteTool'),
-				A4($author$project$Components$Toolbar$btn, 'Export', config.onExport, false, '#546e7a'),
-				A4($author$project$Components$Toolbar$btn, 'Uložiť', config.onSave, false, '#546e7a'),
-				A4($author$project$Components$Toolbar$btn, 'Načítať', config.onLoad, false, '#546e7a'),
-				A4($author$project$Components$Toolbar$btn, 'Zdieľať cez URL', config.onShare, false, '#546e7a'),
+				$author$project$Components$Toolbar$btnGroup(
+				_List_fromArray(
+					[
+						A4($author$project$Components$Toolbar$tooltipBtn, 'Reset', config.onResetTool, false, 'Reset'),
+						A4($author$project$Components$Toolbar$iconBtn, $author$project$Components$Toolbar$undoIcon, config.onUndo, !config.canUndo, 'Späť (Ctrl+Z)'),
+						A4($author$project$Components$Toolbar$iconBtn, $author$project$Components$Toolbar$redoIcon, config.onRedo, !config.canRedo, 'Dopredu (Ctrl+Y)')
+					])),
+				$author$project$Components$Toolbar$btnGroup(
+				_List_fromArray(
+					[
+						A5($author$project$Components$Toolbar$toolBtn, 'Stavať', config.onBuildTool, config.currentTool === 'BuildTool', 'Shift+B', '#1565c0'),
+						A5($author$project$Components$Toolbar$toolBtn, 'Odstrániť', config.onDeleteTool, config.currentTool === 'DeleteTool', 'Shift+D', '#c62828')
+					])),
+				$author$project$Components$Toolbar$btnGroup(
+				_List_fromArray(
+					[
+						A4($author$project$Components$Toolbar$tooltipBtn, 'Export', config.onExport, false, 'Exportovať'),
+						A4($author$project$Components$Toolbar$tooltipBtn, 'Uložiť', config.onSave, false, 'Uložiť lokálne'),
+						A4($author$project$Components$Toolbar$tooltipBtn, 'Načítať', config.onLoad, false, 'Načítať lokálne'),
+						A4($author$project$Components$Toolbar$tooltipBtn, 'Zdieľať cez URL', config.onShare, false, 'Zdieľať cez URL')
+					])),
 				A2(
 				$elm$html$Html$div,
 				_List_fromArray(
 					[
-						A2($elm$html$Html$Attributes$style, 'margin-left', 'auto')
+						A2($elm$html$Html$Attributes$style, 'width', '1px'),
+						A2($elm$html$Html$Attributes$style, 'height', '24px'),
+						A2($elm$html$Html$Attributes$style, 'background-color', 'rgba(255,255,255,0.2)'),
+						A2($elm$html$Html$Attributes$style, 'margin', '0 4px')
 					]),
 				_List_Nil),
-				A4($author$project$Components$Toolbar$actionButton, 'NFA→DFA', config.onSwitchToConversion, config.isConvertEnabled, '#6a1b9a'),
-				A4($author$project$Components$Toolbar$actionButton, 'Simulovať', config.onSwitchToSimulator, config.isSimulateEnabled, '#0277bd')
+				A6(
+				$author$project$Components$Toolbar$actionButton,
+				'NFA→DFA',
+				config.onSwitchToConversion,
+				config.isConvertEnabled,
+				config.convertDisabledReason,
+				$elm$core$Maybe$Just(config.onConvertDisabledClick),
+				'#6a1b9a'),
+				A2(
+				$elm$html$Html$div,
+				_List_fromArray(
+					[
+						A2($elm$html$Html$Attributes$style, 'flex', '1')
+					]),
+				_List_Nil),
+				A2(
+				$elm$html$Html$div,
+				_List_fromArray(
+					[
+						A2($elm$html$Html$Attributes$style, 'width', '300px'),
+						A2($elm$html$Html$Attributes$style, 'display', 'flex'),
+						A2($elm$html$Html$Attributes$style, 'justify-content', 'flex-end'),
+						A2($elm$html$Html$Attributes$style, 'gap', '8px')
+					]),
+				_List_fromArray(
+					[
+						$author$project$Components$Toolbar$guideButton(config.onShowGuide),
+						A6(
+						$author$project$Components$Toolbar$actionButton,
+						'Simulovať',
+						config.onSwitchToSimulator,
+						config.isSimulateEnabled,
+						config.simulateDisabledReason,
+						$elm$core$Maybe$Just(config.onSimulateDisabledClick),
+						'#0277bd')
+					]))
 			]));
 };
 var $author$project$Pages$Editor$ConfirmTransitionSymbol = {$: 'ConfirmTransitionSymbol'};
@@ -12955,119 +13413,162 @@ var $author$project$Pages$Editor$viewStateModal = function (model) {
 		return A2($elm$html$Html$div, _List_Nil, _List_Nil);
 	}
 };
-var $author$project$Pages$Editor$view = function (model) {
-	var _v0 = model.automaton.present;
-	var states = _v0.states;
-	var transitions = _v0.transitions;
-	var isSimulateEnabled = !$elm$core$List$isEmpty(states);
-	var isConvertEnabled = (!$elm$core$List$isEmpty(states)) && (!A2($author$project$Utils$AutomatonHelpers$isDFA, states, transitions));
-	return A2(
-		$elm$html$Html$div,
-		_List_fromArray(
-			[
-				A2($elm$html$Html$Attributes$style, 'display', 'flex'),
-				A2($elm$html$Html$Attributes$style, 'flex-direction', 'column'),
-				A2($elm$html$Html$Attributes$style, 'height', '100vh'),
-				A2($elm$html$Html$Attributes$style, 'width', '100vw'),
-				A2($elm$html$Html$Attributes$style, 'overflow', 'hidden')
-			]),
-		_List_fromArray(
-			[
-				A2(
-				$elm$html$Html$div,
-				_List_fromArray(
-					[
-						A2($elm$html$Html$Attributes$style, 'display', 'flex'),
-						A2($elm$html$Html$Attributes$style, 'flex-direction', 'column'),
-						A2($elm$html$Html$Attributes$style, 'width', '100%')
-					]),
-				_List_fromArray(
-					[
-						$author$project$Components$Toolbar$view(
-						{
-							canRedo: $elm_community$undo_redo$UndoList$hasFuture(model.automaton),
-							canUndo: $elm_community$undo_redo$UndoList$hasPast(model.automaton),
-							currentTool: $author$project$Pages$Editor$toolToString(model.currentTool),
-							isConvertEnabled: isConvertEnabled,
-							isSimulateEnabled: isSimulateEnabled,
-							onBuildTool: $author$project$Pages$Editor$ChangeTool($author$project$Pages$Editor$BuildTool),
-							onDeleteTool: $author$project$Pages$Editor$ChangeTool($author$project$Pages$Editor$DeleteTool),
-							onExport: $author$project$Pages$Editor$ExportJson,
-							onLoad: $author$project$Pages$Editor$LoadRequested,
-							onRedo: $author$project$Pages$Editor$Redo,
-							onResetTool: $author$project$Pages$Editor$ResetAutomaton,
-							onSave: $author$project$Pages$Editor$SaveRequested,
-							onShare: $author$project$Pages$Editor$ShareUrl,
-							onSwitchToConversion: $author$project$Pages$Editor$SwitchToConversion,
-							onSwitchToSimulator: $author$project$Pages$Editor$SwitchToSimulator,
-							onUndo: $author$project$Pages$Editor$Undo
-						})
-					])),
-				A2(
-				$elm$html$Html$div,
-				_List_fromArray(
-					[
-						A2($elm$html$Html$Attributes$style, 'display', 'flex'),
-						A2($elm$html$Html$Attributes$style, 'flex-direction', 'row'),
-						A2($elm$html$Html$Attributes$style, 'flex', '1'),
-						A2($elm$html$Html$Attributes$style, 'overflow', 'hidden')
-					]),
-				_List_fromArray(
-					[
-						A2(
-						$elm$html$Html$div,
-						_List_fromArray(
-							[
-								A2($elm$html$Html$Attributes$style, 'flex', '1'),
-								A2($elm$html$Html$Attributes$style, 'overflow', 'hidden'),
-								A2($elm$html$Html$Attributes$style, 'background-color', '#ecf0f1'),
-								A2($elm$html$Html$Attributes$style, 'user-select', 'none')
-							]),
-						_List_fromArray(
-							[
-								$author$project$Components$Canvas$view(
-								{
-									activeStateId: $elm$core$Maybe$Nothing,
-									activeTransition: $elm$core$Maybe$Nothing,
-									height: 600,
-									isSimulateMode: false,
-									onCanvasClick: $author$project$Pages$Editor$CanvasClick,
-									onCanvasDoubleClick: $author$project$Pages$Editor$CanvasDoubleClick,
-									onCanvasMouseDown: $author$project$Pages$Editor$CanvasMouseDown,
-									onDragMove: $author$project$Pages$Editor$DragMove,
-									onEndDrag: $author$project$Pages$Editor$EndDrag,
-									onStartDrag: $author$project$Pages$Editor$StartDrag,
-									onStateClick: $author$project$Pages$Editor$StateClick,
-									onStateDoubleClick: $author$project$Pages$Editor$StateDoubleClick,
-									onTransitionClick: $author$project$Pages$Editor$TransitionClick,
-									onTransitionDoubleClick: $author$project$Pages$Editor$TransitionDoubleClick,
-									onWheel: F3(
-										function (d, x, y) {
-											return A3($author$project$Pages$Editor$Wheel, d, x, y);
-										}),
-									onZoomIn: $author$project$Pages$Editor$ZoomIn,
-									onZoomOut: $author$project$Pages$Editor$ZoomOut,
-									panX: model.panX,
-									panY: model.panY,
-									selectedState: model.selectedState,
-									states: states,
-									transitionFrom: model.transitionFrom,
-									transitions: transitions,
-									width: 800,
-									zoom: model.zoom
-								})
-							])),
-						$author$project$Components$AutomatonDisplay$view(
-						{displayMode: model.transitionDisplayMode, onModeChange: $author$project$Pages$Editor$SetTransitionDisplayMode, states: states, transitions: transitions})
-					])),
-				$author$project$Components$Console$view(
-				{messages: model.consoleMessages}),
-				$author$project$Pages$Editor$viewInlineTransitionInput(model),
-				$author$project$Pages$Editor$viewStateModal(model),
-				$author$project$Pages$Editor$viewLoadModal(model),
-				$author$project$Pages$Editor$viewSaveModal(model)
-			]));
-};
+var $author$project$Pages$Editor$view = F2(
+	function (consoleOpen, model) {
+		var _v0 = model.automaton.present;
+		var states = _v0.states;
+		var transitions = _v0.transitions;
+		var hasEnd = A2(
+			$elm$core$List$any,
+			function ($) {
+				return $.isEnd;
+			},
+			states);
+		var hasStart = A2(
+			$elm$core$List$any,
+			function ($) {
+				return $.isStart;
+			},
+			states);
+		var isSimulateEnabled = (!$elm$core$List$isEmpty(states)) && (hasStart && hasEnd);
+		var simulateDisabledReason = $elm$core$List$isEmpty(states) ? $elm$core$Maybe$Just('Pridajte aspoň jeden stav.') : ((!hasStart) ? $elm$core$Maybe$Just('Nastavte počiatočný stav.') : ((!hasEnd) ? $elm$core$Maybe$Just('Nastavte aspoň jeden koncový stav.') : $elm$core$Maybe$Nothing));
+		var convertDisabledReason = $elm$core$List$isEmpty(states) ? $elm$core$Maybe$Just('Pridajte aspoň jeden stav.') : ((!hasStart) ? $elm$core$Maybe$Just('Nastavte počiatočný stav.') : ((!hasEnd) ? $elm$core$Maybe$Just('Nastavte aspoň jeden koncový stav.') : (A2($author$project$Utils$AutomatonHelpers$isDFA, states, transitions) ? $elm$core$Maybe$Just('Preveďte NFA (musí obsahovať ε-prechody alebo viacero prechodov na rovnakej abecede).') : $elm$core$Maybe$Nothing)));
+		var isConvertEnabled = (!$elm$core$List$isEmpty(states)) && (hasStart && (hasEnd && (!A2($author$project$Utils$AutomatonHelpers$isDFA, states, transitions))));
+		return A2(
+			$elm$html$Html$div,
+			_List_fromArray(
+				[
+					A2($elm$html$Html$Attributes$style, 'display', 'flex'),
+					A2($elm$html$Html$Attributes$style, 'flex-direction', 'column'),
+					A2($elm$html$Html$Attributes$style, 'height', '100vh'),
+					A2($elm$html$Html$Attributes$style, 'width', '100vw'),
+					A2($elm$html$Html$Attributes$style, 'overflow', 'hidden')
+				]),
+			_List_fromArray(
+				[
+					A2(
+					$elm$html$Html$div,
+					_List_fromArray(
+						[
+							A2($elm$html$Html$Attributes$style, 'display', 'flex'),
+							A2($elm$html$Html$Attributes$style, 'flex-direction', 'column'),
+							A2($elm$html$Html$Attributes$style, 'width', '100%')
+						]),
+					_List_fromArray(
+						[
+							$author$project$Components$Toolbar$view(
+							{
+								canRedo: $elm_community$undo_redo$UndoList$hasFuture(model.automaton),
+								canUndo: $elm_community$undo_redo$UndoList$hasPast(model.automaton),
+								convertDisabledReason: convertDisabledReason,
+								currentTool: $author$project$Pages$Editor$toolToString(model.currentTool),
+								isConvertEnabled: isConvertEnabled,
+								isSimulateEnabled: isSimulateEnabled,
+								onBuildTool: $author$project$Pages$Editor$ChangeTool($author$project$Pages$Editor$BuildTool),
+								onConvertDisabledClick: $author$project$Pages$Editor$ShowError(
+									A2($elm$core$Maybe$withDefault, '', convertDisabledReason)),
+								onDeleteTool: $author$project$Pages$Editor$ChangeTool($author$project$Pages$Editor$DeleteTool),
+								onExport: $author$project$Pages$Editor$ExportJson,
+								onLoad: $author$project$Pages$Editor$LoadRequested,
+								onRedo: $author$project$Pages$Editor$Redo,
+								onResetTool: $author$project$Pages$Editor$ResetAutomaton,
+								onSave: $author$project$Pages$Editor$SaveRequested,
+								onShare: $author$project$Pages$Editor$ShareUrl,
+								onShowGuide: $author$project$Pages$Editor$ShowGuide,
+								onSimulateDisabledClick: $author$project$Pages$Editor$ShowError(
+									A2($elm$core$Maybe$withDefault, '', simulateDisabledReason)),
+								onSwitchToConversion: $author$project$Pages$Editor$SwitchToConversion,
+								onSwitchToSimulator: $author$project$Pages$Editor$SwitchToSimulator,
+								onUndo: $author$project$Pages$Editor$Undo,
+								simulateDisabledReason: simulateDisabledReason
+							})
+						])),
+					A2(
+					$elm$html$Html$div,
+					_List_fromArray(
+						[
+							A2($elm$html$Html$Attributes$style, 'display', 'flex'),
+							A2($elm$html$Html$Attributes$style, 'flex-direction', 'row'),
+							A2($elm$html$Html$Attributes$style, 'flex', '1'),
+							A2($elm$html$Html$Attributes$style, 'overflow', 'hidden')
+						]),
+					_List_fromArray(
+						[
+							A2(
+							$elm$html$Html$div,
+							_List_fromArray(
+								[
+									A2($elm$html$Html$Attributes$style, 'flex', '1'),
+									A2($elm$html$Html$Attributes$style, 'overflow', 'hidden'),
+									A2($elm$html$Html$Attributes$style, 'background-color', '#ecf0f1'),
+									A2($elm$html$Html$Attributes$style, 'user-select', 'none')
+								]),
+							_List_fromArray(
+								[
+									$author$project$Components$Canvas$view(
+									{
+										activeStateId: $elm$core$Maybe$Nothing,
+										activeTransition: $elm$core$Maybe$Nothing,
+										height: 600,
+										isSimulateMode: false,
+										onCanvasClick: $author$project$Pages$Editor$CanvasClick,
+										onCanvasDoubleClick: $author$project$Pages$Editor$CanvasDoubleClick,
+										onCanvasMouseDown: $author$project$Pages$Editor$CanvasMouseDown,
+										onDragMove: $author$project$Pages$Editor$DragMove,
+										onEndDrag: $author$project$Pages$Editor$EndDrag,
+										onStartDrag: $author$project$Pages$Editor$StartDrag,
+										onStateClick: $author$project$Pages$Editor$StateClick,
+										onStateDoubleClick: $author$project$Pages$Editor$StateDoubleClick,
+										onTransitionClick: $author$project$Pages$Editor$TransitionClick,
+										onTransitionDoubleClick: $author$project$Pages$Editor$TransitionDoubleClick,
+										onWheel: F3(
+											function (d, x, y) {
+												return A3($author$project$Pages$Editor$Wheel, d, x, y);
+											}),
+										onZoomIn: $author$project$Pages$Editor$ZoomIn,
+										onZoomOut: $author$project$Pages$Editor$ZoomOut,
+										panX: model.panX,
+										panY: model.panY,
+										selectedState: model.selectedState,
+										states: states,
+										transitionFrom: model.transitionFrom,
+										transitionTo: A2(
+											$elm$core$Maybe$map,
+											function ($) {
+												return $.to;
+											},
+											model.editingTransition),
+										transitions: transitions,
+										width: 800,
+										zoom: model.zoom
+									})
+								])),
+							A2(
+							$elm$html$Html$div,
+							_List_fromArray(
+								[
+									A2($elm$html$Html$Attributes$style, 'width', '300px'),
+									A2($elm$html$Html$Attributes$style, 'flex-shrink', '0'),
+									A2($elm$html$Html$Attributes$style, 'background-color', '#f8f9fa'),
+									A2($elm$html$Html$Attributes$style, 'border-left', '2px solid #34495e'),
+									A2($elm$html$Html$Attributes$style, 'display', 'flex'),
+									A2($elm$html$Html$Attributes$style, 'flex-direction', 'column'),
+									A2($elm$html$Html$Attributes$style, 'overflow', 'hidden')
+								]),
+							_List_fromArray(
+								[
+									$author$project$Components$AutomatonDisplay$view(
+									{states: states, transitions: transitions})
+								]))
+						])),
+					$author$project$Components$Console$view(
+					{isOpen: consoleOpen, messages: model.consoleMessages, onToggle: $author$project$Pages$Editor$ToggleConsole}),
+					$author$project$Pages$Editor$viewInlineTransitionInput(model),
+					$author$project$Pages$Editor$viewStateModal(model),
+					$author$project$Pages$Editor$viewLoadModal(model),
+					$author$project$Pages$Editor$viewSaveModal(model)
+				]));
+	});
 var $author$project$Pages$Simulator$CanvasClick = F2(
 	function (a, b) {
 		return {$: 'CanvasClick', a: a, b: b};
@@ -13081,6 +13582,7 @@ var $author$project$Pages$Simulator$DragMove = F2(
 		return {$: 'DragMove', a: a, b: b};
 	});
 var $author$project$Pages$Simulator$EndDrag = {$: 'EndDrag'};
+var $author$project$Pages$Simulator$LoadMoreInstances = {$: 'LoadMoreInstances'};
 var $author$project$Pages$Simulator$ResetSimulation = {$: 'ResetSimulation'};
 var $author$project$Pages$Simulator$SelectNfaInstance = function (a) {
 	return {$: 'SelectNfaInstance', a: a};
@@ -13088,8 +13590,9 @@ var $author$project$Pages$Simulator$SelectNfaInstance = function (a) {
 var $author$project$Pages$Simulator$SetAutoSpeed = function (a) {
 	return {$: 'SetAutoSpeed', a: a};
 };
-var $author$project$Pages$Simulator$SetInput = function (a) {
-	return {$: 'SetInput', a: a};
+var $author$project$Pages$Simulator$ShowGuide = {$: 'ShowGuide'};
+var $author$project$Pages$Simulator$StartDividerDrag = function (a) {
+	return {$: 'StartDividerDrag', a: a};
 };
 var $author$project$Pages$Simulator$StartDrag = F3(
 	function (a, b, c) {
@@ -13103,6 +13606,7 @@ var $author$project$Pages$Simulator$StepForward = {$: 'StepForward'};
 var $author$project$Pages$Simulator$SwitchToEditor = {$: 'SwitchToEditor'};
 var $author$project$Pages$Simulator$ToggleAutoRun = {$: 'ToggleAutoRun'};
 var $author$project$Pages$Simulator$ToggleCanvas = {$: 'ToggleCanvas'};
+var $author$project$Pages$Simulator$ToggleConsole = {$: 'ToggleConsole'};
 var $author$project$Pages$Simulator$ToggleMerge = {$: 'ToggleMerge'};
 var $author$project$Pages$Simulator$ToggleTree = {$: 'ToggleTree'};
 var $author$project$Pages$Simulator$TransitionClick = F3(
@@ -13123,6 +13627,8 @@ var $author$project$Pages$Simulator$canStepBackward = function (model) {
 		return !$elm$core$List$isEmpty(model.nfaHistory);
 	}
 };
+var $elm$virtual_dom$VirtualDom$lazy6 = _VirtualDom_lazy6;
+var $elm$html$Html$Lazy$lazy6 = $elm$virtual_dom$VirtualDom$lazy6;
 var $author$project$Pages$Simulator$nfaActiveStateId = function (model) {
 	return A2(
 		$elm$core$Maybe$andThen,
@@ -13142,6 +13648,132 @@ var $author$project$Pages$Simulator$nfaActiveStateId = function (model) {
 			},
 			model.selectedInstanceId));
 };
+var $elm$core$List$takeReverse = F3(
+	function (n, list, kept) {
+		takeReverse:
+		while (true) {
+			if (n <= 0) {
+				return kept;
+			} else {
+				if (!list.b) {
+					return kept;
+				} else {
+					var x = list.a;
+					var xs = list.b;
+					var $temp$n = n - 1,
+						$temp$list = xs,
+						$temp$kept = A2($elm$core$List$cons, x, kept);
+					n = $temp$n;
+					list = $temp$list;
+					kept = $temp$kept;
+					continue takeReverse;
+				}
+			}
+		}
+	});
+var $elm$core$List$takeTailRec = F2(
+	function (n, list) {
+		return $elm$core$List$reverse(
+			A3($elm$core$List$takeReverse, n, list, _List_Nil));
+	});
+var $elm$core$List$takeFast = F3(
+	function (ctr, n, list) {
+		if (n <= 0) {
+			return _List_Nil;
+		} else {
+			var _v0 = _Utils_Tuple2(n, list);
+			_v0$1:
+			while (true) {
+				_v0$5:
+				while (true) {
+					if (!_v0.b.b) {
+						return list;
+					} else {
+						if (_v0.b.b.b) {
+							switch (_v0.a) {
+								case 1:
+									break _v0$1;
+								case 2:
+									var _v2 = _v0.b;
+									var x = _v2.a;
+									var _v3 = _v2.b;
+									var y = _v3.a;
+									return _List_fromArray(
+										[x, y]);
+								case 3:
+									if (_v0.b.b.b.b) {
+										var _v4 = _v0.b;
+										var x = _v4.a;
+										var _v5 = _v4.b;
+										var y = _v5.a;
+										var _v6 = _v5.b;
+										var z = _v6.a;
+										return _List_fromArray(
+											[x, y, z]);
+									} else {
+										break _v0$5;
+									}
+								default:
+									if (_v0.b.b.b.b && _v0.b.b.b.b.b) {
+										var _v7 = _v0.b;
+										var x = _v7.a;
+										var _v8 = _v7.b;
+										var y = _v8.a;
+										var _v9 = _v8.b;
+										var z = _v9.a;
+										var _v10 = _v9.b;
+										var w = _v10.a;
+										var tl = _v10.b;
+										return (ctr > 1000) ? A2(
+											$elm$core$List$cons,
+											x,
+											A2(
+												$elm$core$List$cons,
+												y,
+												A2(
+													$elm$core$List$cons,
+													z,
+													A2(
+														$elm$core$List$cons,
+														w,
+														A2($elm$core$List$takeTailRec, n - 4, tl))))) : A2(
+											$elm$core$List$cons,
+											x,
+											A2(
+												$elm$core$List$cons,
+												y,
+												A2(
+													$elm$core$List$cons,
+													z,
+													A2(
+														$elm$core$List$cons,
+														w,
+														A3($elm$core$List$takeFast, ctr + 1, n - 4, tl)))));
+									} else {
+										break _v0$5;
+									}
+							}
+						} else {
+							if (_v0.a === 1) {
+								break _v0$1;
+							} else {
+								break _v0$5;
+							}
+						}
+					}
+				}
+				return list;
+			}
+			var _v1 = _v0.b;
+			var x = _v1.a;
+			return _List_fromArray(
+				[x]);
+		}
+	});
+var $elm$core$List$take = F2(
+	function (n, list) {
+		return A3($elm$core$List$takeFast, 0, n, list);
+	});
 var $author$project$Components$NfaInstancePanel$viewInstance = F3(
 	function (config, displayIdx, instance) {
 		var stateLabel = function () {
@@ -13293,6 +13925,9 @@ var $author$project$Components$NfaInstancePanel$viewInstance = F3(
 				]));
 	});
 var $author$project$Components$NfaInstancePanel$view = function (config) {
+	var visible = A2($elm$core$List$take, config.visibleCount, config.instances);
+	var total = $elm$core$List$length(config.instances);
+	var hasMore = _Utils_cmp(total, config.visibleCount) > 0;
 	return A2(
 		$elm$html$Html$div,
 		_List_fromArray(
@@ -13301,14 +13936,348 @@ var $author$project$Components$NfaInstancePanel$view = function (config) {
 				A2($elm$html$Html$Attributes$style, 'flex', '1'),
 				A2($elm$html$Html$Attributes$style, 'padding', '0 2px')
 			]),
-		A2(
-			$elm$core$List$indexedMap,
-			F2(
-				function (idx, inst) {
-					return A3($author$project$Components$NfaInstancePanel$viewInstance, config, idx + 1, inst);
-				}),
-			config.instances));
+		_Utils_ap(
+			A2(
+				$elm$core$List$indexedMap,
+				F2(
+					function (idx, inst) {
+						return A3($author$project$Components$NfaInstancePanel$viewInstance, config, idx + 1, inst);
+					}),
+				visible),
+			hasMore ? _List_fromArray(
+				[
+					A2(
+					$elm$html$Html$div,
+					_List_fromArray(
+						[
+							A2($elm$html$Html$Attributes$style, 'text-align', 'center'),
+							A2($elm$html$Html$Attributes$style, 'padding', '8px 0')
+						]),
+					_List_fromArray(
+						[
+							A2(
+							$elm$html$Html$button,
+							_List_fromArray(
+								[
+									$elm$html$Html$Events$onClick(config.onLoadMore),
+									A2($elm$html$Html$Attributes$style, 'padding', '6px 16px'),
+									A2($elm$html$Html$Attributes$style, 'cursor', 'pointer'),
+									A2($elm$html$Html$Attributes$style, 'border', '1px solid #aaa'),
+									A2($elm$html$Html$Attributes$style, 'border-radius', '4px'),
+									A2($elm$html$Html$Attributes$style, 'background', '#f5f5f5'),
+									A2($elm$html$Html$Attributes$style, 'font-size', '12px')
+								]),
+							_List_fromArray(
+								[
+									$elm$html$Html$text(
+									'Načítať ďalšie (zobrazených ' + ($elm$core$String$fromInt(config.visibleCount) + (' z ' + ($elm$core$String$fromInt(total) + ')'))))
+								]))
+						]))
+				]) : _List_Nil));
 };
+var $author$project$Components$SimulateToolbar$actionButton = F3(
+	function (label, onClickMsg, isEnabled) {
+		return A2(
+			$elm$html$Html$button,
+			_List_fromArray(
+				[
+					$elm$html$Html$Events$onClick(onClickMsg),
+					A2($elm$html$Html$Attributes$style, 'padding', '11px 18px'),
+					A2(
+					$elm$html$Html$Attributes$style,
+					'background-color',
+					isEnabled ? '#0277bd' : '#b3e5fc'),
+					A2($elm$html$Html$Attributes$style, 'color', 'white'),
+					A2($elm$html$Html$Attributes$style, 'border', 'none'),
+					A2($elm$html$Html$Attributes$style, 'border-radius', '5px'),
+					A2(
+					$elm$html$Html$Attributes$style,
+					'cursor',
+					isEnabled ? 'pointer' : 'not-allowed'),
+					A2($elm$html$Html$Attributes$style, 'font-size', '14px'),
+					A2($elm$html$Html$Attributes$style, 'font-weight', 'bold'),
+					$elm$html$Html$Attributes$disabled(!isEnabled)
+				]),
+			_List_fromArray(
+				[
+					$elm$html$Html$text(label)
+				]));
+	});
+var $author$project$Components$SimulateToolbar$autoRunButton = F2(
+	function (onToggle, running) {
+		return A2(
+			$elm$html$Html$button,
+			_List_fromArray(
+				[
+					$elm$html$Html$Events$onClick(onToggle),
+					A2($elm$html$Html$Attributes$style, 'padding', '10px 14px'),
+					A2(
+					$elm$html$Html$Attributes$style,
+					'background-color',
+					running ? '#00897b' : '#546e7a'),
+					A2($elm$html$Html$Attributes$style, 'color', 'white'),
+					A2($elm$html$Html$Attributes$style, 'border', 'none'),
+					A2($elm$html$Html$Attributes$style, 'border-radius', '4px'),
+					A2($elm$html$Html$Attributes$style, 'cursor', 'pointer'),
+					A2($elm$html$Html$Attributes$style, 'font-size', '14px'),
+					A2(
+					$elm$html$Html$Attributes$style,
+					'font-weight',
+					running ? 'bold' : 'normal'),
+					A2($elm$html$Html$Attributes$style, 'transition', 'all 0.2s')
+				]),
+			_List_fromArray(
+				[
+					$elm$html$Html$text(
+					running ? '⏸ Pauza' : '▶ Auto')
+				]));
+	});
+var $author$project$Components$SimulateToolbar$guideButton = function (onClickMsg) {
+	return A2(
+		$elm$html$Html$button,
+		_List_fromArray(
+			[
+				$elm$html$Html$Events$onClick(onClickMsg),
+				A2($elm$html$Html$Attributes$style, 'padding', '11px 18px'),
+				A2($elm$html$Html$Attributes$style, 'background-color', '#00796b'),
+				A2($elm$html$Html$Attributes$style, 'color', 'white'),
+				A2($elm$html$Html$Attributes$style, 'border', 'none'),
+				A2($elm$html$Html$Attributes$style, 'border-radius', '5px'),
+				A2($elm$html$Html$Attributes$style, 'cursor', 'pointer'),
+				A2($elm$html$Html$Attributes$style, 'font-size', '14px'),
+				A2($elm$html$Html$Attributes$style, 'font-weight', 'bold'),
+				A2($elm$html$Html$Attributes$style, 'display', 'flex'),
+				A2($elm$html$Html$Attributes$style, 'align-items', 'center'),
+				A2($elm$html$Html$Attributes$style, 'gap', '6px')
+			]),
+		_List_fromArray(
+			[
+				A2(
+				$elm$html$Html$img,
+				_List_fromArray(
+					[
+						$elm$html$Html$Attributes$src('guide_icon.png'),
+						A2($elm$html$Html$Attributes$style, 'width', '20px'),
+						A2($elm$html$Html$Attributes$style, 'height', '20px'),
+						A2($elm$html$Html$Attributes$style, 'filter', 'brightness(0) invert(1)')
+					]),
+				_List_Nil),
+				$elm$html$Html$text('Sprievodca')
+			]));
+};
+var $elm$html$Html$Attributes$max = $elm$html$Html$Attributes$stringProperty('max');
+var $elm$html$Html$Attributes$min = $elm$html$Html$Attributes$stringProperty('min');
+var $elm$core$Basics$round = _Basics_round;
+var $author$project$Components$SimulateToolbar$speedLabel = function (ms) {
+	return (ms >= 1000) ? ($elm$core$String$fromFloat(
+		$elm$core$Basics$round(ms / 100) / 10) + 's') : ($elm$core$String$fromInt(
+		$elm$core$Basics$round(ms)) + 'ms');
+};
+var $elm$html$Html$Attributes$step = function (n) {
+	return A2($elm$html$Html$Attributes$stringProperty, 'step', n);
+};
+var $author$project$Components$SimulateToolbar$toolButton = F4(
+	function (label, onClickMsg, isEnabled, isActive) {
+		return A2(
+			$elm$html$Html$button,
+			_List_fromArray(
+				[
+					$elm$html$Html$Events$onClick(onClickMsg),
+					$elm$html$Html$Attributes$disabled(!isEnabled),
+					A2($elm$html$Html$Attributes$style, 'padding', '10px 14px'),
+					A2(
+					$elm$html$Html$Attributes$style,
+					'background-color',
+					isActive ? '#00897b' : (isEnabled ? '#546e7a' : '#b0bec5')),
+					A2($elm$html$Html$Attributes$style, 'color', 'white'),
+					A2($elm$html$Html$Attributes$style, 'border', 'none'),
+					A2($elm$html$Html$Attributes$style, 'border-radius', '4px'),
+					A2(
+					$elm$html$Html$Attributes$style,
+					'cursor',
+					isEnabled ? 'pointer' : 'not-allowed'),
+					A2($elm$html$Html$Attributes$style, 'font-size', '14px'),
+					A2(
+					$elm$html$Html$Attributes$style,
+					'font-weight',
+					isActive ? 'bold' : 'normal'),
+					A2($elm$html$Html$Attributes$style, 'transition', 'all 0.3s')
+				]),
+			_List_fromArray(
+				[
+					$elm$html$Html$text(label)
+				]));
+	});
+var $author$project$Components$SimulateToolbar$view = function (config) {
+	return A2(
+		$elm$html$Html$div,
+		_List_fromArray(
+			[
+				A2($elm$html$Html$Attributes$style, 'display', 'flex'),
+				A2($elm$html$Html$Attributes$style, 'flex-direction', 'row'),
+				A2($elm$html$Html$Attributes$style, 'padding', '14px 12px'),
+				A2($elm$html$Html$Attributes$style, 'background-color', '#1a2f4a'),
+				A2($elm$html$Html$Attributes$style, 'gap', '10px'),
+				A2($elm$html$Html$Attributes$style, 'border-bottom', '2px solid white'),
+				A2($elm$html$Html$Attributes$style, 'align-items', 'center')
+			]),
+		_List_fromArray(
+			[
+				A4($author$project$Components$SimulateToolbar$toolButton, 'Reset', config.onReset, true, false),
+				A4($author$project$Components$SimulateToolbar$toolButton, 'Krok späť', config.onStepBackward, config.canStepBackward, false),
+				A4(
+				$author$project$Components$SimulateToolbar$toolButton,
+				function () {
+					var _v0 = config.nextSymbol;
+					if (_v0.$ === 'Nothing') {
+						return 'Krok vpred';
+					} else {
+						var s = _v0.a;
+						return 'Krok vpred  \'' + (s + '\'');
+					}
+				}(),
+				config.onStepForward,
+				config.canStepForward,
+				false),
+				A2($author$project$Components$SimulateToolbar$autoRunButton, config.onToggleAutoRun, config.autoRunning),
+				A2(
+				$elm$html$Html$div,
+				_List_fromArray(
+					[
+						A2($elm$html$Html$Attributes$style, 'display', 'flex'),
+						A2($elm$html$Html$Attributes$style, 'align-items', 'center'),
+						A2($elm$html$Html$Attributes$style, 'gap', '6px')
+					]),
+				_List_fromArray(
+					[
+						A2(
+						$elm$html$Html$input,
+						_List_fromArray(
+							[
+								$elm$html$Html$Attributes$type_('range'),
+								$elm$html$Html$Attributes$min('100'),
+								$elm$html$Html$Attributes$max('2000'),
+								$elm$html$Html$Attributes$step('100'),
+								$elm$html$Html$Attributes$value(
+								$elm$core$String$fromInt(
+									$elm$core$Basics$round(config.autoSpeed))),
+								$elm$html$Html$Events$onInput(config.onSetAutoSpeed),
+								A2($elm$html$Html$Attributes$style, 'width', '90px'),
+								A2($elm$html$Html$Attributes$style, 'cursor', 'pointer'),
+								A2($elm$html$Html$Attributes$style, 'accent-color', '#00bcd4')
+							]),
+						_List_Nil),
+						A2(
+						$elm$html$Html$div,
+						_List_fromArray(
+							[
+								A2($elm$html$Html$Attributes$style, 'color', '#cfd8dc'),
+								A2($elm$html$Html$Attributes$style, 'font-size', '12px'),
+								A2($elm$html$Html$Attributes$style, 'min-width', '36px')
+							]),
+						_List_fromArray(
+							[
+								$elm$html$Html$text(
+								$author$project$Components$SimulateToolbar$speedLabel(config.autoSpeed))
+							]))
+					])),
+				A2(
+				$elm$html$Html$div,
+				_List_fromArray(
+					[
+						A2($elm$html$Html$Attributes$style, 'flex', '1')
+					]),
+				_List_Nil),
+				A2(
+				$elm$html$Html$div,
+				_List_fromArray(
+					[
+						A2($elm$html$Html$Attributes$style, 'width', '300px'),
+						A2($elm$html$Html$Attributes$style, 'display', 'flex'),
+						A2($elm$html$Html$Attributes$style, 'justify-content', 'flex-end'),
+						A2($elm$html$Html$Attributes$style, 'gap', '8px')
+					]),
+				_List_fromArray(
+					[
+						$author$project$Components$SimulateToolbar$guideButton(config.onShowGuide),
+						A3($author$project$Components$SimulateToolbar$actionButton, '<- Editor', config.onSwitchToEditor, true)
+					]))
+			]));
+};
+var $author$project$Components$SimulationStatus$view = function (config) {
+	return A2(
+		$elm$html$Html$div,
+		_List_fromArray(
+			[
+				A2($elm$html$Html$Attributes$style, 'padding', '10px'),
+				A2($elm$html$Html$Attributes$style, 'border-bottom', '1px solid #ccc'),
+				A2($elm$html$Html$Attributes$style, 'display', 'flex'),
+				A2($elm$html$Html$Attributes$style, 'flex-direction', 'column'),
+				A2($elm$html$Html$Attributes$style, 'gap', '10px')
+			]),
+		_List_fromArray(
+			[
+				A2(
+				$elm$html$Html$div,
+				_List_Nil,
+				_List_fromArray(
+					[
+						A2(
+						$elm$html$Html$span,
+						_List_fromArray(
+							[
+								A2($elm$html$Html$Attributes$style, 'font-weight', 'bold')
+							]),
+						_List_fromArray(
+							[
+								$elm$html$Html$text('Aktuálny stav: ')
+							])),
+						$elm$html$Html$text(
+						A2(
+							$elm$core$Maybe$withDefault,
+							'-',
+							A2(
+								$elm$core$Maybe$map,
+								function ($) {
+									return $.label;
+								},
+								config.currentState)))
+					])),
+				function () {
+				var _v0 = config.verdict;
+				if (_v0.$ === 'Just') {
+					var v = _v0.a;
+					return A2(
+						$elm$html$Html$div,
+						_List_fromArray(
+							[
+								A2($elm$html$Html$Attributes$style, 'font-weight', 'bold'),
+								A2(
+								$elm$html$Html$Attributes$style,
+								'color',
+								v.isAccepted ? 'green' : 'red'),
+								A2($elm$html$Html$Attributes$style, 'font-size', '18px'),
+								A2($elm$html$Html$Attributes$style, 'margin-top', '10px')
+							]),
+						_List_fromArray(
+							[
+								$elm$html$Html$text(v.text)
+							]));
+				} else {
+					return $elm$html$Html$text('');
+				}
+			}()
+			]));
+};
+var $author$project$Pages$Simulator$TreeZoomIn = {$: 'TreeZoomIn'};
+var $author$project$Pages$Simulator$TreeZoomOut = {$: 'TreeZoomOut'};
+var $elm$core$List$all = F2(
+	function (isOkay, list) {
+		return !A2(
+			$elm$core$List$any,
+			A2($elm$core$Basics$composeL, $elm$core$Basics$not, isOkay),
+			list);
+	});
 var $author$project$Components$NfaTreeView$getDepth = F2(
 	function (id, nodes) {
 		var _v0 = $elm$core$List$head(
@@ -13467,6 +14436,50 @@ var $author$project$Components$NfaTreeView$view = function (config) {
 					]),
 				_List_Nil);
 		});
+	var renderEdgeSymbol = F3(
+		function (mx, my, sym) {
+			return A2(
+				$elm$svg$Svg$g,
+				_List_Nil,
+				_List_fromArray(
+					[
+						A2(
+						$elm$svg$Svg$rect,
+						_List_fromArray(
+							[
+								$elm$svg$Svg$Attributes$x(
+								$elm$core$String$fromFloat(mx - 12)),
+								$elm$svg$Svg$Attributes$y(
+								$elm$core$String$fromFloat(my - 9)),
+								$elm$svg$Svg$Attributes$width('24'),
+								$elm$svg$Svg$Attributes$height('18'),
+								$elm$svg$Svg$Attributes$rx('3'),
+								$elm$svg$Svg$Attributes$fill('#eceff1'),
+								$elm$svg$Svg$Attributes$stroke('#90a4ae'),
+								$elm$svg$Svg$Attributes$strokeWidth('1')
+							]),
+						_List_Nil),
+						A2(
+						$elm$svg$Svg$text_,
+						_List_fromArray(
+							[
+								$elm$svg$Svg$Attributes$x(
+								$elm$core$String$fromFloat(mx)),
+								$elm$svg$Svg$Attributes$y(
+								$elm$core$String$fromFloat(my)),
+								$elm$svg$Svg$Attributes$textAnchor('middle'),
+								$elm$svg$Svg$Attributes$dominantBaseline('central'),
+								$elm$svg$Svg$Attributes$fill('#37474f'),
+								$elm$svg$Svg$Attributes$fontSize('11'),
+								$elm$svg$Svg$Attributes$fontWeight('bold'),
+								$elm$svg$Svg$Attributes$pointerEvents('none')
+							]),
+						_List_fromArray(
+							[
+								$elm$svg$Svg$text(sym)
+							]))
+					]));
+		});
 	var renderEdge = F2(
 		function (parentPos, childPos) {
 			return A2(
@@ -13487,6 +14500,33 @@ var $author$project$Components$NfaTreeView$view = function (config) {
 				_List_Nil);
 		});
 	var nodes = config.treeNodes;
+	var uniformSymbolAt = function (d) {
+		var syms = A2(
+			$elm$core$List$filterMap,
+			function ($) {
+				return $.symbol;
+			},
+			A2(
+				$elm$core$List$filter,
+				function (n) {
+					return _Utils_eq(
+						A2($author$project$Components$NfaTreeView$getDepth, n.id, nodes),
+						d);
+				},
+				nodes));
+		if (!syms.b) {
+			return $elm$core$Maybe$Nothing;
+		} else {
+			var first = syms.a;
+			var rest = syms.b;
+			return A2(
+				$elm$core$List$all,
+				function (s) {
+					return _Utils_eq(s, first);
+				},
+				rest) ? $elm$core$Maybe$Just(first) : $elm$core$Maybe$Nothing;
+		}
+	};
 	var isSelected = function (nid) {
 		return _Utils_eq(
 			config.selectedId,
@@ -13502,16 +14542,16 @@ var $author$project$Components$NfaTreeView$view = function (config) {
 				config.instances));
 	};
 	var nodeColors = function (nid) {
-		var _v4 = findInstance(nid);
-		if (_v4.$ === 'Nothing') {
+		var _v8 = findInstance(nid);
+		if (_v8.$ === 'Nothing') {
 			return {fill: '#90a4ae', stroke: '#607d8b', textFill: 'white'};
 		} else {
-			var inst = _v4.a;
-			var _v5 = inst.verdict;
-			if (_v5.$ === 'Nothing') {
+			var inst = _v8.a;
+			var _v9 = inst.verdict;
+			if (_v9.$ === 'Nothing') {
 				return {fill: '#1e88e5', stroke: '#1565c0', textFill: 'white'};
 			} else {
-				var v = _v5.a;
+				var v = _v9.a;
 				return v.isAccepted ? {fill: '#43a047', stroke: '#2e7d32', textFill: 'white'} : {fill: '#e53935', stroke: '#b71c1c', textFill: 'white'};
 			}
 		}
@@ -13590,7 +14630,37 @@ var $author$project$Components$NfaTreeView$view = function (config) {
 				},
 				A2($elm$core$List$range, 0, maxDepth))));
 	var svgH = (((maxDepth + 1) * $author$project$Components$NfaTreeView$levelH) + $author$project$Components$NfaTreeView$topPad) + 40.0;
+	var scaledH = svgH * config.zoom;
 	var contentW = A2($elm$core$Basics$max, 1, maxNodesPerLevel) * $author$project$Components$NfaTreeView$nodeSpacingH;
+	var mixedSeparators = A2(
+		$elm$core$List$filterMap,
+		function (d) {
+			var _v7 = uniformSymbolAt(d);
+			if (_v7.$ === 'Just') {
+				return $elm$core$Maybe$Nothing;
+			} else {
+				var y = (d * $author$project$Components$NfaTreeView$levelH) + $author$project$Components$NfaTreeView$topPad;
+				return $elm$core$Maybe$Just(
+					A2(
+						$elm$svg$Svg$line,
+						_List_fromArray(
+							[
+								$elm$svg$Svg$Attributes$x1(
+								$elm$core$String$fromFloat($author$project$Components$NfaTreeView$leftPad + 4)),
+								$elm$svg$Svg$Attributes$y1(
+								$elm$core$String$fromFloat(y - ($author$project$Components$NfaTreeView$levelH / 2))),
+								$elm$svg$Svg$Attributes$x2(
+								$elm$core$String$fromFloat(($author$project$Components$NfaTreeView$leftPad + contentW) - 4)),
+								$elm$svg$Svg$Attributes$y2(
+								$elm$core$String$fromFloat(y - ($author$project$Components$NfaTreeView$levelH / 2))),
+								$elm$svg$Svg$Attributes$stroke('#cfd8dc'),
+								$elm$svg$Svg$Attributes$strokeWidth('1'),
+								$elm$svg$Svg$Attributes$strokeDasharray('4,3')
+							]),
+						_List_Nil));
+			}
+		},
+		A2($elm$core$List$range, 1, maxDepth));
 	var posMap = A3($author$project$Components$NfaTreeView$computePositions, nodes, maxDepth, contentW);
 	var findPos = function (nid) {
 		return $elm$core$List$head(
@@ -13604,12 +14674,12 @@ var $author$project$Components$NfaTreeView$view = function (config) {
 	var mergeEdgesSvg = A2(
 		$elm$core$List$filterMap,
 		function (e) {
-			var _v3 = _Utils_Tuple2(
+			var _v6 = _Utils_Tuple2(
 				findPos(e.from),
 				findPos(e.to));
-			if ((_v3.a.$ === 'Just') && (_v3.b.$ === 'Just')) {
-				var fp = _v3.a.a;
-				var tp = _v3.b.a;
+			if ((_v6.a.$ === 'Just') && (_v6.b.$ === 'Just')) {
+				var fp = _v6.a.a;
+				var tp = _v6.b.a;
 				return $elm$core$Maybe$Just(
 					A2(renderMergeEdge, fp, tp));
 			} else {
@@ -13617,6 +14687,46 @@ var $author$project$Components$NfaTreeView$view = function (config) {
 			}
 		},
 		config.mergedEdges);
+	var mixedEdgeLabels = A2(
+		$elm$core$List$concatMap,
+		function (d) {
+			var _v3 = uniformSymbolAt(d);
+			if (_v3.$ === 'Just') {
+				return _List_Nil;
+			} else {
+				return A2(
+					$elm$core$List$filterMap,
+					function (n) {
+						var _v4 = _Utils_Tuple2(n.parentId, n.symbol);
+						if ((_v4.a.$ === 'Just') && (_v4.b.$ === 'Just')) {
+							var pid = _v4.a.a;
+							var sym = _v4.b.a;
+							var _v5 = _Utils_Tuple2(
+								findPos(n.id),
+								findPos(pid));
+							if ((_v5.a.$ === 'Just') && (_v5.b.$ === 'Just')) {
+								var cp = _v5.a.a;
+								var pp = _v5.b.a;
+								return $elm$core$Maybe$Just(
+									A3(renderEdgeSymbol, (pp.x + cp.x) / 2, (pp.y + cp.y) / 2, sym));
+							} else {
+								return $elm$core$Maybe$Nothing;
+							}
+						} else {
+							return $elm$core$Maybe$Nothing;
+						}
+					},
+					A2(
+						$elm$core$List$filter,
+						function (n) {
+							return _Utils_eq(
+								A2($author$project$Components$NfaTreeView$getDepth, n.id, nodes),
+								d);
+						},
+						nodes));
+			}
+		},
+		A2($elm$core$List$range, 1, maxDepth));
 	var renderLevelSymbol = F2(
 		function (depth, sym) {
 			var y = (depth * $author$project$Components$NfaTreeView$levelH) + $author$project$Components$NfaTreeView$topPad;
@@ -13684,26 +14794,12 @@ var $author$project$Components$NfaTreeView$view = function (config) {
 		function (d) {
 			return A2(
 				$elm$core$Maybe$map,
-				function (sym) {
-					return A2(renderLevelSymbol, d, sym);
-				},
-				A2(
-					$elm$core$Maybe$andThen,
-					function ($) {
-						return $.symbol;
-					},
-					$elm$core$List$head(
-						A2(
-							$elm$core$List$filter,
-							function (n) {
-								return _Utils_eq(
-									A2($author$project$Components$NfaTreeView$getDepth, n.id, nodes),
-									d);
-							},
-							nodes))));
+				renderLevelSymbol(d),
+				uniformSymbolAt(d));
 		},
 		A2($elm$core$List$range, 1, maxDepth));
 	var svgW = ($author$project$Components$NfaTreeView$leftPad + contentW) + $author$project$Components$NfaTreeView$rightAreaW;
+	var scaledW = svgW * config.zoom;
 	var allNodes = A2(
 		$elm$core$List$filterMap,
 		function (pos) {
@@ -13754,271 +14850,106 @@ var $author$project$Components$NfaTreeView$view = function (config) {
 		_List_fromArray(
 			[
 				A2($elm$html$Html$Attributes$style, 'flex', '1'),
-				A2($elm$html$Html$Attributes$style, 'overflow', 'auto'),
-				A2($elm$html$Html$Attributes$style, 'background-color', '#ecf0f1')
+				A2($elm$html$Html$Attributes$style, 'min-width', '150px'),
+				A2($elm$html$Html$Attributes$style, 'position', 'relative'),
+				A2($elm$html$Html$Attributes$style, 'overflow', 'hidden')
 			]),
 		_List_fromArray(
 			[
 				A2(
-				$elm$svg$Svg$svg,
+				$elm$html$Html$div,
 				_List_fromArray(
 					[
-						$elm$svg$Svg$Attributes$width(
-						$elm$core$String$fromFloat(svgW)),
-						$elm$svg$Svg$Attributes$height(
-						$elm$core$String$fromFloat(svgH))
+						A2($elm$html$Html$Attributes$style, 'width', '100%'),
+						A2($elm$html$Html$Attributes$style, 'height', '100%'),
+						A2($elm$html$Html$Attributes$style, 'overflow', 'auto'),
+						A2($elm$html$Html$Attributes$style, 'background-color', '#ecf0f1')
 					]),
 				_List_fromArray(
 					[
-						A2($elm$svg$Svg$g, _List_Nil, allEdges),
-						A2($elm$svg$Svg$g, _List_Nil, mergeEdgesSvg),
-						A2($elm$svg$Svg$g, _List_Nil, levelSymbols),
-						A2($elm$svg$Svg$g, _List_Nil, allNodes)
+						A2(
+						$elm$svg$Svg$svg,
+						_List_fromArray(
+							[
+								$elm$svg$Svg$Attributes$width(
+								$elm$core$String$fromFloat(scaledW)),
+								$elm$svg$Svg$Attributes$height(
+								$elm$core$String$fromFloat(scaledH)),
+								$elm$svg$Svg$Attributes$viewBox(
+								'0 0 ' + ($elm$core$String$fromFloat(svgW) + (' ' + $elm$core$String$fromFloat(svgH)))),
+								$elm$svg$Svg$Attributes$style('display: block;')
+							]),
+						_List_fromArray(
+							[
+								A2($elm$svg$Svg$g, _List_Nil, allEdges),
+								A2($elm$svg$Svg$g, _List_Nil, mergeEdgesSvg),
+								A2($elm$svg$Svg$g, _List_Nil, levelSymbols),
+								A2($elm$svg$Svg$g, _List_Nil, mixedSeparators),
+								A2($elm$svg$Svg$g, _List_Nil, mixedEdgeLabels),
+								A2($elm$svg$Svg$g, _List_Nil, allNodes)
+							]))
+					])),
+				A2(
+				$elm$html$Html$div,
+				_List_fromArray(
+					[
+						A2($elm$html$Html$Attributes$style, 'position', 'absolute'),
+						A2($elm$html$Html$Attributes$style, 'bottom', '16px'),
+						A2($elm$html$Html$Attributes$style, 'right', '16px'),
+						A2($elm$html$Html$Attributes$style, 'display', 'flex'),
+						A2($elm$html$Html$Attributes$style, 'flex-direction', 'column'),
+						A2($elm$html$Html$Attributes$style, 'gap', '4px')
+					]),
+				_List_fromArray(
+					[
+						A2(
+						$elm$html$Html$button,
+						_List_fromArray(
+							[
+								$elm$html$Html$Events$onClick(config.onZoomIn),
+								A2($elm$html$Html$Attributes$style, 'width', '32px'),
+								A2($elm$html$Html$Attributes$style, 'height', '32px'),
+								A2($elm$html$Html$Attributes$style, 'font-size', '18px'),
+								A2($elm$html$Html$Attributes$style, 'font-weight', 'bold'),
+								A2($elm$html$Html$Attributes$style, 'background-color', '#546e7a'),
+								A2($elm$html$Html$Attributes$style, 'color', 'white'),
+								A2($elm$html$Html$Attributes$style, 'border', 'none'),
+								A2($elm$html$Html$Attributes$style, 'border-radius', '4px'),
+								A2($elm$html$Html$Attributes$style, 'cursor', 'pointer'),
+								A2($elm$html$Html$Attributes$style, 'line-height', '1')
+							]),
+						_List_fromArray(
+							[
+								$elm$html$Html$text('+')
+							])),
+						A2(
+						$elm$html$Html$button,
+						_List_fromArray(
+							[
+								$elm$html$Html$Events$onClick(config.onZoomOut),
+								A2($elm$html$Html$Attributes$style, 'width', '32px'),
+								A2($elm$html$Html$Attributes$style, 'height', '32px'),
+								A2($elm$html$Html$Attributes$style, 'font-size', '18px'),
+								A2($elm$html$Html$Attributes$style, 'font-weight', 'bold'),
+								A2($elm$html$Html$Attributes$style, 'background-color', '#546e7a'),
+								A2($elm$html$Html$Attributes$style, 'color', 'white'),
+								A2($elm$html$Html$Attributes$style, 'border', 'none'),
+								A2($elm$html$Html$Attributes$style, 'border-radius', '4px'),
+								A2($elm$html$Html$Attributes$style, 'cursor', 'pointer'),
+								A2($elm$html$Html$Attributes$style, 'line-height', '1')
+							]),
+						_List_fromArray(
+							[
+								$elm$html$Html$text('−')
+							]))
 					]))
 			]));
 };
-var $author$project$Components$SimulateToolbar$actionButton = F3(
-	function (label, onClickMsg, isEnabled) {
-		return A2(
-			$elm$html$Html$button,
-			_List_fromArray(
-				[
-					$elm$html$Html$Events$onClick(onClickMsg),
-					A2($elm$html$Html$Attributes$style, 'padding', '10px 20px'),
-					A2(
-					$elm$html$Html$Attributes$style,
-					'background-color',
-					isEnabled ? '#0277bd' : '#b3e5fc'),
-					A2($elm$html$Html$Attributes$style, 'color', 'white'),
-					A2($elm$html$Html$Attributes$style, 'border', 'none'),
-					A2($elm$html$Html$Attributes$style, 'border-radius', '5px'),
-					A2(
-					$elm$html$Html$Attributes$style,
-					'cursor',
-					isEnabled ? 'pointer' : 'not-allowed'),
-					A2($elm$html$Html$Attributes$style, 'font-size', '14px'),
-					A2($elm$html$Html$Attributes$style, 'margin-left', 'auto'),
-					A2($elm$html$Html$Attributes$style, 'font-weight', 'bold'),
-					$elm$html$Html$Attributes$disabled(!isEnabled)
-				]),
-			_List_fromArray(
-				[
-					$elm$html$Html$text(label)
-				]));
+var $author$project$Pages$Simulator$viewNfaTree = F6(
+	function (treeNodes, instances, states, selectedId, mergedEdges, zoom) {
+		return $author$project$Components$NfaTreeView$view(
+			{instances: instances, mergedEdges: mergedEdges, onSelect: $author$project$Pages$Simulator$SelectNfaInstance, onZoomIn: $author$project$Pages$Simulator$TreeZoomIn, onZoomOut: $author$project$Pages$Simulator$TreeZoomOut, selectedId: selectedId, states: states, treeNodes: treeNodes, zoom: zoom});
 	});
-var $author$project$Components$SimulateToolbar$autoRunButton = F2(
-	function (onToggle, running) {
-		return A2(
-			$elm$html$Html$button,
-			_List_fromArray(
-				[
-					$elm$html$Html$Events$onClick(onToggle),
-					A2($elm$html$Html$Attributes$style, 'padding', '10px 16px'),
-					A2(
-					$elm$html$Html$Attributes$style,
-					'background-color',
-					running ? '#00897b' : '#546e7a'),
-					A2($elm$html$Html$Attributes$style, 'color', 'white'),
-					A2($elm$html$Html$Attributes$style, 'border', 'none'),
-					A2($elm$html$Html$Attributes$style, 'border-radius', '5px'),
-					A2($elm$html$Html$Attributes$style, 'cursor', 'pointer'),
-					A2($elm$html$Html$Attributes$style, 'font-size', '14px'),
-					A2(
-					$elm$html$Html$Attributes$style,
-					'font-weight',
-					running ? 'bold' : 'normal'),
-					A2($elm$html$Html$Attributes$style, 'transition', 'all 0.2s')
-				]),
-			_List_fromArray(
-				[
-					$elm$html$Html$text(
-					running ? '⏸ Pauza' : '▶ Auto')
-				]));
-	});
-var $elm$html$Html$Attributes$max = $elm$html$Html$Attributes$stringProperty('max');
-var $elm$html$Html$Attributes$min = $elm$html$Html$Attributes$stringProperty('min');
-var $elm$core$Basics$round = _Basics_round;
-var $author$project$Components$SimulateToolbar$speedLabel = function (ms) {
-	return (ms >= 1000) ? ($elm$core$String$fromFloat(
-		$elm$core$Basics$round(ms / 100) / 10) + 's') : ($elm$core$String$fromInt(
-		$elm$core$Basics$round(ms)) + 'ms');
-};
-var $elm$html$Html$Attributes$step = function (n) {
-	return A2($elm$html$Html$Attributes$stringProperty, 'step', n);
-};
-var $author$project$Components$SimulateToolbar$toolButton = F4(
-	function (label, onClickMsg, isEnabled, isActive) {
-		return A2(
-			$elm$html$Html$button,
-			_List_fromArray(
-				[
-					$elm$html$Html$Events$onClick(onClickMsg),
-					$elm$html$Html$Attributes$disabled(!isEnabled),
-					A2($elm$html$Html$Attributes$style, 'padding', '10px 20px'),
-					A2(
-					$elm$html$Html$Attributes$style,
-					'background-color',
-					isActive ? '#00897b' : (isEnabled ? '#546e7a' : '#b0bec5')),
-					A2($elm$html$Html$Attributes$style, 'color', 'white'),
-					A2($elm$html$Html$Attributes$style, 'border', 'none'),
-					A2($elm$html$Html$Attributes$style, 'border-radius', '5px'),
-					A2(
-					$elm$html$Html$Attributes$style,
-					'cursor',
-					isEnabled ? 'pointer' : 'not-allowed'),
-					A2($elm$html$Html$Attributes$style, 'font-size', '14px'),
-					A2(
-					$elm$html$Html$Attributes$style,
-					'font-weight',
-					isActive ? 'bold' : 'normal'),
-					A2($elm$html$Html$Attributes$style, 'transition', 'all 0.3s')
-				]),
-			_List_fromArray(
-				[
-					$elm$html$Html$text(label)
-				]));
-	});
-var $author$project$Components$SimulateToolbar$view = function (config) {
-	return A2(
-		$elm$html$Html$div,
-		_List_fromArray(
-			[
-				A2($elm$html$Html$Attributes$style, 'display', 'flex'),
-				A2($elm$html$Html$Attributes$style, 'flex-direction', 'row'),
-				A2($elm$html$Html$Attributes$style, 'padding', '10px'),
-				A2($elm$html$Html$Attributes$style, 'background-color', '#37474f'),
-				A2($elm$html$Html$Attributes$style, 'gap', '10px'),
-				A2($elm$html$Html$Attributes$style, 'border-bottom', '2px solid #263238'),
-				A2($elm$html$Html$Attributes$style, 'align-items', 'center')
-			]),
-		_List_fromArray(
-			[
-				A4($author$project$Components$SimulateToolbar$toolButton, 'Reset', config.onReset, true, false),
-				A4($author$project$Components$SimulateToolbar$toolButton, 'Krok späť', config.onStepBackward, config.canStepBackward, false),
-				A4(
-				$author$project$Components$SimulateToolbar$toolButton,
-				function () {
-					var _v0 = config.nextSymbol;
-					if (_v0.$ === 'Nothing') {
-						return 'Krok vpred';
-					} else {
-						var s = _v0.a;
-						return 'Krok vpred  \'' + (s + '\'');
-					}
-				}(),
-				config.onStepForward,
-				config.canStepForward,
-				false),
-				A2($author$project$Components$SimulateToolbar$autoRunButton, config.onToggleAutoRun, config.autoRunning),
-				A2(
-				$elm$html$Html$div,
-				_List_fromArray(
-					[
-						A2($elm$html$Html$Attributes$style, 'display', 'flex'),
-						A2($elm$html$Html$Attributes$style, 'align-items', 'center'),
-						A2($elm$html$Html$Attributes$style, 'gap', '6px')
-					]),
-				_List_fromArray(
-					[
-						A2(
-						$elm$html$Html$input,
-						_List_fromArray(
-							[
-								$elm$html$Html$Attributes$type_('range'),
-								$elm$html$Html$Attributes$min('100'),
-								$elm$html$Html$Attributes$max('2000'),
-								$elm$html$Html$Attributes$step('100'),
-								$elm$html$Html$Attributes$value(
-								$elm$core$String$fromInt(
-									$elm$core$Basics$round(config.autoSpeed))),
-								$elm$html$Html$Events$onInput(config.onSetAutoSpeed),
-								A2($elm$html$Html$Attributes$style, 'width', '90px'),
-								A2($elm$html$Html$Attributes$style, 'cursor', 'pointer'),
-								A2($elm$html$Html$Attributes$style, 'accent-color', '#00bcd4')
-							]),
-						_List_Nil),
-						A2(
-						$elm$html$Html$div,
-						_List_fromArray(
-							[
-								A2($elm$html$Html$Attributes$style, 'color', '#cfd8dc'),
-								A2($elm$html$Html$Attributes$style, 'font-size', '12px'),
-								A2($elm$html$Html$Attributes$style, 'min-width', '36px')
-							]),
-						_List_fromArray(
-							[
-								$elm$html$Html$text(
-								$author$project$Components$SimulateToolbar$speedLabel(config.autoSpeed))
-							]))
-					])),
-				A3($author$project$Components$SimulateToolbar$actionButton, 'Späť do editora', config.onSwitchToEditor, true)
-			]));
-};
-var $author$project$Components$SimulationStatus$view = function (config) {
-	return A2(
-		$elm$html$Html$div,
-		_List_fromArray(
-			[
-				A2($elm$html$Html$Attributes$style, 'padding', '10px'),
-				A2($elm$html$Html$Attributes$style, 'border-bottom', '1px solid #ccc'),
-				A2($elm$html$Html$Attributes$style, 'display', 'flex'),
-				A2($elm$html$Html$Attributes$style, 'flex-direction', 'column'),
-				A2($elm$html$Html$Attributes$style, 'gap', '10px')
-			]),
-		_List_fromArray(
-			[
-				A2(
-				$elm$html$Html$div,
-				_List_Nil,
-				_List_fromArray(
-					[
-						A2(
-						$elm$html$Html$span,
-						_List_fromArray(
-							[
-								A2($elm$html$Html$Attributes$style, 'font-weight', 'bold')
-							]),
-						_List_fromArray(
-							[
-								$elm$html$Html$text('Aktuálny stav: ')
-							])),
-						$elm$html$Html$text(
-						A2(
-							$elm$core$Maybe$withDefault,
-							'-',
-							A2(
-								$elm$core$Maybe$map,
-								function ($) {
-									return $.label;
-								},
-								config.currentState)))
-					])),
-				function () {
-				var _v0 = config.verdict;
-				if (_v0.$ === 'Just') {
-					var v = _v0.a;
-					return A2(
-						$elm$html$Html$div,
-						_List_fromArray(
-							[
-								A2($elm$html$Html$Attributes$style, 'font-weight', 'bold'),
-								A2(
-								$elm$html$Html$Attributes$style,
-								'color',
-								v.isAccepted ? 'green' : 'red'),
-								A2($elm$html$Html$Attributes$style, 'font-size', '18px'),
-								A2($elm$html$Html$Attributes$style, 'margin-top', '10px')
-							]),
-						_List_fromArray(
-							[
-								$elm$html$Html$text(v.text)
-							]));
-				} else {
-					return $elm$html$Html$text('');
-				}
-			}()
-			]));
-};
 var $elm$core$String$foldr = _String_foldr;
 var $elm$core$String$toList = function (string) {
 	return A3($elm$core$String$foldr, $elm$core$List$cons, _List_Nil, string);
@@ -14114,387 +15045,1203 @@ var $author$project$Pages$Simulator$viewToggleTab = F3(
 					$elm$html$Html$text(label)
 				]));
 	});
-var $author$project$Pages$Simulator$view = function (model) {
-	var selectedInstance = A2(
-		$elm$core$Maybe$andThen,
-		function (sid) {
-			return $elm$core$List$head(
-				A2(
-					$elm$core$List$filter,
-					function (i) {
-						return _Utils_eq(i.id, sid);
-					},
-					model.nfaInstances));
-		},
-		model.selectedInstanceId);
-	var selectedInstanceRemaining = A2(
-		$elm$core$Maybe$withDefault,
-		model.inputString,
-		A2(
-			$elm$core$Maybe$map,
-			function ($) {
-				return $.remainingInput;
+var $author$project$Pages$Simulator$view = F2(
+	function (consoleOpen, model) {
+		var selectedInstance = A2(
+			$elm$core$Maybe$andThen,
+			function (sid) {
+				return $elm$core$List$head(
+					A2(
+						$elm$core$List$filter,
+						function (i) {
+							return _Utils_eq(i.id, sid);
+						},
+						model.nfaInstances));
 			},
-			selectedInstance));
-	var selectedInstanceState = A2(
-		$elm$core$Maybe$andThen,
-		function (inst) {
-			return A2(
-				$elm$core$Maybe$andThen,
-				function (stId) {
-					return A2($author$project$Utils$AutomatonHelpers$getStateById, stId, model.automaton.states);
+			model.selectedInstanceId);
+		var selectedInstanceRemaining = A2(
+			$elm$core$Maybe$withDefault,
+			model.inputString,
+			A2(
+				$elm$core$Maybe$map,
+				function ($) {
+					return $.remainingInput;
 				},
-				inst.currentStateId);
-		},
-		selectedInstance);
-	var selectedInstanceVerdict = A2(
-		$elm$core$Maybe$andThen,
-		function ($) {
-			return $.verdict;
-		},
-		selectedInstance);
-	var readingHeadRemaining = function () {
-		var _v9 = model.mode;
-		if (_v9.$ === 'DfaMode') {
-			return model.remainingInput;
-		} else {
-			return selectedInstanceRemaining;
-		}
-	}();
-	var nextSymbol = function () {
-		var _v8 = model.mode;
-		if (_v8.$ === 'DfaMode') {
-			return A2(
-				$elm$core$Maybe$map,
-				A2($elm$core$Basics$composeR, $elm$core$Tuple$first, $elm$core$String$fromChar),
-				$elm$core$String$uncons(model.remainingInput));
-		} else {
-			return A2(
-				$elm$core$Maybe$map,
-				A2($elm$core$Basics$composeR, $elm$core$Tuple$first, $elm$core$String$fromChar),
-				A2(
+				selectedInstance));
+		var selectedInstanceState = A2(
+			$elm$core$Maybe$andThen,
+			function (inst) {
+				return A2(
 					$elm$core$Maybe$andThen,
-					function (i) {
-						return $elm$core$String$uncons(i.remainingInput);
+					function (stId) {
+						return A2($author$project$Utils$AutomatonHelpers$getStateById, stId, model.automaton.states);
 					},
-					$elm$core$List$head(
-						A2(
-							$elm$core$List$filter,
-							function (i) {
-								return _Utils_eq(i.verdict, $elm$core$Maybe$Nothing);
-							},
-							model.nfaInstances))));
-		}
-	}();
-	var activeStateId = function () {
-		var _v7 = model.mode;
-		if (_v7.$ === 'DfaMode') {
-			return model.currentStateId;
-		} else {
-			return $author$project$Pages$Simulator$nfaActiveStateId(model);
-		}
-	}();
+					inst.currentStateId);
+			},
+			selectedInstance);
+		var selectedInstanceVerdict = A2(
+			$elm$core$Maybe$andThen,
+			function ($) {
+				return $.verdict;
+			},
+			selectedInstance);
+		var readingHeadRemaining = function () {
+			var _v9 = model.mode;
+			if (_v9.$ === 'DfaMode') {
+				return model.remainingInput;
+			} else {
+				return selectedInstanceRemaining;
+			}
+		}();
+		var nextSymbol = function () {
+			var _v8 = model.mode;
+			if (_v8.$ === 'DfaMode') {
+				return A2(
+					$elm$core$Maybe$map,
+					A2($elm$core$Basics$composeR, $elm$core$Tuple$first, $elm$core$String$fromChar),
+					$elm$core$String$uncons(model.remainingInput));
+			} else {
+				return A2(
+					$elm$core$Maybe$map,
+					A2($elm$core$Basics$composeR, $elm$core$Tuple$first, $elm$core$String$fromChar),
+					A2(
+						$elm$core$Maybe$andThen,
+						function (i) {
+							return $elm$core$String$uncons(i.remainingInput);
+						},
+						$elm$core$List$head(
+							A2(
+								$elm$core$List$filter,
+								function (i) {
+									return _Utils_eq(i.verdict, $elm$core$Maybe$Nothing);
+								},
+								model.nfaInstances))));
+			}
+		}();
+		var hasEpsilon = A2(
+			$elm$core$List$any,
+			function (t) {
+				return t.symbol === 'ε';
+			},
+			model.automaton.transitions);
+		var activeStateId = function () {
+			var _v7 = model.mode;
+			if (_v7.$ === 'DfaMode') {
+				return model.currentStateId;
+			} else {
+				return $author$project$Pages$Simulator$nfaActiveStateId(model);
+			}
+		}();
+		return A2(
+			$elm$html$Html$div,
+			_List_fromArray(
+				[
+					A2($elm$html$Html$Attributes$style, 'display', 'flex'),
+					A2($elm$html$Html$Attributes$style, 'flex-direction', 'column'),
+					A2($elm$html$Html$Attributes$style, 'height', '100vh'),
+					A2($elm$html$Html$Attributes$style, 'width', '100vw'),
+					A2($elm$html$Html$Attributes$style, 'overflow', 'hidden'),
+					A2(
+					$elm$html$Html$Attributes$style,
+					'user-select',
+					model.isDraggingDivider ? 'none' : 'auto'),
+					A2(
+					$elm$html$Html$Attributes$style,
+					'cursor',
+					model.isDraggingDivider ? 'col-resize' : 'auto')
+				]),
+			_List_fromArray(
+				[
+					$author$project$Components$SimulateToolbar$view(
+					{
+						autoRunning: model.autoRunning,
+						autoSpeed: model.autoSpeed,
+						canStepBackward: $author$project$Pages$Simulator$canStepBackward(model),
+						canStepForward: $author$project$Pages$Simulator$canStepForward(model),
+						nextSymbol: nextSymbol,
+						onReset: $author$project$Pages$Simulator$ResetSimulation,
+						onSetAutoSpeed: $author$project$Pages$Simulator$SetAutoSpeed,
+						onShowGuide: $author$project$Pages$Simulator$ShowGuide,
+						onStepBackward: $author$project$Pages$Simulator$StepBackward,
+						onStepForward: $author$project$Pages$Simulator$StepForward,
+						onSwitchToEditor: $author$project$Pages$Simulator$SwitchToEditor,
+						onToggleAutoRun: $author$project$Pages$Simulator$ToggleAutoRun
+					}),
+					A2(
+					$elm$html$Html$div,
+					_List_fromArray(
+						[
+							A2($elm$html$Html$Attributes$style, 'display', 'flex'),
+							A2($elm$html$Html$Attributes$style, 'flex-direction', 'row'),
+							A2($elm$html$Html$Attributes$style, 'flex', '1'),
+							A2($elm$html$Html$Attributes$style, 'overflow', 'hidden')
+						]),
+					_List_fromArray(
+						[
+							A2(
+							$elm$html$Html$div,
+							_List_fromArray(
+								[
+									A2($elm$html$Html$Attributes$style, 'flex', '1'),
+									A2($elm$html$Html$Attributes$style, 'display', 'flex'),
+									A2($elm$html$Html$Attributes$style, 'flex-direction', 'column'),
+									A2($elm$html$Html$Attributes$style, 'overflow', 'hidden')
+								]),
+							_List_fromArray(
+								[
+									_Utils_eq(model.mode, $author$project$Pages$Simulator$NfaMode) ? A2(
+									$elm$html$Html$div,
+									_List_fromArray(
+										[
+											A2($elm$html$Html$Attributes$style, 'display', 'flex'),
+											A2($elm$html$Html$Attributes$style, 'background-color', '#1a2f4a'),
+											A2($elm$html$Html$Attributes$style, 'flex-shrink', '0')
+										]),
+									_List_fromArray(
+										[
+											A3($author$project$Pages$Simulator$viewToggleTab, 'Automat', model.showCanvas, $author$project$Pages$Simulator$ToggleCanvas),
+											A3($author$project$Pages$Simulator$viewToggleTab, 'Strom', model.showTree, $author$project$Pages$Simulator$ToggleTree)
+										])) : A2($elm$html$Html$div, _List_Nil, _List_Nil),
+									A2(
+									$elm$html$Html$div,
+									_List_fromArray(
+										[
+											A2($elm$html$Html$Attributes$style, 'flex', '1'),
+											A2($elm$html$Html$Attributes$style, 'display', 'flex'),
+											A2($elm$html$Html$Attributes$style, 'flex-direction', 'row'),
+											A2($elm$html$Html$Attributes$style, 'overflow', 'hidden')
+										]),
+									_List_fromArray(
+										[
+											(_Utils_eq(model.mode, $author$project$Pages$Simulator$DfaMode) || model.showCanvas) ? A2(
+											$elm$html$Html$div,
+											_List_fromArray(
+												[
+													(_Utils_eq(model.mode, $author$project$Pages$Simulator$NfaMode) && (model.showCanvas && model.showTree)) ? A2(
+													$elm$html$Html$Attributes$style,
+													'flex-basis',
+													$elm$core$String$fromFloat(model.splitRatio * 100) + '%') : A2($elm$html$Html$Attributes$style, 'flex', '1'),
+													A2(
+													$elm$html$Html$Attributes$style,
+													'flex-shrink',
+													(_Utils_eq(model.mode, $author$project$Pages$Simulator$NfaMode) && (model.showCanvas && model.showTree)) ? '0' : '1'),
+													A2(
+													$elm$html$Html$Attributes$style,
+													'flex-grow',
+													(_Utils_eq(model.mode, $author$project$Pages$Simulator$NfaMode) && (model.showCanvas && model.showTree)) ? '0' : '1'),
+													A2($elm$html$Html$Attributes$style, 'min-width', '150px'),
+													A2($elm$html$Html$Attributes$style, 'overflow', 'auto'),
+													A2($elm$html$Html$Attributes$style, 'background-color', '#ecf0f1')
+												]),
+											_List_fromArray(
+												[
+													$author$project$Components$Canvas$view(
+													{
+														activeStateId: activeStateId,
+														activeTransition: model.activeTransition,
+														height: 600,
+														isSimulateMode: true,
+														onCanvasClick: $author$project$Pages$Simulator$CanvasClick,
+														onCanvasDoubleClick: F2(
+															function (_v0, _v1) {
+																return A2($author$project$Pages$Simulator$CanvasClick, 0, 0);
+															}),
+														onCanvasMouseDown: $author$project$Pages$Simulator$CanvasMouseDown,
+														onDragMove: $author$project$Pages$Simulator$DragMove,
+														onEndDrag: $author$project$Pages$Simulator$EndDrag,
+														onStartDrag: $author$project$Pages$Simulator$StartDrag,
+														onStateClick: $author$project$Pages$Simulator$StateClick,
+														onStateDoubleClick: function (_v2) {
+															return A2($author$project$Pages$Simulator$CanvasClick, 0, 0);
+														},
+														onTransitionClick: $author$project$Pages$Simulator$TransitionClick,
+														onTransitionDoubleClick: F3(
+															function (_v3, _v4, _v5) {
+																return A2($author$project$Pages$Simulator$CanvasClick, 0, 0);
+															}),
+														onWheel: F3(
+															function (d, x, y) {
+																return A3($author$project$Pages$Simulator$Wheel, d, x, y);
+															}),
+														onZoomIn: $author$project$Pages$Simulator$ZoomIn,
+														onZoomOut: $author$project$Pages$Simulator$ZoomOut,
+														panX: model.panX,
+														panY: model.panY,
+														selectedState: $elm$core$Maybe$Nothing,
+														states: model.automaton.states,
+														transitionFrom: $elm$core$Maybe$Nothing,
+														transitionTo: $elm$core$Maybe$Nothing,
+														transitions: model.automaton.transitions,
+														width: 800,
+														zoom: model.zoom
+													})
+												])) : A2($elm$html$Html$div, _List_Nil, _List_Nil),
+											(_Utils_eq(model.mode, $author$project$Pages$Simulator$NfaMode) && (model.showCanvas && model.showTree)) ? A2(
+											$elm$html$Html$div,
+											_List_fromArray(
+												[
+													A2($elm$html$Html$Attributes$style, 'width', '6px'),
+													A2($elm$html$Html$Attributes$style, 'background-color', '#b0bec5'),
+													A2($elm$html$Html$Attributes$style, 'cursor', 'col-resize'),
+													A2($elm$html$Html$Attributes$style, 'flex-shrink', '0'),
+													A2($elm$html$Html$Attributes$style, 'transition', 'background-color 0.15s'),
+													A2(
+													$elm$html$Html$Events$on,
+													'mousedown',
+													A2(
+														$elm$json$Json$Decode$map,
+														$author$project$Pages$Simulator$StartDividerDrag,
+														A2($elm$json$Json$Decode$field, 'clientX', $elm$json$Json$Decode$float)))
+												]),
+											_List_Nil) : ((_Utils_eq(model.mode, $author$project$Pages$Simulator$NfaMode) && model.showTree) ? A2(
+											$elm$html$Html$div,
+											_List_fromArray(
+												[
+													A2($elm$html$Html$Attributes$style, 'width', '1px'),
+													A2($elm$html$Html$Attributes$style, 'background-color', '#ccc')
+												]),
+											_List_Nil) : A2($elm$html$Html$div, _List_Nil, _List_Nil)),
+											(_Utils_eq(model.mode, $author$project$Pages$Simulator$NfaMode) && model.showTree) ? A7($elm$html$Html$Lazy$lazy6, $author$project$Pages$Simulator$viewNfaTree, model.nfaTree, model.nfaInstances, model.automaton.states, model.selectedInstanceId, model.nfaMergedEdges, model.treeZoom) : A2($elm$html$Html$div, _List_Nil, _List_Nil)
+										]))
+								])),
+							A2(
+							$elm$html$Html$div,
+							_List_fromArray(
+								[
+									A2($elm$html$Html$Attributes$style, 'width', '300px'),
+									A2($elm$html$Html$Attributes$style, 'border-left', '2px solid #34495e'),
+									A2($elm$html$Html$Attributes$style, 'display', 'flex'),
+									A2($elm$html$Html$Attributes$style, 'flex-direction', 'column'),
+									A2($elm$html$Html$Attributes$style, 'background-color', '#f8f9fa'),
+									A2($elm$html$Html$Attributes$style, 'overflow', 'hidden')
+								]),
+							_List_fromArray(
+								[
+									A2(
+									$elm$html$Html$div,
+									_List_fromArray(
+										[
+											A2($elm$html$Html$Attributes$style, 'padding', '10px 15px 6px 15px')
+										]),
+									_List_fromArray(
+										[
+											$elm$html$Html$text('Vstupné slovo:'),
+											A2(
+											$elm$html$Html$input,
+											_List_fromArray(
+												[
+													$elm$html$Html$Attributes$type_('text'),
+													$elm$html$Html$Attributes$value(model.inputString),
+													$elm$html$Html$Events$onInput($author$project$Pages$Simulator$SetInput),
+													A2($elm$html$Html$Attributes$style, 'width', '100%'),
+													A2($elm$html$Html$Attributes$style, 'padding', '8px'),
+													A2($elm$html$Html$Attributes$style, 'margin-top', '5px'),
+													A2($elm$html$Html$Attributes$style, 'border', '1px solid #bdc3c7'),
+													A2($elm$html$Html$Attributes$style, 'border-radius', '4px'),
+													A2($elm$html$Html$Attributes$style, 'box-sizing', 'border-box')
+												]),
+											_List_Nil)
+										])),
+									A2($author$project$Pages$Simulator$viewReadingHead, model.inputString, readingHeadRemaining),
+									function () {
+									var _v6 = model.mode;
+									if (_v6.$ === 'DfaMode') {
+										return $author$project$Components$SimulationStatus$view(
+											{
+												currentState: A2(
+													$author$project$Utils$AutomatonHelpers$getStateById,
+													A2($elm$core$Maybe$withDefault, -1, model.currentStateId),
+													model.automaton.states),
+												inputString: model.inputString,
+												remainingInput: model.remainingInput,
+												verdict: model.verdict
+											});
+									} else {
+										return A2(
+											$elm$html$Html$div,
+											_List_fromArray(
+												[
+													A2($elm$html$Html$Attributes$style, 'display', 'flex'),
+													A2($elm$html$Html$Attributes$style, 'flex-direction', 'column'),
+													A2($elm$html$Html$Attributes$style, 'flex', '1'),
+													A2($elm$html$Html$Attributes$style, 'overflow', 'hidden')
+												]),
+											_List_fromArray(
+												[
+													$author$project$Components$SimulationStatus$view(
+													{currentState: selectedInstanceState, inputString: model.inputString, remainingInput: selectedInstanceRemaining, verdict: selectedInstanceVerdict}),
+													A2(
+													$elm$html$Html$div,
+													_List_fromArray(
+														[
+															A2($elm$html$Html$Attributes$style, 'padding', '6px 15px'),
+															A2($elm$html$Html$Attributes$style, 'border-top', '1px solid #ccc'),
+															A2($elm$html$Html$Attributes$style, 'display', 'flex'),
+															A2($elm$html$Html$Attributes$style, 'align-items', 'center'),
+															A2($elm$html$Html$Attributes$style, 'justify-content', 'space-between')
+														]),
+													_List_fromArray(
+														[
+															A2(
+															$elm$html$Html$div,
+															_List_fromArray(
+																[
+																	A2($elm$html$Html$Attributes$style, 'display', 'flex'),
+																	A2($elm$html$Html$Attributes$style, 'align-items', 'center'),
+																	A2($elm$html$Html$Attributes$style, 'gap', '4px')
+																]),
+															_List_fromArray(
+																[
+																	A2(
+																	$elm$html$Html$label,
+																	_Utils_ap(
+																		_List_fromArray(
+																			[
+																				A2($elm$html$Html$Attributes$style, 'display', 'flex'),
+																				A2($elm$html$Html$Attributes$style, 'align-items', 'center'),
+																				A2($elm$html$Html$Attributes$style, 'gap', '6px'),
+																				A2($elm$html$Html$Attributes$style, 'font-size', '12px'),
+																				A2($elm$html$Html$Attributes$style, 'user-select', 'none'),
+																				A2(
+																				$elm$html$Html$Attributes$style,
+																				'cursor',
+																				hasEpsilon ? 'not-allowed' : 'pointer'),
+																				A2(
+																				$elm$html$Html$Attributes$style,
+																				'color',
+																				hasEpsilon ? '#b0bec5' : '#546e7a')
+																			]),
+																		hasEpsilon ? _List_fromArray(
+																			[
+																				$elm$html$Html$Attributes$title('Zlúčenie stavov nie je dostupné pre automaty s ε-prechodmi')
+																			]) : _List_Nil),
+																	_List_fromArray(
+																		[
+																			A2(
+																			$elm$html$Html$input,
+																			_Utils_ap(
+																				_List_fromArray(
+																					[
+																						$elm$html$Html$Attributes$type_('checkbox'),
+																						$elm$html$Html$Attributes$checked(model.mergeEnabled),
+																						A2(
+																						$elm$html$Html$Attributes$style,
+																						'cursor',
+																						hasEpsilon ? 'not-allowed' : 'pointer')
+																					]),
+																				hasEpsilon ? _List_fromArray(
+																					[
+																						$elm$html$Html$Attributes$disabled(true)
+																					]) : _List_fromArray(
+																					[
+																						$elm$html$Html$Events$onClick($author$project$Pages$Simulator$ToggleMerge)
+																					])),
+																			_List_Nil),
+																			$elm$html$Html$text('Zlúčiť stavy')
+																		])),
+																	A2(
+																	$elm$html$Html$span,
+																	_List_fromArray(
+																		[
+																			A2($elm$html$Html$Attributes$style, 'display', 'inline-flex'),
+																			A2($elm$html$Html$Attributes$style, 'align-items', 'center'),
+																			A2($elm$html$Html$Attributes$style, 'justify-content', 'center'),
+																			A2($elm$html$Html$Attributes$style, 'width', '14px'),
+																			A2($elm$html$Html$Attributes$style, 'height', '14px'),
+																			A2($elm$html$Html$Attributes$style, 'border-radius', '50%'),
+																			A2($elm$html$Html$Attributes$style, 'background', '#90a4ae'),
+																			A2($elm$html$Html$Attributes$style, 'color', 'white'),
+																			A2($elm$html$Html$Attributes$style, 'font-size', '9px'),
+																			A2($elm$html$Html$Attributes$style, 'font-weight', 'bold'),
+																			A2($elm$html$Html$Attributes$style, 'cursor', 'help'),
+																			A2($elm$html$Html$Attributes$style, 'flex-shrink', '0'),
+																			$elm$html$Html$Attributes$title('Bez zlucenia moze pocet instancii rst exponencialne s dlzkou vstupu (az k^n, kde k je priemer vetveni a n dlzka vstupu). Zlucenie redukuje pocet aktivnych instancii na najviac |Q| v kazdom kroku - rovnaky princip ako algoritmus podmnozin. Odporucane pre komplexne NFA.')
+																		]),
+																	_List_fromArray(
+																		[
+																			$elm$html$Html$text('?')
+																		]))
+																])),
+															A2(
+															$elm$html$Html$div,
+															_List_fromArray(
+																[
+																	A2($elm$html$Html$Attributes$style, 'font-weight', 'bold'),
+																	A2($elm$html$Html$Attributes$style, 'font-size', '13px')
+																]),
+															_List_fromArray(
+																[
+																	$elm$html$Html$text('Inštancie NFA:')
+																]))
+														])),
+													A2(
+													$elm$html$Html$div,
+													_List_fromArray(
+														[
+															A2($elm$html$Html$Attributes$style, 'flex', '1'),
+															A2($elm$html$Html$Attributes$style, 'overflow-y', 'auto'),
+															A2($elm$html$Html$Attributes$style, 'padding', '4px 15px')
+														]),
+													_List_fromArray(
+														[
+															$author$project$Components$NfaInstancePanel$view(
+															{instances: model.nfaInstances, onLoadMore: $author$project$Pages$Simulator$LoadMoreInstances, onSelect: $author$project$Pages$Simulator$SelectNfaInstance, selectedId: model.selectedInstanceId, states: model.automaton.states, visibleCount: model.instancePanelVisible})
+														]))
+												]));
+									}
+								}()
+								]))
+						])),
+					$author$project$Components$Console$view(
+					{isOpen: consoleOpen, messages: model.consoleMessages, onToggle: $author$project$Pages$Simulator$ToggleConsole})
+				]));
+	});
+var $author$project$Main$NoOp = {$: 'NoOp'};
+var $author$project$Main$guideNote = function (txt) {
+	return A2(
+		$elm$html$Html$div,
+		_List_fromArray(
+			[
+				A2($elm$html$Html$Attributes$style, 'background-color', '#e8f5e9'),
+				A2($elm$html$Html$Attributes$style, 'padding', '8px 12px'),
+				A2($elm$html$Html$Attributes$style, 'border-radius', '4px'),
+				A2($elm$html$Html$Attributes$style, 'border-left', '3px solid #43a047'),
+				A2($elm$html$Html$Attributes$style, 'font-size', '12px'),
+				A2($elm$html$Html$Attributes$style, 'color', '#1b5e20'),
+				A2($elm$html$Html$Attributes$style, 'margin-bottom', '10px')
+			]),
+		_List_fromArray(
+			[
+				$elm$html$Html$text(txt)
+			]));
+};
+var $author$project$Main$guidePara = function (txt) {
+	return A2(
+		$elm$html$Html$div,
+		_List_fromArray(
+			[
+				A2($elm$html$Html$Attributes$style, 'margin-bottom', '12px'),
+				A2($elm$html$Html$Attributes$style, 'color', '#424242')
+			]),
+		_List_fromArray(
+			[
+				$elm$html$Html$text(txt)
+			]));
+};
+var $author$project$Main$guideRow = F2(
+	function (key, val) {
+		return A2(
+			$elm$html$Html$div,
+			_List_fromArray(
+				[
+					A2($elm$html$Html$Attributes$style, 'display', 'flex'),
+					A2($elm$html$Html$Attributes$style, 'gap', '10px'),
+					A2($elm$html$Html$Attributes$style, 'margin-bottom', '5px')
+				]),
+			_List_fromArray(
+				[
+					A2(
+					$elm$html$Html$span,
+					_List_fromArray(
+						[
+							A2($elm$html$Html$Attributes$style, 'font-weight', 'bold'),
+							A2($elm$html$Html$Attributes$style, 'min-width', '195px'),
+							A2($elm$html$Html$Attributes$style, 'color', '#37474f'),
+							A2($elm$html$Html$Attributes$style, 'flex-shrink', '0')
+						]),
+					_List_fromArray(
+						[
+							$elm$html$Html$text(key)
+						])),
+					A2(
+					$elm$html$Html$span,
+					_List_fromArray(
+						[
+							A2($elm$html$Html$Attributes$style, 'color', '#424242')
+						]),
+					_List_fromArray(
+						[
+							$elm$html$Html$text(val)
+						]))
+				]));
+	});
+var $author$project$Main$guideSection = F2(
+	function (title, children) {
+		return A2(
+			$elm$html$Html$div,
+			_List_fromArray(
+				[
+					A2($elm$html$Html$Attributes$style, 'margin-bottom', '18px')
+				]),
+			A2(
+				$elm$core$List$cons,
+				A2(
+					$elm$html$Html$div,
+					_List_fromArray(
+						[
+							A2($elm$html$Html$Attributes$style, 'font-weight', 'bold'),
+							A2($elm$html$Html$Attributes$style, 'font-size', '14px'),
+							A2($elm$html$Html$Attributes$style, 'color', '#1a2f4a'),
+							A2($elm$html$Html$Attributes$style, 'border-bottom', '1px solid #cfd8dc'),
+							A2($elm$html$Html$Attributes$style, 'padding-bottom', '4px'),
+							A2($elm$html$Html$Attributes$style, 'margin-bottom', '8px')
+						]),
+					_List_fromArray(
+						[
+							$elm$html$Html$text(title)
+						])),
+				children));
+	});
+var $author$project$Main$viewGuideConversion = A2(
+	$elm$html$Html$div,
+	_List_Nil,
+	_List_fromArray(
+		[
+			$author$project$Main$guidePara('Konverzia NFA→DFA prevádza nedeterministický automat na ekvivalentný deterministický pomocou algoritmu podmnožín (subset construction). Tlačidlo NFA→DFA je aktívne len pre NFA; pre DFA je neaktívne.'),
+			A2(
+			$author$project$Main$guideSection,
+			'Kľúčové pojmy',
+			_List_fromArray(
+				[
+					A2($author$project$Main$guideRow, 'ε-closure(S)', 'Množina všetkých stavov dosiahnuteľných z množiny S cez ε-prechody (vrátane S). Príklad: ak q0→ε→q1, potom ε-closure({q0}) = {q0, q1}.'),
+					A2($author$project$Main$guideRow, 'move(S, a)', 'Množina NFA stavov dosiahnuteľných z niektorého stavu S po symbole a (bez ε). Príklad: ak q0→a→q1 a q0→a→q2, potom move({q0}, a) = {q1, q2}.'),
+					A2($author$project$Main$guideRow, 'DFA stav', 'Každý stav výsledného DFA zodpovedá podmnožine NFA stavov.'),
+					$author$project$Main$guideNote('DFA stav je akceptujúci práve vtedy, keď obsahuje aspoň jeden akceptujúci NFA stav.')
+				])),
+			A2(
+			$author$project$Main$guideSection,
+			'Algoritmus podmnožín (krok za krokom)',
+			_List_fromArray(
+				[
+					A2($author$project$Main$guideRow, '1. Počiatočný stav', 'Vypočítaj ε-closure({q₀_NFA}) — to je počiatočný DFA stav. Pridaj ho do pracovného zoznamu (worklist).'),
+					A2($author$project$Main$guideRow, '2. Výber zo worklistu', 'Vyber nepracovaný DFA stav S.'),
+					A2($author$project$Main$guideRow, '3. Pre každý symbol a', 'Vypočítaj T = ε-closure(move(S, a)).'),
+					A2($author$project$Main$guideRow, '4. Nový stav?', 'Ak T ešte neexistuje ako DFA stav, vytvor ho a pridaj do worklistu.'),
+					A2($author$project$Main$guideRow, '5. Prechod', 'Pridaj DFA prechod S →a→ T.'),
+					A2($author$project$Main$guideRow, '6. Označ S', 'Označ DFA stav S ako spracovaný.'),
+					A2($author$project$Main$guideRow, '7. Opakovanie', 'Pokračuj, kým worklist nie je prázdny.')
+				])),
+			A2(
+			$author$project$Main$guideSection,
+			'Vizualizácia konverzie',
+			_List_fromArray(
+				[
+					A2($author$project$Main$guideRow, 'Plátno', 'DFA stavy (podmnožiny NFA stavov); farebné zvýraznenie: žltá = aktívny, sivá = spracovaný, svetlomodrá = novo vytvorený'),
+					A2($author$project$Main$guideRow, 'Pravý panel – Popis kroku', 'Textové vysvetlenie aktuálneho kroku algoritmu v slovenčine'),
+					A2($author$project$Main$guideRow, 'Pravý panel – Tabuľka podmnožín', 'Prehľad všetkých DFA stavov a ich prechodov; zvýraznené sú riadok a stĺpec aktuálneho kroku'),
+					A2($author$project$Main$guideRow, 'Navigácia ⏮ ◀ ▶ ⏭', 'Pohyb cez jednotlivé kroky algoritmu dopredu/dozadu'),
+					A2($author$project$Main$guideRow, 'Ťahanie stavov', 'DFA stavy na plátne je možné presúvať')
+				])),
+			A2(
+			$author$project$Main$guideSection,
+			'Výstup konverzie',
+			_List_fromArray(
+				[
+					A2($author$project$Main$guideRow, 'Nahradiť automat', 'Otvorí výsledný DFA v editore (nahradí aktuálny automat)'),
+					A2($author$project$Main$guideRow, 'Uložiť DFA', 'Uloží výsledný DFA do lokálneho úložiska prehliadača s názvom'),
+					$author$project$Main$guideNote('Tlačidlá Nahradiť a Uložiť sú aktívne až po dokončení posledného kroku konverzie.')
+				]))
+		]));
+var $author$project$Main$GuideLoadExample = function (a) {
+	return {$: 'GuideLoadExample', a: a};
+};
+var $author$project$Main$exampleCard = function (ex) {
+	return A2(
+		$elm$html$Html$div,
+		_List_fromArray(
+			[
+				A2($elm$html$Html$Attributes$style, 'border', '1px solid #cfd8dc'),
+				A2($elm$html$Html$Attributes$style, 'border-radius', '6px'),
+				A2($elm$html$Html$Attributes$style, 'padding', '12px 14px'),
+				A2($elm$html$Html$Attributes$style, 'background', '#fafafa'),
+				A2($elm$html$Html$Attributes$style, 'display', 'flex'),
+				A2($elm$html$Html$Attributes$style, 'flex-direction', 'column'),
+				A2($elm$html$Html$Attributes$style, 'gap', '6px'),
+				A2($elm$html$Html$Attributes$style, 'flex', '1'),
+				A2($elm$html$Html$Attributes$style, 'min-width', '200px')
+			]),
+		_List_fromArray(
+			[
+				A2(
+				$elm$html$Html$div,
+				_List_fromArray(
+					[
+						A2($elm$html$Html$Attributes$style, 'font-weight', 'bold'),
+						A2($elm$html$Html$Attributes$style, 'font-size', '13px'),
+						A2($elm$html$Html$Attributes$style, 'color', '#1a2f4a')
+					]),
+				_List_fromArray(
+					[
+						$elm$html$Html$text(ex.name)
+					])),
+				A2(
+				$elm$html$Html$div,
+				_List_fromArray(
+					[
+						A2($elm$html$Html$Attributes$style, 'font-size', '12px'),
+						A2($elm$html$Html$Attributes$style, 'color', '#616161'),
+						A2($elm$html$Html$Attributes$style, 'flex', '1')
+					]),
+				_List_fromArray(
+					[
+						$elm$html$Html$text(ex.description)
+					])),
+				A2(
+				$elm$html$Html$button,
+				_List_fromArray(
+					[
+						$elm$html$Html$Events$onClick(
+						$author$project$Main$GuideLoadExample(ex.automaton)),
+						A2($elm$html$Html$Attributes$style, 'padding', '6px 12px'),
+						A2($elm$html$Html$Attributes$style, 'background-color', '#0277bd'),
+						A2($elm$html$Html$Attributes$style, 'color', 'white'),
+						A2($elm$html$Html$Attributes$style, 'border', 'none'),
+						A2($elm$html$Html$Attributes$style, 'border-radius', '4px'),
+						A2($elm$html$Html$Attributes$style, 'cursor', 'pointer'),
+						A2($elm$html$Html$Attributes$style, 'font-size', '12px'),
+						A2($elm$html$Html$Attributes$style, 'align-self', 'flex-start'),
+						A2($elm$html$Html$Attributes$style, 'margin-top', '4px')
+					]),
+				_List_fromArray(
+					[
+						$elm$html$Html$text('Načítať do editora')
+					]))
+			]));
+};
+var $author$project$Utils$ExampleAutomata$example1 = {
+	automaton: {
+		nextStateId: 2,
+		states: _List_fromArray(
+			[
+				{id: 0, isEnd: false, isStart: true, label: 'q0', x: 200, y: 280},
+				{id: 1, isEnd: true, isStart: false, label: 'q1', x: 520, y: 280}
+			]),
+		transitions: _List_fromArray(
+			[
+				{from: 0, symbol: 'a', to: 1},
+				{from: 0, symbol: 'b', to: 0},
+				{from: 1, symbol: 'a', to: 1},
+				{from: 1, symbol: 'b', to: 0}
+			])
+	},
+	description: 'Prijíma reťazce nad {a,b} končiace symbolom \'a\'. Príklad: a, ba, aba.',
+	name: 'DFA – končí na \'a\''
+};
+var $author$project$Utils$ExampleAutomata$example2 = {
+	automaton: {
+		nextStateId: 2,
+		states: _List_fromArray(
+			[
+				{id: 0, isEnd: true, isStart: true, label: 'even', x: 200, y: 280},
+				{id: 1, isEnd: false, isStart: false, label: 'odd', x: 520, y: 280}
+			]),
+		transitions: _List_fromArray(
+			[
+				{from: 0, symbol: '0', to: 1},
+				{from: 0, symbol: '1', to: 0},
+				{from: 1, symbol: '0', to: 0},
+				{from: 1, symbol: '1', to: 1}
+			])
+	},
+	description: 'Prijíma binárne reťazce s párnym počtom symbolov \'0\' (vrátane žiadnej nuly). Príklad: ε, 00, 11, 1001.',
+	name: 'DFA – párny počet núl'
+};
+var $author$project$Utils$ExampleAutomata$example3 = {
+	automaton: {
+		nextStateId: 3,
+		states: _List_fromArray(
+			[
+				{id: 0, isEnd: false, isStart: true, label: 'q0', x: 150, y: 280},
+				{id: 1, isEnd: false, isStart: false, label: 'q1', x: 370, y: 280},
+				{id: 2, isEnd: true, isStart: false, label: 'q2', x: 590, y: 280}
+			]),
+		transitions: _List_fromArray(
+			[
+				{from: 0, symbol: '0', to: 0},
+				{from: 0, symbol: '1', to: 0},
+				{from: 0, symbol: '0', to: 1},
+				{from: 1, symbol: '1', to: 2}
+			])
+	},
+	description: 'Nedeterministický automat prijímajúci reťazce nad {0,1} končiace podreťazcom \'01\'. Príklad: 01, 101, 0101.',
+	name: 'NFA – končí na \'01\''
+};
+var $author$project$Utils$ExampleAutomata$example4 = {
+	automaton: {
+		nextStateId: 4,
+		states: _List_fromArray(
+			[
+				{id: 0, isEnd: false, isStart: true, label: 'q0', x: 150, y: 280},
+				{id: 1, isEnd: false, isStart: false, label: 'q1', x: 360, y: 280},
+				{id: 2, isEnd: true, isStart: false, label: 'q2', x: 570, y: 170},
+				{id: 3, isEnd: true, isStart: false, label: 'q3', x: 570, y: 390}
+			]),
+		transitions: _List_fromArray(
+			[
+				{from: 0, symbol: 'a', to: 1},
+				{from: 1, symbol: 'ε', to: 2},
+				{from: 1, symbol: 'b', to: 3}
+			])
+	},
+	description: 'NFA s epsilon prechodom: q1 →ε→ q2 (akceptuje \'a\'), q1 →b→ q3 (akceptuje \'ab\'). Ukážka ε-prechodov.',
+	name: 'NFA s ε – prijíma \'a\' alebo \'ab\''
+};
+var $author$project$Utils$ExampleAutomata$example5 = {
+	automaton: {
+		nextStateId: 3,
+		states: _List_fromArray(
+			[
+				{id: 0, isEnd: false, isStart: true, label: 'q0', x: 150, y: 280},
+				{id: 1, isEnd: false, isStart: false, label: 'q1', x: 370, y: 280},
+				{id: 2, isEnd: true, isStart: false, label: 'q2', x: 590, y: 280}
+			]),
+		transitions: _List_fromArray(
+			[
+				{from: 0, symbol: '0', to: 0},
+				{from: 0, symbol: '1', to: 0},
+				{from: 0, symbol: '1', to: 1},
+				{from: 1, symbol: '0', to: 2},
+				{from: 1, symbol: '1', to: 2}
+			])
+	},
+	description: 'Prijíma reťazce nad {0,1} dĺžky ≥ 2, kde predposledný symbol je \'1\'. Príklad: 10, 11, 010, 110.',
+	name: 'NFA – predposledný symbol je \'1\''
+};
+var $author$project$Utils$ExampleAutomata$example6 = {
+	automaton: {
+		nextStateId: 2,
+		states: _List_fromArray(
+			[
+				{id: 0, isEnd: true, isStart: true, label: 'q0', x: 200, y: 280},
+				{id: 1, isEnd: true, isStart: false, label: 'q1', x: 520, y: 280}
+			]),
+		transitions: _List_fromArray(
+			[
+				{from: 0, symbol: 'a', to: 0},
+				{from: 0, symbol: 'ε', to: 1},
+				{from: 1, symbol: 'b', to: 1}
+			])
+	},
+	description: 'Prijíma reťazce tvaru a⁰⁺b⁰⁺: nula alebo viac \'a\', za nimi nula alebo viac \'b\'.',
+	name: 'ε-NFA – a*b*'
+};
+var $author$project$Utils$ExampleAutomata$examples = _List_fromArray(
+	[$author$project$Utils$ExampleAutomata$example1, $author$project$Utils$ExampleAutomata$example2, $author$project$Utils$ExampleAutomata$example3, $author$project$Utils$ExampleAutomata$example4, $author$project$Utils$ExampleAutomata$example5, $author$project$Utils$ExampleAutomata$example6]);
+var $author$project$Main$viewGuideEditor = A2(
+	$elm$html$Html$div,
+	_List_Nil,
+	_List_fromArray(
+		[
+			$author$project$Main$guidePara('Editor slúži na budovanie deterministických (DFA) a nedeterministických (NFA) konečných automatov. Stavy a prechody vytvárate priamo na plátne.'),
+			A2(
+			$author$project$Main$guideSection,
+			'Akcie na plátne (nástroj Stavať)',
+			_List_fromArray(
+				[
+					A2($author$project$Main$guideRow, 'Pridanie stavu', 'Dvojklik na prázdne plátno (predvolený názov q0, q1, …)'),
+					A2($author$project$Main$guideRow, 'Premenovanie stavu', 'Rýchly dvojklik na stav → upraviť názov v modáli'),
+					A2($author$project$Main$guideRow, 'Nastavenie počiatočného stavu', 'Rýchly dvojklik na stav → zaškrtnúť Počiatočný stav'),
+					A2($author$project$Main$guideRow, 'Nastavenie koncového stavu', 'Rýchly dvojklik na stav → zaškrtnúť Koncový stav'),
+					A2($author$project$Main$guideRow, 'Pridanie prechodu', 'Kliknutie na zdrojový stav, potom kliknutie na cieľový stav'),
+					A2($author$project$Main$guideRow, 'Pridanie slučky (self-loop)', 'Pomalý dvojklik na stav'),
+					A2($author$project$Main$guideRow, 'Epsilon prechod', 'Nechajte vstupné pole prázdne'),
+					A2($author$project$Main$guideRow, 'Viac prechodov naraz', 'Symboly oddeľte čiarkou, napr. a,b'),
+					A2($author$project$Main$guideRow, 'Úprava symbolu prechodu', 'Dvojklik na symbol prechodu'),
+					A2($author$project$Main$guideRow, 'Presun stavu', 'Ťahanie stavu myšou'),
+					A2($author$project$Main$guideRow, 'Zrušenie akcie / výberu', 'Klik na prázdne plátno alebo Escape')
+				])),
+			A2(
+			$author$project$Main$guideSection,
+			'Nástroje',
+			_List_fromArray(
+				[
+					A2($author$project$Main$guideRow, 'Stavať  (Shift+B)', 'Predvolený nástroj: vytváranie stavov a prechodov'),
+					A2($author$project$Main$guideRow, 'Odstrániť  (Shift+D)', 'Klik na stav alebo prechod ho vymaže; opätovné kliknutie prepne späť na Stavať')
+				])),
+			A2(
+			$author$project$Main$guideSection,
+			'Klávesové skratky',
+			_List_fromArray(
+				[
+					A2($author$project$Main$guideRow, 'Ctrl+Z / Ctrl+Y', 'Späť / Dopredu (undo/redo)'),
+					A2($author$project$Main$guideRow, 'Shift+B', 'Nástroj Stavať'),
+					A2($author$project$Main$guideRow, 'Shift+D', 'Nástroj Odstrániť'),
+					A2($author$project$Main$guideRow, 'Escape', 'Zruší aktuálnu akciu (zatvorí vstupné polia, modály)')
+				])),
+			A2(
+			$author$project$Main$guideSection,
+			'Navigácia plátna',
+			_List_fromArray(
+				[
+					A2($author$project$Main$guideRow, 'Koliesko myši (alebo ± tlačidlá)', 'Priblíženie / oddialenie'),
+					A2($author$project$Main$guideRow, 'Ťahanie prázdneho plátna', 'Posúvanie pohľadu (pan)')
+				])),
+			A2(
+			$author$project$Main$guideSection,
+			'Súbory a ukladanie',
+			_List_fromArray(
+				[
+					A2($author$project$Main$guideRow, 'Export', 'Stiahne automat ako súbor .json'),
+					A2($author$project$Main$guideRow, 'Uložiť', 'Uloží automat do lokálneho úložiska prehliadača s názvom'),
+					A2($author$project$Main$guideRow, 'Načítať', 'Načíta zo súboru .json alebo z lokálneho úložiska'),
+					A2($author$project$Main$guideRow, 'Zdieľať cez URL', 'Zakóduje automat do URL (hash); zdieľateľný link'),
+					$author$project$Main$guideNote('Lokálne úložisko je viazané na prehliadač a doménu. Automaty zo sprievodcu sa do neho neukladajú.')
+				])),
+			A2(
+			$author$project$Main$guideSection,
+			'Konzola',
+			_List_fromArray(
+				[
+					$author$project$Main$guidePara('Spodná lišta zobrazuje informačné a chybové správy. Konzola je skrývateľná – kliknutím na lištu ju zrolujete alebo rozbalíte.')
+				])),
+			A2(
+			$author$project$Main$guideSection,
+			'Príklady automatov',
+			_List_fromArray(
+				[
+					A2(
+					$elm$html$Html$div,
+					_List_fromArray(
+						[
+							A2($elm$html$Html$Attributes$style, 'display', 'flex'),
+							A2($elm$html$Html$Attributes$style, 'flex-wrap', 'wrap'),
+							A2($elm$html$Html$Attributes$style, 'gap', '10px')
+						]),
+					A2($elm$core$List$map, $author$project$Main$exampleCard, $author$project$Utils$ExampleAutomata$examples))
+				]))
+		]));
+var $author$project$Main$guideErrorRow = F2(
+	function (err, cause) {
+		return A2(
+			$elm$html$Html$div,
+			_List_fromArray(
+				[
+					A2($elm$html$Html$Attributes$style, 'display', 'flex'),
+					A2($elm$html$Html$Attributes$style, 'gap', '10px'),
+					A2($elm$html$Html$Attributes$style, 'margin-bottom', '8px'),
+					A2($elm$html$Html$Attributes$style, 'padding', '8px 10px'),
+					A2($elm$html$Html$Attributes$style, 'background', '#fff8f8'),
+					A2($elm$html$Html$Attributes$style, 'border-left', '3px solid #e53935'),
+					A2($elm$html$Html$Attributes$style, 'border-radius', '3px')
+				]),
+			_List_fromArray(
+				[
+					A2(
+					$elm$html$Html$span,
+					_List_fromArray(
+						[
+							A2($elm$html$Html$Attributes$style, 'font-family', 'monospace'),
+							A2($elm$html$Html$Attributes$style, 'font-size', '12px'),
+							A2($elm$html$Html$Attributes$style, 'color', '#c62828'),
+							A2($elm$html$Html$Attributes$style, 'min-width', '240px'),
+							A2($elm$html$Html$Attributes$style, 'flex-shrink', '0'),
+							A2($elm$html$Html$Attributes$style, 'font-weight', 'bold')
+						]),
+					_List_fromArray(
+						[
+							$elm$html$Html$text(err)
+						])),
+					A2(
+					$elm$html$Html$span,
+					_List_fromArray(
+						[
+							A2($elm$html$Html$Attributes$style, 'font-size', '12px'),
+							A2($elm$html$Html$Attributes$style, 'color', '#424242')
+						]),
+					_List_fromArray(
+						[
+							$elm$html$Html$text(cause)
+						]))
+				]));
+	});
+var $author$project$Main$viewGuideErrors = A2(
+	$elm$html$Html$div,
+	_List_Nil,
+	_List_fromArray(
+		[
+			$author$project$Main$guidePara('Zoznam chýb a upozornení, ktoré sa môžu v aplikácii objaviť, vrátane ich príčiny a riešenia.'),
+			A2(
+			$author$project$Main$guideSection,
+			'Chyby v editore',
+			_List_fromArray(
+				[
+					A2($author$project$Main$guideErrorRow, 'Prázdny názov nie je povolený', 'Stav musí mať neprázdny názov. Zadajte aspoň jeden znak.'),
+					A2($author$project$Main$guideErrorRow, 'Stav s názvom \'...\' už existuje', 'Každý stav musí mať unikátny názov. Zvoľte iný názov.'),
+					A2($author$project$Main$guideErrorRow, 'Slučka nemôže byť ε-prechodom', 'Epsilon self-loop (stav na seba samého) nie je povolený.'),
+					A2($author$project$Main$guideErrorRow, 'Prechod \'...\' už existuje', 'Duplikátny prechod: rovnaký (zdroj, symbol, cieľ) už existuje.'),
+					A2($author$project$Main$guideErrorRow, 'Symbol nemôže obsahovať medzery', 'Symbol prechodu nesmie obsahovať medzery (napr. použite \'ab\' nie \'a b\').'),
+					A2($author$project$Main$guideErrorRow, 'Chyba importu: ...', 'Neplatný JSON súbor alebo formát nezodpovedá schéme automatu.'),
+					A2($author$project$Main$guideErrorRow, 'Zadajte názov automatu', 'Pri ukladaní do lokálneho úložiska musíte zadať neprázdny názov.')
+				])),
+			A2(
+			$author$project$Main$guideSection,
+			'Neaktívne tlačidlá (podmienky spustenia)',
+			_List_fromArray(
+				[
+					A2($author$project$Main$guideErrorRow, 'Simulovať – \'Pridajte aspoň jeden stav\'', 'Automat nemá žiadne stavy. Dvojklikom na plátno pridajte stav.'),
+					A2($author$project$Main$guideErrorRow, 'Simulovať – \'Nastavte počiatočný stav\'', 'Automat nemá počiatočný stav. Dvojklik na stav → zaškrtnúť \'Počiatočný stav\'.'),
+					A2($author$project$Main$guideErrorRow, 'Simulovať – \'Nastavte aspoň jeden koncový stav\'', 'Automat nemá žiadny akceptujúci stav. Nastavte ho cez modál stavu.'),
+					A2($author$project$Main$guideErrorRow, 'NFA→DFA – dostupné iba pre NFA', 'Tlačidlo je neaktívne pre DFA (žiadne ε-prechody ani nedeterminizmus).')
+				]))
+		]));
+var $author$project$Main$viewGuideSimulator = A2(
+	$elm$html$Html$div,
+	_List_Nil,
+	_List_fromArray(
+		[
+			$author$project$Main$guidePara('Simulátor umožňuje spúšťať automat krok za krokom na zadanom vstupnom reťazci. Tlačidlo Simulovať je aktívne len vtedy, keď automat má počiatočný aj aspoň jeden koncový stav.'),
+			A2(
+			$author$project$Main$guideSection,
+			'Ovládanie',
+			_List_fromArray(
+				[
+					A2($author$project$Main$guideRow, 'Vstupné pole', 'Zadajte reťazec, ktorý chcete simulovať (napr. aab)'),
+					A2($author$project$Main$guideRow, 'Krok vpred', 'Prečíta ďalší symbol a posunie simuláciu o jeden krok'),
+					A2($author$project$Main$guideRow, 'Krok späť', 'Vráti simuláciu do predchádzajúceho stavu'),
+					A2($author$project$Main$guideRow, 'Reset', 'Vráti simuláciu na začiatok (vstup zostane)'),
+					A2($author$project$Main$guideRow, '▶ Auto / ⏸ Pauza', 'Spustí / pozastaví automatické krokovanie'),
+					A2($author$project$Main$guideRow, 'Posuvník rýchlosti', 'Nastaví interval krokovania (100 ms – 2 s)')
+				])),
+			A2(
+			$author$project$Main$guideSection,
+			'DFA simulácia',
+			_List_fromArray(
+				[
+					A2($author$project$Main$guideRow, 'Aktívny stav', 'Zvýraznený na plátne modrým orámovaním'),
+					A2($author$project$Main$guideRow, 'Aktívny prechod', 'Šípka prechodu sa zvýrazní pri každom kroku'),
+					A2($author$project$Main$guideRow, 'Výsledok', 'Zelená = Akceptované, červená = Zamietnuté'),
+					$author$project$Main$guideNote('DFA má vždy práve jednu aktívnu cestu — žiadny nedeterminizmus.')
+				])),
+			A2(
+			$author$project$Main$guideSection,
+			'NFA simulácia',
+			_List_fromArray(
+				[
+					A2($author$project$Main$guideRow, 'Inštancie', 'Každá inštancia sleduje jednu možnú cestu automate'),
+					A2($author$project$Main$guideRow, 'Panel inštancií (vľavo)', 'Zoznam všetkých inštancií; klik = zvýrazní stav na plátne'),
+					A2($author$project$Main$guideRow, 'Stav inštancie', 'Modrá = bežiaca, zelená = akceptovala, červená = zamietnutá'),
+					A2($author$project$Main$guideRow, 'Strom rozhodnutí (vpravo)', 'Vizualizácia všetkých ciest vrátane ε-krokov; sivé uzly = ukončené predka'),
+					A2($author$project$Main$guideRow, 'Klik na uzol stromu', 'Zvýrazní zodpovedajúcu inštanciu a stav na plátne'),
+					A2($author$project$Main$guideRow, 'Prepínače Plátno / Strom', 'Zobraziť alebo skryť každú sekciu nezávisle'),
+					A2($author$project$Main$guideRow, 'Zlúčiť stavy', 'Ak zaškrtnuté: inštancie s rovnakým (stav, zostatok vstupu) sa zlúčia do jednej. Bez zlučovania môže počet inštancií rásť exponenciálne (až k^n, kde k je priemerný počet vetvení a n dĺžka vstupu). Zlučovanie obmedzuje počet aktívnych inštancií na najviac |Q| v každom kroku. Odporúčané pre komplexné NFA.'),
+					$author$project$Main$guideNote('NFA akceptuje reťazec, ak aspoň jedna inštancia dosiahne akceptujúci stav po prečítaní celého vstupu.')
+				])),
+			A2(
+			$author$project$Main$guideSection,
+			'ε-prechody v NFA',
+			_List_fromArray(
+				[
+					A2($author$project$Main$guideRow, 'ε-rozvinutie', 'Po každom symbolickom kroku sa automaticky vytvoria ε-deti'),
+					A2($author$project$Main$guideRow, 'Zobrazenie', 'ε-kroky sú viditeľné v strome rozhodnutí ako samostatné úrovne')
+				]))
+		]));
+var $author$project$Main$viewGuideContent = function (tab) {
+	switch (tab.$) {
+		case 'GuideEditor':
+			return $author$project$Main$viewGuideEditor;
+		case 'GuideSimulator':
+			return $author$project$Main$viewGuideSimulator;
+		case 'GuideConversion':
+			return $author$project$Main$viewGuideConversion;
+		default:
+			return $author$project$Main$viewGuideErrors;
+	}
+};
+var $author$project$Main$viewGuideHeader = A2(
+	$elm$html$Html$div,
+	_List_fromArray(
+		[
+			A2($elm$html$Html$Attributes$style, 'display', 'flex'),
+			A2($elm$html$Html$Attributes$style, 'align-items', 'center'),
+			A2($elm$html$Html$Attributes$style, 'padding', '14px 20px'),
+			A2($elm$html$Html$Attributes$style, 'background-color', '#1a2f4a'),
+			A2($elm$html$Html$Attributes$style, 'color', 'white'),
+			A2($elm$html$Html$Attributes$style, 'flex-shrink', '0')
+		]),
+	_List_fromArray(
+		[
+			A2(
+			$elm$html$Html$div,
+			_List_fromArray(
+				[
+					A2($elm$html$Html$Attributes$style, 'font-size', '17px'),
+					A2($elm$html$Html$Attributes$style, 'font-weight', 'bold'),
+					A2($elm$html$Html$Attributes$style, 'flex', '1')
+				]),
+			_List_fromArray(
+				[
+					$elm$html$Html$text('Sprievodca simulátorom DFA/NFA')
+				])),
+			A2(
+			$elm$html$Html$button,
+			_List_fromArray(
+				[
+					$elm$html$Html$Events$onClick($author$project$Main$CloseGuide),
+					A2($elm$html$Html$Attributes$style, 'background', 'none'),
+					A2($elm$html$Html$Attributes$style, 'border', 'none'),
+					A2($elm$html$Html$Attributes$style, 'color', 'white'),
+					A2($elm$html$Html$Attributes$style, 'font-size', '22px'),
+					A2($elm$html$Html$Attributes$style, 'cursor', 'pointer'),
+					A2($elm$html$Html$Attributes$style, 'padding', '0 2px'),
+					A2($elm$html$Html$Attributes$style, 'line-height', '1')
+				]),
+			_List_fromArray(
+				[
+					$elm$html$Html$text('×')
+				]))
+		]));
+var $author$project$Main$GuideErrors = {$: 'GuideErrors'};
+var $author$project$Main$SetGuideTab = function (a) {
+	return {$: 'SetGuideTab', a: a};
+};
+var $author$project$Main$guideTabBtn = F3(
+	function (tab, label, current) {
+		return A2(
+			$elm$html$Html$button,
+			_List_fromArray(
+				[
+					$elm$html$Html$Events$onClick(
+					$author$project$Main$SetGuideTab(tab)),
+					A2($elm$html$Html$Attributes$style, 'padding', '10px 18px'),
+					A2(
+					$elm$html$Html$Attributes$style,
+					'background-color',
+					_Utils_eq(tab, current) ? '#37474f' : 'transparent'),
+					A2($elm$html$Html$Attributes$style, 'color', 'white'),
+					A2($elm$html$Html$Attributes$style, 'border', 'none'),
+					A2(
+					$elm$html$Html$Attributes$style,
+					'border-bottom',
+					_Utils_eq(tab, current) ? '2px solid #4fc3f7' : '2px solid transparent'),
+					A2($elm$html$Html$Attributes$style, 'cursor', 'pointer'),
+					A2($elm$html$Html$Attributes$style, 'font-size', '13px'),
+					A2(
+					$elm$html$Html$Attributes$style,
+					'font-weight',
+					_Utils_eq(tab, current) ? 'bold' : 'normal')
+				]),
+			_List_fromArray(
+				[
+					$elm$html$Html$text(label)
+				]));
+	});
+var $author$project$Main$viewGuideTabBar = function (current) {
 	return A2(
 		$elm$html$Html$div,
 		_List_fromArray(
 			[
 				A2($elm$html$Html$Attributes$style, 'display', 'flex'),
-				A2($elm$html$Html$Attributes$style, 'flex-direction', 'column'),
-				A2($elm$html$Html$Attributes$style, 'height', '100vh'),
-				A2($elm$html$Html$Attributes$style, 'width', '100vw'),
-				A2($elm$html$Html$Attributes$style, 'overflow', 'hidden')
+				A2($elm$html$Html$Attributes$style, 'background-color', '#263238'),
+				A2($elm$html$Html$Attributes$style, 'flex-shrink', '0')
 			]),
 		_List_fromArray(
 			[
-				$author$project$Components$SimulateToolbar$view(
-				{
-					autoRunning: model.autoRunning,
-					autoSpeed: model.autoSpeed,
-					canStepBackward: $author$project$Pages$Simulator$canStepBackward(model),
-					canStepForward: $author$project$Pages$Simulator$canStepForward(model),
-					nextSymbol: nextSymbol,
-					onReset: $author$project$Pages$Simulator$ResetSimulation,
-					onSetAutoSpeed: $author$project$Pages$Simulator$SetAutoSpeed,
-					onStepBackward: $author$project$Pages$Simulator$StepBackward,
-					onStepForward: $author$project$Pages$Simulator$StepForward,
-					onSwitchToEditor: $author$project$Pages$Simulator$SwitchToEditor,
-					onToggleAutoRun: $author$project$Pages$Simulator$ToggleAutoRun
-				}),
+				A3($author$project$Main$guideTabBtn, $author$project$Main$GuideEditor, 'Editor', current),
+				A3($author$project$Main$guideTabBtn, $author$project$Main$GuideSimulator, 'Simulátor', current),
+				A3($author$project$Main$guideTabBtn, $author$project$Main$GuideConversion, 'Konverzia NFA→DFA', current),
+				A3($author$project$Main$guideTabBtn, $author$project$Main$GuideErrors, 'Chybové správy', current)
+			]));
+};
+var $author$project$Main$viewGuideModal = function (model) {
+	return A2(
+		$elm$html$Html$div,
+		_List_fromArray(
+			[
+				A2($elm$html$Html$Attributes$style, 'position', 'fixed'),
+				A2($elm$html$Html$Attributes$style, 'top', '0'),
+				A2($elm$html$Html$Attributes$style, 'left', '0'),
+				A2($elm$html$Html$Attributes$style, 'width', '100%'),
+				A2($elm$html$Html$Attributes$style, 'height', '100%'),
+				A2($elm$html$Html$Attributes$style, 'background-color', 'rgba(0,0,0,0.6)'),
+				A2($elm$html$Html$Attributes$style, 'z-index', '3000'),
+				A2($elm$html$Html$Attributes$style, 'display', 'flex'),
+				A2($elm$html$Html$Attributes$style, 'align-items', 'center'),
+				A2($elm$html$Html$Attributes$style, 'justify-content', 'center'),
+				$elm$html$Html$Events$onClick($author$project$Main$CloseGuide)
+			]),
+		_List_fromArray(
+			[
 				A2(
 				$elm$html$Html$div,
 				_List_fromArray(
 					[
+						A2($elm$html$Html$Attributes$style, 'background', 'white'),
+						A2($elm$html$Html$Attributes$style, 'border-radius', '10px'),
+						A2($elm$html$Html$Attributes$style, 'width', '740px'),
+						A2($elm$html$Html$Attributes$style, 'max-width', '96vw'),
+						A2($elm$html$Html$Attributes$style, 'max-height', '88vh'),
 						A2($elm$html$Html$Attributes$style, 'display', 'flex'),
-						A2($elm$html$Html$Attributes$style, 'flex-direction', 'row'),
-						A2($elm$html$Html$Attributes$style, 'flex', '1'),
-						A2($elm$html$Html$Attributes$style, 'overflow', 'hidden')
+						A2($elm$html$Html$Attributes$style, 'flex-direction', 'column'),
+						A2($elm$html$Html$Attributes$style, 'overflow', 'hidden'),
+						A2($elm$html$Html$Attributes$style, 'box-shadow', '0 8px 32px rgba(0,0,0,0.4)'),
+						A2(
+						$elm$html$Html$Events$stopPropagationOn,
+						'click',
+						$elm$json$Json$Decode$succeed(
+							_Utils_Tuple2($author$project$Main$NoOp, true)))
 					]),
 				_List_fromArray(
 					[
+						$author$project$Main$viewGuideHeader,
+						$author$project$Main$viewGuideTabBar(model.guideTab),
 						A2(
 						$elm$html$Html$div,
 						_List_fromArray(
 							[
 								A2($elm$html$Html$Attributes$style, 'flex', '1'),
-								A2($elm$html$Html$Attributes$style, 'display', 'flex'),
-								A2($elm$html$Html$Attributes$style, 'flex-direction', 'column'),
-								A2($elm$html$Html$Attributes$style, 'overflow', 'hidden')
+								A2($elm$html$Html$Attributes$style, 'overflow-y', 'auto'),
+								A2($elm$html$Html$Attributes$style, 'padding', '20px 24px'),
+								A2($elm$html$Html$Attributes$style, 'font-family', 'sans-serif'),
+								A2($elm$html$Html$Attributes$style, 'font-size', '13px'),
+								A2($elm$html$Html$Attributes$style, 'line-height', '1.65'),
+								A2($elm$html$Html$Attributes$style, 'color', '#212121')
 							]),
 						_List_fromArray(
 							[
-								_Utils_eq(model.mode, $author$project$Pages$Simulator$NfaMode) ? A2(
-								$elm$html$Html$div,
-								_List_fromArray(
-									[
-										A2($elm$html$Html$Attributes$style, 'display', 'flex'),
-										A2($elm$html$Html$Attributes$style, 'background-color', '#455a64'),
-										A2($elm$html$Html$Attributes$style, 'flex-shrink', '0')
-									]),
-								_List_fromArray(
-									[
-										A3($author$project$Pages$Simulator$viewToggleTab, 'Automat', model.showCanvas, $author$project$Pages$Simulator$ToggleCanvas),
-										A3($author$project$Pages$Simulator$viewToggleTab, 'Strom', model.showTree, $author$project$Pages$Simulator$ToggleTree)
-									])) : A2($elm$html$Html$div, _List_Nil, _List_Nil),
-								A2(
-								$elm$html$Html$div,
-								_List_fromArray(
-									[
-										A2($elm$html$Html$Attributes$style, 'flex', '1'),
-										A2($elm$html$Html$Attributes$style, 'display', 'flex'),
-										A2($elm$html$Html$Attributes$style, 'flex-direction', 'row'),
-										A2($elm$html$Html$Attributes$style, 'overflow', 'hidden')
-									]),
-								_List_fromArray(
-									[
-										(_Utils_eq(model.mode, $author$project$Pages$Simulator$DfaMode) || model.showCanvas) ? A2(
-										$elm$html$Html$div,
-										_List_fromArray(
-											[
-												A2($elm$html$Html$Attributes$style, 'flex', '1'),
-												A2($elm$html$Html$Attributes$style, 'overflow', 'auto'),
-												A2($elm$html$Html$Attributes$style, 'background-color', '#ecf0f1')
-											]),
-										_List_fromArray(
-											[
-												$author$project$Components$Canvas$view(
-												{
-													activeStateId: activeStateId,
-													activeTransition: model.activeTransition,
-													height: 600,
-													isSimulateMode: true,
-													onCanvasClick: $author$project$Pages$Simulator$CanvasClick,
-													onCanvasDoubleClick: F2(
-														function (_v0, _v1) {
-															return A2($author$project$Pages$Simulator$CanvasClick, 0, 0);
-														}),
-													onCanvasMouseDown: $author$project$Pages$Simulator$CanvasMouseDown,
-													onDragMove: $author$project$Pages$Simulator$DragMove,
-													onEndDrag: $author$project$Pages$Simulator$EndDrag,
-													onStartDrag: $author$project$Pages$Simulator$StartDrag,
-													onStateClick: $author$project$Pages$Simulator$StateClick,
-													onStateDoubleClick: function (_v2) {
-														return A2($author$project$Pages$Simulator$CanvasClick, 0, 0);
-													},
-													onTransitionClick: $author$project$Pages$Simulator$TransitionClick,
-													onTransitionDoubleClick: F3(
-														function (_v3, _v4, _v5) {
-															return A2($author$project$Pages$Simulator$CanvasClick, 0, 0);
-														}),
-													onWheel: F3(
-														function (d, x, y) {
-															return A3($author$project$Pages$Simulator$Wheel, d, x, y);
-														}),
-													onZoomIn: $author$project$Pages$Simulator$ZoomIn,
-													onZoomOut: $author$project$Pages$Simulator$ZoomOut,
-													panX: model.panX,
-													panY: model.panY,
-													selectedState: $elm$core$Maybe$Nothing,
-													states: model.automaton.states,
-													transitionFrom: $elm$core$Maybe$Nothing,
-													transitions: model.automaton.transitions,
-													width: 800,
-													zoom: model.zoom
-												})
-											])) : A2($elm$html$Html$div, _List_Nil, _List_Nil),
-										(_Utils_eq(model.mode, $author$project$Pages$Simulator$NfaMode) && model.showTree) ? A2(
-										$elm$html$Html$div,
-										_List_fromArray(
-											[
-												A2($elm$html$Html$Attributes$style, 'width', '1px'),
-												A2($elm$html$Html$Attributes$style, 'background-color', '#ccc')
-											]),
-										_List_Nil) : A2($elm$html$Html$div, _List_Nil, _List_Nil),
-										(_Utils_eq(model.mode, $author$project$Pages$Simulator$NfaMode) && model.showTree) ? $author$project$Components$NfaTreeView$view(
-										{instances: model.nfaInstances, mergedEdges: model.nfaMergedEdges, onSelect: $author$project$Pages$Simulator$SelectNfaInstance, selectedId: model.selectedInstanceId, states: model.automaton.states, treeNodes: model.nfaTree}) : A2($elm$html$Html$div, _List_Nil, _List_Nil)
-									]))
-							])),
-						A2(
-						$elm$html$Html$div,
-						_List_fromArray(
-							[
-								A2($elm$html$Html$Attributes$style, 'width', '300px'),
-								A2($elm$html$Html$Attributes$style, 'border-left', '2px solid #34495e'),
-								A2($elm$html$Html$Attributes$style, 'display', 'flex'),
-								A2($elm$html$Html$Attributes$style, 'flex-direction', 'column'),
-								A2($elm$html$Html$Attributes$style, 'background-color', '#f8f9fa'),
-								A2($elm$html$Html$Attributes$style, 'overflow', 'hidden')
-							]),
-						_List_fromArray(
-							[
-								A2(
-								$elm$html$Html$div,
-								_List_fromArray(
-									[
-										A2($elm$html$Html$Attributes$style, 'padding', '10px 15px 6px 15px')
-									]),
-								_List_fromArray(
-									[
-										$elm$html$Html$text('Vstupné slovo:'),
-										A2(
-										$elm$html$Html$input,
-										_List_fromArray(
-											[
-												$elm$html$Html$Attributes$type_('text'),
-												$elm$html$Html$Attributes$value(model.inputString),
-												$elm$html$Html$Events$onInput($author$project$Pages$Simulator$SetInput),
-												A2($elm$html$Html$Attributes$style, 'width', '100%'),
-												A2($elm$html$Html$Attributes$style, 'padding', '8px'),
-												A2($elm$html$Html$Attributes$style, 'margin-top', '5px'),
-												A2($elm$html$Html$Attributes$style, 'border', '1px solid #bdc3c7'),
-												A2($elm$html$Html$Attributes$style, 'border-radius', '4px'),
-												A2($elm$html$Html$Attributes$style, 'box-sizing', 'border-box')
-											]),
-										_List_Nil)
-									])),
-								A2($author$project$Pages$Simulator$viewReadingHead, model.inputString, readingHeadRemaining),
-								function () {
-								var _v6 = model.mode;
-								if (_v6.$ === 'DfaMode') {
-									return $author$project$Components$SimulationStatus$view(
-										{
-											currentState: A2(
-												$author$project$Utils$AutomatonHelpers$getStateById,
-												A2($elm$core$Maybe$withDefault, -1, model.currentStateId),
-												model.automaton.states),
-											inputString: model.inputString,
-											remainingInput: model.remainingInput,
-											verdict: model.verdict
-										});
-								} else {
-									return A2(
-										$elm$html$Html$div,
-										_List_fromArray(
-											[
-												A2($elm$html$Html$Attributes$style, 'display', 'flex'),
-												A2($elm$html$Html$Attributes$style, 'flex-direction', 'column'),
-												A2($elm$html$Html$Attributes$style, 'flex', '1'),
-												A2($elm$html$Html$Attributes$style, 'overflow', 'hidden')
-											]),
-										_List_fromArray(
-											[
-												$author$project$Components$SimulationStatus$view(
-												{currentState: selectedInstanceState, inputString: model.inputString, remainingInput: selectedInstanceRemaining, verdict: selectedInstanceVerdict}),
-												A2(
-												$elm$html$Html$div,
-												_List_fromArray(
-													[
-														A2($elm$html$Html$Attributes$style, 'padding', '6px 15px'),
-														A2($elm$html$Html$Attributes$style, 'border-top', '1px solid #ccc'),
-														A2($elm$html$Html$Attributes$style, 'display', 'flex'),
-														A2($elm$html$Html$Attributes$style, 'align-items', 'center'),
-														A2($elm$html$Html$Attributes$style, 'justify-content', 'space-between')
-													]),
-												_List_fromArray(
-													[
-														A2(
-														$elm$html$Html$label,
-														_List_fromArray(
-															[
-																A2($elm$html$Html$Attributes$style, 'display', 'flex'),
-																A2($elm$html$Html$Attributes$style, 'align-items', 'center'),
-																A2($elm$html$Html$Attributes$style, 'gap', '6px'),
-																A2($elm$html$Html$Attributes$style, 'cursor', 'pointer'),
-																A2($elm$html$Html$Attributes$style, 'font-size', '12px'),
-																A2($elm$html$Html$Attributes$style, 'color', '#546e7a'),
-																A2($elm$html$Html$Attributes$style, 'user-select', 'none')
-															]),
-														_List_fromArray(
-															[
-																A2(
-																$elm$html$Html$input,
-																_List_fromArray(
-																	[
-																		$elm$html$Html$Attributes$type_('checkbox'),
-																		$elm$html$Html$Attributes$checked(model.mergeEnabled),
-																		$elm$html$Html$Events$onClick($author$project$Pages$Simulator$ToggleMerge)
-																	]),
-																_List_Nil),
-																$elm$html$Html$text('Zlúčiť stavy')
-															])),
-														A2(
-														$elm$html$Html$div,
-														_List_fromArray(
-															[
-																A2($elm$html$Html$Attributes$style, 'font-weight', 'bold'),
-																A2($elm$html$Html$Attributes$style, 'font-size', '13px')
-															]),
-														_List_fromArray(
-															[
-																$elm$html$Html$text('Inštancie NFA:')
-															]))
-													])),
-												A2(
-												$elm$html$Html$div,
-												_List_fromArray(
-													[
-														A2($elm$html$Html$Attributes$style, 'flex', '1'),
-														A2($elm$html$Html$Attributes$style, 'overflow-y', 'auto'),
-														A2($elm$html$Html$Attributes$style, 'padding', '4px 15px')
-													]),
-												_List_fromArray(
-													[
-														$author$project$Components$NfaInstancePanel$view(
-														{instances: model.nfaInstances, onSelect: $author$project$Pages$Simulator$SelectNfaInstance, selectedId: model.selectedInstanceId, states: model.automaton.states})
-													]))
-											]));
-								}
-							}()
+								$author$project$Main$viewGuideContent(model.guideTab)
 							]))
-					])),
-				$author$project$Components$Console$view(
-				{messages: model.consoleMessages})
+					]))
 			]));
 };
 var $author$project$Main$view = function (model) {
-	var _v0 = model.currentPage;
-	switch (_v0.$) {
-		case 'EditorPage':
-			return A2(
-				$elm$html$Html$map,
-				$author$project$Main$EditorMsg,
-				$author$project$Pages$Editor$view(model.editorModel));
-		case 'SimulatorPage':
-			return A2(
-				$elm$html$Html$div,
-				_List_fromArray(
-					[
-						A2($elm$html$Html$Attributes$style, 'display', 'flex'),
-						A2($elm$html$Html$Attributes$style, 'flex-direction', 'column'),
-						A2($elm$html$Html$Attributes$style, 'height', '100vh')
-					]),
-				_List_fromArray(
-					[
-						A2(
-						$elm$html$Html$map,
-						$author$project$Main$SimulatorMsg,
-						$author$project$Pages$Simulator$view(model.simulatorModel))
-					]));
-		default:
-			return A2(
-				$elm$html$Html$map,
-				$author$project$Main$ConversionMsg,
-				$author$project$Pages$Conversion$view(model.conversionModel));
-	}
+	return A2(
+		$elm$html$Html$div,
+		_List_Nil,
+		_List_fromArray(
+			[
+				function () {
+				var _v0 = model.currentPage;
+				switch (_v0.$) {
+					case 'EditorPage':
+						return A2(
+							$elm$html$Html$map,
+							$author$project$Main$EditorMsg,
+							A2($author$project$Pages$Editor$view, model.consoleOpen, model.editorModel));
+					case 'SimulatorPage':
+						return A2(
+							$elm$html$Html$div,
+							_List_fromArray(
+								[
+									A2($elm$html$Html$Attributes$style, 'display', 'flex'),
+									A2($elm$html$Html$Attributes$style, 'flex-direction', 'column'),
+									A2($elm$html$Html$Attributes$style, 'height', '100vh')
+								]),
+							_List_fromArray(
+								[
+									A2(
+									$elm$html$Html$map,
+									$author$project$Main$SimulatorMsg,
+									A2($author$project$Pages$Simulator$view, model.consoleOpen, model.simulatorModel))
+								]));
+					default:
+						return A2(
+							$elm$html$Html$map,
+							$author$project$Main$ConversionMsg,
+							A2($author$project$Pages$Conversion$view, model.consoleOpen, model.conversionModel));
+				}
+			}(),
+				model.showGuide ? $author$project$Main$viewGuideModal(model) : $elm$html$Html$text('')
+			]));
 };
 var $author$project$Main$main = $elm$browser$Browser$element(
 	{init: $author$project$Main$init, subscriptions: $author$project$Main$subscriptions, update: $author$project$Main$update, view: $author$project$Main$view});

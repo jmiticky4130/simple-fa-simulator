@@ -1,11 +1,12 @@
 module Pages.Conversion exposing (Model, Msg(..), init, update, view, conversionResultToAutomaton)
 
 import Dict exposing (Dict)
-import Html exposing (Html, div, button, text, input, table, tr, td, th, thead, tbody)
-import Html.Attributes exposing (style, type_, value, placeholder, autofocus, disabled)
+import Html exposing (Html, div, button, text, input, table, tr, td, th, thead, tbody, img)
+import Html.Attributes exposing (style, type_, value, placeholder, autofocus, disabled, src)
 import Html.Events exposing (onClick, onInput)
 import Shared exposing (State, AutomatonState)
 import Components.ConversionCanvas as ConversionCanvas
+import Components.Console as Console
 import Utils.ConversionHelpers exposing
     ( DfaSubsetState
     , DfaSubsetTransition
@@ -40,6 +41,7 @@ type alias Model =
     , draggingStateId : Maybe Int
     , dragOffsetX : Float
     , dragOffsetY : Float
+    , consoleMessages : List Console.Message
     }
 
 
@@ -65,6 +67,8 @@ type Msg
     | Wheel Float Float Float
     | StateMouseDown Int Float Float
     | NoOp
+    | ShowGuide
+    | ToggleConsole
 
 
 -- INIT
@@ -90,6 +94,7 @@ init nfa =
         , draggingStateId = Nothing
         , dragOffsetX = 0
         , dragOffsetY = 0
+        , consoleMessages = [ { text = "Konverzia NFA -> DFA spustena.", msgType = Console.Info } ]
         }
 
 
@@ -104,13 +109,30 @@ update msg model =
     in
     case msg of
         StepForward ->
-            updateHighlight { model | currentStep = min (total - 1) (model.currentStep + 1) }
+            let
+                newStep = min (total - 1) (model.currentStep + 1)
+                isNowDone = newStep >= total - 1 && model.currentStep < total - 1
+                msgs =
+                    if isNowDone then
+                        { text = "Konverzia dokoncena.", msgType = Console.Info } :: model.consoleMessages
+                    else
+                        model.consoleMessages
+            in
+            updateHighlight { model | currentStep = newStep, consoleMessages = msgs }
 
         StepBackward ->
             updateHighlight { model | currentStep = max 0 (model.currentStep - 1) }
 
         JumpToEnd ->
-            updateHighlight { model | currentStep = total - 1 }
+            let
+                isNowDone = model.currentStep < total - 1
+                msgs =
+                    if isNowDone then
+                        { text = "Konverzia dokoncena.", msgType = Console.Info } :: model.consoleMessages
+                    else
+                        model.consoleMessages
+            in
+            updateHighlight { model | currentStep = total - 1, consoleMessages = msgs }
 
         JumpToStart ->
             updateHighlight { model | currentStep = 0 }
@@ -119,7 +141,7 @@ update msg model =
             model
 
         ReplaceAutomaton ->
-            model
+            { model | consoleMessages = { text = "Automat nahradeny konvertovanym DFA.", msgType = Console.Info } :: model.consoleMessages }
 
         ShowSaveModal ->
             { model | showSaveModal = True, saveNameInput = "" }
@@ -128,7 +150,7 @@ update msg model =
             { model | saveNameInput = s }
 
         ConfirmSaveToStorage ->
-            model
+            { model | consoleMessages = { text = "DFA ulozeny: " ++ model.saveNameInput, msgType = Console.Info } :: model.consoleMessages }
 
         DismissSaveModal ->
             { model | showSaveModal = False, saveNameInput = "" }
@@ -206,6 +228,12 @@ update msg model =
         NoOp ->
             model
 
+        ShowGuide ->
+            model
+
+        ToggleConsole ->
+            model
+
 
 updateHighlight : Model -> Model
 updateHighlight model =
@@ -274,8 +302,8 @@ conversionResultToAutomaton model =
 -- VIEW
 
 
-view : Model -> Html Msg
-view model =
+view : Bool -> Model -> Html Msg
+view consoleOpen model =
     let
         total =
             List.length model.snapshots
@@ -305,6 +333,11 @@ view model =
             [ viewCanvas model currentSnap
             , viewRightPanel model currentSnap
             ]
+        , Console.view
+            { messages = model.consoleMessages
+            , isOpen = consoleOpen
+            , onToggle = ToggleConsole
+            }
         , viewSaveModal model
         ]
 
@@ -317,23 +350,38 @@ viewTopBar stepNum total isAtStart isAtEnd =
     div
         [ style "display" "flex"
         , style "flex-direction" "row"
-        , style "padding" "10px"
-        , style "background-color" "#37474f"
+        , style "padding" "14px 12px"
+        , style "background-color" "#1a2f4a"
         , style "gap" "8px"
         , style "align-items" "center"
         , style "border-bottom" "2px solid #263238"
         , style "flex-shrink" "0"
         ]
-        [ navBtn "← Editor" SwitchToEditor False
-        , navBtn "⏮" JumpToStart isAtStart
+        [ navBtn "⏮" JumpToStart isAtStart
         , navBtn "◀" StepBackward isAtStart
         , navBtn "▶" StepForward isAtEnd
         , navBtn "⏭" JumpToEnd isAtEnd
         , div [ style "color" "white", style "font-size" "14px", style "padding" "0 8px" ]
             [ text ("Krok " ++ String.fromInt stepNum ++ " / " ++ String.fromInt total) ]
-        , div [ style "margin-left" "auto" ] []
+        , div
+            [ style "width" "1px"
+            , style "height" "28px"
+            , style "background-color" "rgba(255,255,255,0.2)"
+            , style "margin" "0 4px"
+            ]
+            []
         , actionBtn "Nahradiť automat" ReplaceAutomaton isAtEnd
         , actionBtn "Uložiť DFA" ShowSaveModal isAtEnd
+        , div [ style "flex" "1" ] []
+        , div
+            [ style "width" "300px"
+            , style "display" "flex"
+            , style "justify-content" "flex-end"
+            , style "gap" "8px"
+            ]
+            [ guideColorBtn ShowGuide
+            , colorBtn "← Editor" "#0277bd" SwitchToEditor True
+            ]
         ]
 
 
@@ -341,7 +389,7 @@ navBtn : String -> Msg -> Bool -> Html Msg
 navBtn label msg isDisabled =
     button
         [ onClick msg
-        , style "padding" "8px 14px"
+        , style "padding" "11px 16px"
         , style "background-color" (if isDisabled then "#b0bec5" else "#546e7a")
         , style "color" "white"
         , style "border" "none"
@@ -357,7 +405,7 @@ actionBtn : String -> Msg -> Bool -> Html Msg
 actionBtn label msg isEnabled =
     button
         [ onClick msg
-        , style "padding" "8px 14px"
+        , style "padding" "11px 18px"
         , style "background-color" (if isEnabled then "#0277bd" else "#b0bec5")
         , style "color" "white"
         , style "border" "none"
@@ -368,6 +416,50 @@ actionBtn label msg isEnabled =
         , disabled (not isEnabled)
         ]
         [ text label ]
+
+
+colorBtn : String -> String -> Msg -> Bool -> Html Msg
+colorBtn label color msg isEnabled =
+    button
+        [ onClick msg
+        , style "padding" "11px 18px"
+        , style "background-color" (if isEnabled then color else "#b0bec5")
+        , style "color" "white"
+        , style "border" "none"
+        , style "border-radius" "5px"
+        , style "cursor" (if isEnabled then "pointer" else "not-allowed")
+        , style "font-size" "14px"
+        , style "font-weight" "bold"
+        , disabled (not isEnabled)
+        ]
+        [ text label ]
+
+
+guideColorBtn : Msg -> Html Msg
+guideColorBtn msg =
+    button
+        [ onClick msg
+        , style "padding" "11px 18px"
+        , style "background-color" "#00796b"
+        , style "color" "white"
+        , style "border" "none"
+        , style "border-radius" "5px"
+        , style "cursor" "pointer"
+        , style "font-size" "14px"
+        , style "font-weight" "bold"
+        , style "display" "flex"
+        , style "align-items" "center"
+        , style "gap" "6px"
+        ]
+        [ img
+            [ src "guide_icon.png"
+            , style "width" "20px"
+            , style "height" "20px"
+            , style "filter" "brightness(0) invert(1)"
+            ]
+            []
+        , text "Sprievodca"
+        ]
 
 
 -- CANVAS
@@ -425,10 +517,10 @@ viewRightPanel model maybeSnap =
                 _ -> Nothing
     in
     div
-        [ style "width" "340px"
+        [ style "width" "300px"
         , style "flex-shrink" "0"
-        , style "background-color" "#f5f5f5"
-        , style "border-left" "2px solid #ccc"
+        , style "background-color" "#f8f9fa"
+        , style "border-left" "2px solid #34495e"
         , style "display" "flex"
         , style "flex-direction" "column"
         , style "overflow" "hidden"

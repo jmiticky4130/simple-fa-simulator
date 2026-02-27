@@ -16,6 +16,7 @@ type alias Config msg =
     , transitions : List Transition
     , selectedState : Maybe Int
     , transitionFrom : Maybe Int
+    , transitionTo : Maybe Int
     , activeStateId : Maybe Int
     , activeTransition : Maybe { from : Int, to : Int, symbol : String }
     , onCanvasClick : Float -> Float -> msg
@@ -138,13 +139,16 @@ svgState config state =
         isTransitionStart =
             config.transitionFrom == Just state.id
 
+        isTransitionEnd =
+            config.transitionTo == Just state.id
+
         isActive =
             config.activeStateId == Just state.id
 
         fillColor =
             if isSelected then
                 "#80cbc4"
-            else if isTransitionStart then
+            else if isTransitionStart || isTransitionEnd then
                 "#fff59d"
             else if isActive then
                 "#a5d6a7"
