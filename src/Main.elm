@@ -2,8 +2,8 @@ port module Main exposing (..)
 
 import Browser
 import Browser.Events
-import Html exposing (Html, div, button, text, span, h3, p, ul, li, strong)
-import Html.Attributes exposing (style)
+import Html exposing (Html, div, button, text, span, h3, p, ul, li, strong, a)
+import Html.Attributes exposing (style, href, target)
 import Html.Events exposing (onClick)
 import Json.Decode as Decode
 import Pages.Editor as Editor
@@ -37,6 +37,7 @@ type GuideTab
     | GuideSimulator
     | GuideConversion
     | GuideErrors
+    | GuideAbout
 
 
 type alias Model =
@@ -99,6 +100,9 @@ update msg model =
 
                 Editor.ShowGuide ->
                     ( { model | showGuide = True, guideTab = GuideEditor }, Cmd.none )
+
+                Editor.ShowAboutGuide ->
+                    ( { model | showGuide = True, guideTab = GuideAbout }, Cmd.none )
 
                 Editor.SwitchToConversion ->
                     ( { model
@@ -439,6 +443,7 @@ viewGuideTabBar current =
         , guideTabBtn GuideSimulator "Simulátor" current
         , guideTabBtn GuideConversion "Konverzia NFA→DFA" current
         , guideTabBtn GuideErrors "Chybové správy" current
+        , guideTabBtn GuideAbout "O projekte" current
         ]
 
 
@@ -475,6 +480,9 @@ viewGuideContent tab =
 
         GuideErrors ->
             viewGuideErrors
+
+        GuideAbout ->
+            viewGuideAbout
 
 
 -- ─── GUIDE HELPERS ───────────────────────────────────────────────────────────
@@ -776,3 +784,32 @@ viewGuideErrors =
                 "Tlačidlo je neaktívne pre DFA (žiadne ε-prechody ani nedeterminizmus)."
             ]
         ]
+
+
+-- ─── ABOUT TAB ───────────────────────────────────────────────────────────────
+
+
+viewGuideAbout : Html Msg
+viewGuideAbout =
+    div []
+        [ guideSection
+            [ guideRow "Názov" "Simulátor konečných automatov (DFA/NFA)"
+            , guideRow "Typ" "Bakalárska práca"
+            , guideRow "Rok" "2026"
+            , guideRow "Škola" "STU FIIT"
+            ]
+        , div
+            [ style "margin-top" "16px"
+            , style "font-size" "15px"
+            , style "color" "#424242"
+            ]
+            [ text "Spätná väzba, otázky alebo hlásenie chýb – napíšte na: "
+            , a
+                [ href "mailto:xmiticky@stuba.sk"
+                , style "color" "#0277bd"
+                , style "font-weight" "bold"
+                ]
+                [ text "xmiticky@stuba.sk" ]
+            ]
+        ]
+

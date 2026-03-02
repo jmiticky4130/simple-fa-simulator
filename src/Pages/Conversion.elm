@@ -337,6 +337,7 @@ view consoleOpen model =
             { messages = model.consoleMessages
             , isOpen = consoleOpen
             , onToggle = ToggleConsole
+            , onLinkClick = Nothing
             }
         , viewSaveModal model
         ]

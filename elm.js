@@ -6553,12 +6553,18 @@ var $elm_community$undo_redo$UndoList$fresh = function (state) {
 	return A3($elm_community$undo_redo$UndoList$UndoList, _List_Nil, state, _List_Nil);
 };
 var $author$project$Pages$Editor$BuildTool = {$: 'BuildTool'};
+var $author$project$Components$Console$InfoLink = function (a) {
+	return {$: 'InfoLink', a: a};
+};
 var $author$project$Pages$Editor$init = {
 	automaton: $elm_community$undo_redo$UndoList$fresh(
 		{nextStateId: 0, states: _List_Nil, transitions: _List_Nil}),
 	consoleMessages: _List_fromArray(
 		[
-			{msgType: $author$project$Components$Console$Info, text: 'Vitajte v simulátore DFA/NFA. Dvojklikom na plátno pridajte stav.'}
+			{
+			msgType: $author$project$Components$Console$InfoLink('O projekte'),
+			text: 'Vitajte v simulátore DFA/NFA. Dvojklikom na plátno pridajte stav.'
+		}
 		]),
 	currentTool: $author$project$Pages$Editor$BuildTool,
 	dragStartX: 0,
@@ -7220,6 +7226,7 @@ var $author$project$Main$subscriptions = function (model) {
 };
 var $author$project$Main$ConversionPage = {$: 'ConversionPage'};
 var $author$project$Pages$Conversion$DismissSaveModal = {$: 'DismissSaveModal'};
+var $author$project$Main$GuideAbout = {$: 'GuideAbout'};
 var $author$project$Main$GuideConversion = {$: 'GuideConversion'};
 var $author$project$Main$GuideSimulator = {$: 'GuideSimulator'};
 var $author$project$Main$SimulatorPage = {$: 'SimulatorPage'};
@@ -8905,6 +8912,8 @@ var $author$project$Pages$Editor$update = F2(
 				return _Utils_Tuple2(model, $elm$core$Platform$Cmd$none);
 			case 'ShowGuide':
 				return _Utils_Tuple2(model, $elm$core$Platform$Cmd$none);
+			case 'ShowAboutGuide':
+				return _Utils_Tuple2(model, $elm$core$Platform$Cmd$none);
 			default:
 				var text = msg.a;
 				return _Utils_Tuple2(
@@ -9790,6 +9799,12 @@ var $author$project$Main$update = F2(
 								model,
 								{guideTab: $author$project$Main$GuideEditor, showGuide: true}),
 							$elm$core$Platform$Cmd$none);
+					case 'ShowAboutGuide':
+						return _Utils_Tuple2(
+							_Utils_update(
+								model,
+								{guideTab: $author$project$Main$GuideAbout, showGuide: true}),
+							$elm$core$Platform$Cmd$none);
 					case 'SwitchToConversion':
 						return _Utils_Tuple2(
 							_Utils_update(
@@ -10074,28 +10089,79 @@ var $elm$html$Html$Attributes$src = function (url) {
 		_VirtualDom_noJavaScriptOrHtmlUri(url));
 };
 var $elm$html$Html$p = _VirtualDom_node('p');
-var $author$project$Components$Console$viewMessage = function (message) {
-	var borderColor = function () {
+var $elm$html$Html$span = _VirtualDom_node('span');
+var $author$project$Components$Console$viewMessage = F2(
+	function (maybeOnLinkClick, message) {
+		var borderColor = function () {
+			var _v2 = message.msgType;
+			switch (_v2.$) {
+				case 'Info':
+					return '#3498db';
+				case 'Error':
+					return '#e74c3c';
+				default:
+					return '#3498db';
+			}
+		}();
 		var _v0 = message.msgType;
-		if (_v0.$ === 'Info') {
-			return '#3498db';
+		if (_v0.$ === 'InfoLink') {
+			var linkLabel = _v0.a;
+			return A2(
+				$elm$html$Html$p,
+				_List_fromArray(
+					[
+						A2($elm$html$Html$Attributes$style, 'margin', '2px 0'),
+						A2($elm$html$Html$Attributes$style, 'padding', '2px 5px'),
+						A2($elm$html$Html$Attributes$style, 'border-left', '3px solid ' + borderColor)
+					]),
+				_List_fromArray(
+					[
+						$elm$html$Html$text(message.text + ' '),
+						function () {
+						if (maybeOnLinkClick.$ === 'Just') {
+							var action = maybeOnLinkClick.a;
+							return A2(
+								$elm$html$Html$span,
+								_List_fromArray(
+									[
+										$elm$html$Html$Events$onClick(action),
+										A2($elm$html$Html$Attributes$style, 'color', '#4fc3f7'),
+										A2($elm$html$Html$Attributes$style, 'cursor', 'pointer'),
+										A2($elm$html$Html$Attributes$style, 'text-decoration', 'underline')
+									]),
+								_List_fromArray(
+									[
+										$elm$html$Html$text(linkLabel)
+									]));
+						} else {
+							return A2(
+								$elm$html$Html$span,
+								_List_fromArray(
+									[
+										A2($elm$html$Html$Attributes$style, 'color', '#4fc3f7')
+									]),
+								_List_fromArray(
+									[
+										$elm$html$Html$text(linkLabel)
+									]));
+						}
+					}()
+					]));
 		} else {
-			return '#e74c3c';
+			return A2(
+				$elm$html$Html$p,
+				_List_fromArray(
+					[
+						A2($elm$html$Html$Attributes$style, 'margin', '2px 0'),
+						A2($elm$html$Html$Attributes$style, 'padding', '2px 5px'),
+						A2($elm$html$Html$Attributes$style, 'border-left', '3px solid ' + borderColor)
+					]),
+				_List_fromArray(
+					[
+						$elm$html$Html$text(message.text)
+					]));
 		}
-	}();
-	return A2(
-		$elm$html$Html$p,
-		_List_fromArray(
-			[
-				A2($elm$html$Html$Attributes$style, 'margin', '2px 0'),
-				A2($elm$html$Html$Attributes$style, 'padding', '2px 5px'),
-				A2($elm$html$Html$Attributes$style, 'border-left', '3px solid ' + borderColor)
-			]),
-		_List_fromArray(
-			[
-				$elm$html$Html$text(message.text)
-			]));
-};
+	});
 var $author$project$Components$Console$view = function (config) {
 	return A2(
 		$elm$html$Html$div,
@@ -10175,7 +10241,10 @@ var $author$project$Components$Console$view = function (config) {
 						A2($elm$html$Html$Attributes$style, 'display', 'flex'),
 						A2($elm$html$Html$Attributes$style, 'flex-direction', 'column-reverse')
 					]),
-				A2($elm$core$List$map, $author$project$Components$Console$viewMessage, config.messages)) : A2($elm$html$Html$div, _List_Nil, _List_Nil)
+				A2(
+					$elm$core$List$map,
+					$author$project$Components$Console$viewMessage(config.onLinkClick),
+					config.messages)) : A2($elm$html$Html$div, _List_Nil, _List_Nil)
 			]));
 };
 var $author$project$Pages$Conversion$CanvasMouseDown = F2(
@@ -11670,7 +11739,7 @@ var $author$project$Pages$Conversion$view = F2(
 							A2($author$project$Pages$Conversion$viewRightPanel, model, currentSnap)
 						])),
 					$author$project$Components$Console$view(
-					{isOpen: consoleOpen, messages: model.consoleMessages, onToggle: $author$project$Pages$Conversion$ToggleConsole}),
+					{isOpen: consoleOpen, messages: model.consoleMessages, onLinkClick: $elm$core$Maybe$Nothing, onToggle: $author$project$Pages$Conversion$ToggleConsole}),
 					$author$project$Pages$Conversion$viewSaveModal(model)
 				]));
 	});
@@ -11696,6 +11765,7 @@ var $author$project$Pages$Editor$LoadRequested = {$: 'LoadRequested'};
 var $author$project$Pages$Editor$ResetAutomaton = {$: 'ResetAutomaton'};
 var $author$project$Pages$Editor$SaveRequested = {$: 'SaveRequested'};
 var $author$project$Pages$Editor$ShareUrl = {$: 'ShareUrl'};
+var $author$project$Pages$Editor$ShowAboutGuide = {$: 'ShowAboutGuide'};
 var $author$project$Pages$Editor$ShowError = function (a) {
 	return {$: 'ShowError', a: a};
 };
@@ -11752,7 +11822,6 @@ var $elm$core$Set$member = F2(
 		var dict = _v0.a;
 		return A2($elm$core$Dict$member, key, dict);
 	});
-var $elm$html$Html$span = _VirtualDom_node('span');
 var $author$project$Components$AutomatonDisplay$viewDeltaRow = F2(
 	function (states, transition) {
 		var toLabel = A2($author$project$Utils$AutomatonHelpers$getStateLabel, transition.to, states);
@@ -13788,7 +13857,12 @@ var $author$project$Pages$Editor$view = F2(
 								]))
 						])),
 					$author$project$Components$Console$view(
-					{isOpen: consoleOpen, messages: model.consoleMessages, onToggle: $author$project$Pages$Editor$ToggleConsole}),
+					{
+						isOpen: consoleOpen,
+						messages: model.consoleMessages,
+						onLinkClick: $elm$core$Maybe$Just($author$project$Pages$Editor$ShowAboutGuide),
+						onToggle: $author$project$Pages$Editor$ToggleConsole
+					}),
 					$author$project$Pages$Editor$viewInlineTransitionInput(model),
 					$author$project$Pages$Editor$viewStateModal(model),
 					$author$project$Pages$Editor$viewLoadModal(model),
@@ -15954,41 +16028,11 @@ var $author$project$Pages$Simulator$view = F2(
 								]))
 						])),
 					$author$project$Components$Console$view(
-					{isOpen: consoleOpen, messages: model.consoleMessages, onToggle: $author$project$Pages$Simulator$ToggleConsole})
+					{isOpen: consoleOpen, messages: model.consoleMessages, onLinkClick: $elm$core$Maybe$Nothing, onToggle: $author$project$Pages$Simulator$ToggleConsole})
 				]));
 	});
 var $author$project$Main$NoOp = {$: 'NoOp'};
-var $author$project$Main$guideNote = function (txt) {
-	return A2(
-		$elm$html$Html$div,
-		_List_fromArray(
-			[
-				A2($elm$html$Html$Attributes$style, 'background-color', '#e8f5e9'),
-				A2($elm$html$Html$Attributes$style, 'padding', '8px 12px'),
-				A2($elm$html$Html$Attributes$style, 'border-radius', '4px'),
-				A2($elm$html$Html$Attributes$style, 'border-left', '3px solid #43a047'),
-				A2($elm$html$Html$Attributes$style, 'font-size', '12px'),
-				A2($elm$html$Html$Attributes$style, 'color', '#1b5e20'),
-				A2($elm$html$Html$Attributes$style, 'margin-bottom', '10px')
-			]),
-		_List_fromArray(
-			[
-				$elm$html$Html$text(txt)
-			]));
-};
-var $author$project$Main$guidePara = function (txt) {
-	return A2(
-		$elm$html$Html$div,
-		_List_fromArray(
-			[
-				A2($elm$html$Html$Attributes$style, 'margin-bottom', '12px'),
-				A2($elm$html$Html$Attributes$style, 'color', '#424242')
-			]),
-		_List_fromArray(
-			[
-				$elm$html$Html$text(txt)
-			]));
-};
+var $elm$html$Html$a = _VirtualDom_node('a');
 var $author$project$Main$guideRow = F2(
 	function (key, val) {
 		return A2(
@@ -16053,6 +16097,83 @@ var $author$project$Main$guideSection = F2(
 						])),
 				children));
 	});
+var $elm$html$Html$Attributes$href = function (url) {
+	return A2(
+		$elm$html$Html$Attributes$stringProperty,
+		'href',
+		_VirtualDom_noJavaScriptUri(url));
+};
+var $author$project$Main$viewGuideAbout = A2(
+	$elm$html$Html$div,
+	_List_Nil,
+	_List_fromArray(
+		[
+			A2(
+			$author$project$Main$guideSection,
+			'O projekte',
+			_List_fromArray(
+				[
+					A2($author$project$Main$guideRow, 'Názov', 'Simulátor konečných automatov (DFA/NFA)'),
+					A2($author$project$Main$guideRow, 'Typ', 'Bakalárska práca'),
+					A2($author$project$Main$guideRow, 'Rok', '2026'),
+					A2($author$project$Main$guideRow, 'Škola', 'STU FIIT')
+				])),
+			A2(
+			$elm$html$Html$div,
+			_List_fromArray(
+				[
+					A2($elm$html$Html$Attributes$style, 'margin-top', '16px'),
+					A2($elm$html$Html$Attributes$style, 'font-size', '15px'),
+					A2($elm$html$Html$Attributes$style, 'color', '#424242')
+				]),
+			_List_fromArray(
+				[
+					$elm$html$Html$text('Spätná väzba, otázky alebo hlásenie chýb – napíšte na: '),
+					A2(
+					$elm$html$Html$a,
+					_List_fromArray(
+						[
+							$elm$html$Html$Attributes$href('mailto:xmiticky@stuba.sk'),
+							A2($elm$html$Html$Attributes$style, 'color', '#0277bd'),
+							A2($elm$html$Html$Attributes$style, 'font-weight', 'bold')
+						]),
+					_List_fromArray(
+						[
+							$elm$html$Html$text('xmiticky@stuba.sk')
+						]))
+				]))
+		]));
+var $author$project$Main$guideNote = function (txt) {
+	return A2(
+		$elm$html$Html$div,
+		_List_fromArray(
+			[
+				A2($elm$html$Html$Attributes$style, 'background-color', '#e8f5e9'),
+				A2($elm$html$Html$Attributes$style, 'padding', '8px 12px'),
+				A2($elm$html$Html$Attributes$style, 'border-radius', '4px'),
+				A2($elm$html$Html$Attributes$style, 'border-left', '3px solid #43a047'),
+				A2($elm$html$Html$Attributes$style, 'font-size', '12px'),
+				A2($elm$html$Html$Attributes$style, 'color', '#1b5e20'),
+				A2($elm$html$Html$Attributes$style, 'margin-bottom', '10px')
+			]),
+		_List_fromArray(
+			[
+				$elm$html$Html$text(txt)
+			]));
+};
+var $author$project$Main$guidePara = function (txt) {
+	return A2(
+		$elm$html$Html$div,
+		_List_fromArray(
+			[
+				A2($elm$html$Html$Attributes$style, 'margin-bottom', '12px'),
+				A2($elm$html$Html$Attributes$style, 'color', '#424242')
+			]),
+		_List_fromArray(
+			[
+				$elm$html$Html$text(txt)
+			]));
+};
 var $author$project$Main$viewGuideConversion = A2(
 	$elm$html$Html$div,
 	_List_Nil,
@@ -16513,8 +16634,10 @@ var $author$project$Main$viewGuideContent = function (tab) {
 			return $author$project$Main$viewGuideSimulator;
 		case 'GuideConversion':
 			return $author$project$Main$viewGuideConversion;
-		default:
+		case 'GuideErrors':
 			return $author$project$Main$viewGuideErrors;
+		default:
+			return $author$project$Main$viewGuideAbout;
 	}
 };
 var $author$project$Main$viewGuideHeader = A2(
@@ -16609,7 +16732,8 @@ var $author$project$Main$viewGuideTabBar = function (current) {
 				A3($author$project$Main$guideTabBtn, $author$project$Main$GuideEditor, 'Editor', current),
 				A3($author$project$Main$guideTabBtn, $author$project$Main$GuideSimulator, 'Simulátor', current),
 				A3($author$project$Main$guideTabBtn, $author$project$Main$GuideConversion, 'Konverzia NFA→DFA', current),
-				A3($author$project$Main$guideTabBtn, $author$project$Main$GuideErrors, 'Chybové správy', current)
+				A3($author$project$Main$guideTabBtn, $author$project$Main$GuideErrors, 'Chybové správy', current),
+				A3($author$project$Main$guideTabBtn, $author$project$Main$GuideAbout, 'O projekte', current)
 			]));
 };
 var $author$project$Main$viewGuideModal = function (model) {

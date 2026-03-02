@@ -131,6 +131,7 @@ type Msg
     | DismissStorageSelectModal
     | SwitchToConversion
     | ShowGuide
+    | ShowAboutGuide
     | ShowError String
     | ToggleConsole
 
@@ -141,7 +142,7 @@ init =
     , currentTool = BuildTool
     , selectedState = Nothing
     , transitionFrom = Nothing
-    , consoleMessages = [ { text = "Vitajte v simulátore DFA/NFA. Dvojklikom na plátno pridajte stav.", msgType = Console.Info } ]
+    , consoleMessages = [ { text = "Vitajte v simulátore DFA/NFA. Dvojklikom na plátno pridajte stav.", msgType = Console.InfoLink "O projekte" } ]
     , isDragging = False
     , draggedState = Nothing
     , dragStartX = 0
@@ -904,6 +905,9 @@ update msg model =
         ShowGuide ->
             ( model, Cmd.none )
 
+        ShowAboutGuide ->
+            ( model, Cmd.none )
+
         ShowError text ->
             ( { model | consoleMessages = { text = text, msgType = Console.Error } :: model.consoleMessages }
             , Cmd.none
@@ -1123,6 +1127,7 @@ view consoleOpen model =
             { messages = model.consoleMessages
             , isOpen = consoleOpen
             , onToggle = ToggleConsole
+            , onLinkClick = Just ShowAboutGuide
             }
         ,
           viewInlineTransitionInput model

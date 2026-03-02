@@ -1,6 +1,6 @@
 module Components.Console exposing (view, Message, MessageType(..))
 
-import Html exposing (Html, div, text, p)
+import Html exposing (Html, div, text, p, span)
 import Html.Attributes exposing (style)
 import Html.Events exposing (onClick)
 
@@ -8,6 +8,7 @@ import Html.Events exposing (onClick)
 type MessageType
     = Info
     | Error
+    | InfoLink String
 
 
 type alias Message =
@@ -20,6 +21,7 @@ type alias Config msg =
     { messages : List Message
     , isOpen : Bool
     , onToggle : msg
+    , onLinkClick : Maybe msg
     }
 
 
@@ -71,15 +73,15 @@ view config =
                 , style "display" "flex"
                 , style "flex-direction" "column-reverse"
                 ]
-                (List.map viewMessage config.messages)
+                (List.map (viewMessage config.onLinkClick) config.messages)
 
           else
             div [] []
         ]
 
 
-viewMessage : Message -> Html msg
-viewMessage message =
+viewMessage : Maybe msg -> Message -> Html msg
+viewMessage maybeOnLinkClick message =
     let
         borderColor =
             case message.msgType of
@@ -88,10 +90,36 @@ viewMessage message =
 
                 Error ->
                     "#e74c3c"
+
+                InfoLink _ ->
+                    "#3498db"
     in
-    p
-        [ style "margin" "2px 0"
-        , style "padding" "2px 5px"
-        , style "border-left" ("3px solid " ++ borderColor)
-        ]
-        [ text message.text ]
+    case message.msgType of
+        InfoLink linkLabel ->
+            p
+                [ style "margin" "2px 0"
+                , style "padding" "2px 5px"
+                , style "border-left" ("3px solid " ++ borderColor)
+                ]
+                [ text (message.text ++ " ")
+                , case maybeOnLinkClick of
+                    Just action ->
+                        span
+                            [ onClick action
+                            , style "color" "#4fc3f7"
+                            , style "cursor" "pointer"
+                            , style "text-decoration" "underline"
+                            ]
+                            [ text linkLabel ]
+
+                    Nothing ->
+                        span [ style "color" "#4fc3f7" ] [ text linkLabel ]
+                ]
+
+        _ ->
+            p
+                [ style "margin" "2px 0"
+                , style "padding" "2px 5px"
+                , style "border-left" ("3px solid " ++ borderColor)
+                ]
+                [ text message.text ]
