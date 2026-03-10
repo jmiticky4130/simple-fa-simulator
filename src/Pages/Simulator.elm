@@ -17,6 +17,7 @@ import Components.NfaTreeView as NfaTreeView
 import Set
 import Utils.AutomatonHelpers exposing (getStateLabel, getStateById, isDFA, epsilonClosure)
 import Json.Encode
+import Utils.Theme as Theme
 
 
 type SimulationMode
@@ -151,6 +152,8 @@ type Msg
     | ToggleConsole
     | ToggleEfficientMode
     | RunEfficient
+    | ToggleSettings
+    | ToggleDarkMode
 
 
 update : Msg -> Model -> Model
@@ -946,8 +949,8 @@ encodeNode node =
         ]
 
 
-viewNfaTree : List NfaTreeNode -> List NfaInstance -> List State -> Maybe Int -> List { from : Int, to : Int } -> Float -> Html Msg
-viewNfaTree treeNodes instances states selectedId mergedEdges zoom =
+viewNfaTree : Theme.Theme -> List NfaTreeNode -> List NfaInstance -> List State -> Maybe Int -> List { from : Int, to : Int } -> Float -> Html Msg
+viewNfaTree theme treeNodes instances states selectedId mergedEdges zoom =
     NfaTreeView.view
         { treeNodes = treeNodes
         , instances = instances
@@ -958,11 +961,12 @@ viewNfaTree treeNodes instances states selectedId mergedEdges zoom =
         , zoom = zoom
         , onZoomIn = TreeZoomIn
         , onZoomOut = TreeZoomOut
+        , theme = theme
         }
 
 
-viewReadingHead : String -> String -> Html Msg
-viewReadingHead fullInput remaining =
+viewReadingHead : Theme.Theme -> String -> String -> Html Msg
+viewReadingHead theme fullInput remaining =
     let
         consumedCount =
             String.length fullInput - String.length remaining
@@ -992,27 +996,27 @@ viewReadingHead fullInput remaining =
                         "#1e88e5"
 
                      else if isConsumed then
-                        "#eceff1"
+                        theme.readingHeadConsumedBg
 
                      else
-                        "white"
+                        theme.inputBg
                     )
                 , style "color"
                     (if isCurrent then
                         "white"
 
                      else if isConsumed then
-                        "#b0bec5"
+                        theme.readingHeadConsumedText
 
                      else
-                        "#263238"
+                        theme.inputText
                     )
                 , style "border"
                     (if isCurrent then
                         "2px solid #1565c0"
 
                      else
-                        "1px solid #cfd8dc"
+                        "1px solid " ++ theme.inputBorder
                     )
                 , style "padding" "0 4px"
                 ]
@@ -1024,7 +1028,7 @@ viewReadingHead fullInput remaining =
     else
         div
             [ style "padding" "6px 15px 8px 15px"
-            , style "border-bottom" "1px solid #e0e0e0"
+            , style "border-bottom" ("1px solid " ++ theme.separatorColor)
             ]
             [ div
                 [ style "display" "flex"
@@ -1052,13 +1056,13 @@ viewDisabledToggleTab label =
         [ Html.text label ]
 
 
-viewToggleTab : String -> Bool -> Msg -> Html Msg
-viewToggleTab label isActive msg =
+viewToggleTab : Theme.Theme -> String -> Bool -> Msg -> Html Msg
+viewToggleTab theme label isActive msg =
     Html.button
         [ onClick msg
         , style "padding" "7px 18px"
-        , style "background-color" (if isActive then "#546e7a" else "transparent")
-        , style "color" "white"
+        , style "background-color" (if isActive then theme.tabActiveBg else "transparent")
+        , style "color" theme.tabText
         , style "border" "none"
         , style "border-bottom" (if isActive then "2px solid #00bcd4" else "2px solid transparent")
         , style "cursor" "pointer"
@@ -1068,9 +1072,10 @@ viewToggleTab label isActive msg =
         [ Html.text label ]
 
 
-view : Bool -> Model -> Html Msg
-view consoleOpen model =
+view : Bool -> Bool -> Bool -> Model -> Html Msg
+view consoleOpen darkMode settingsOpen model =
     let
+        theme = Theme.getTheme darkMode
         hasEpsilon =
             List.any (\t -> t.symbol == "ε") model.automaton.transitions
 
@@ -1169,6 +1174,11 @@ view consoleOpen model =
             , autoSpeed = model.autoSpeed
             , onSetAutoSpeed = SetAutoSpeed
             , onShowGuide = ShowGuide
+            , theme = theme
+            , settingsOpen = settingsOpen
+            , onToggleSettings = ToggleSettings
+            , onToggleDarkMode = ToggleDarkMode
+            , darkMode = darkMode
             }
         , div
             [ style "display" "flex"
@@ -1186,7 +1196,7 @@ view consoleOpen model =
                   if model.mode == NfaMode then
                     div
                         [ style "display" "flex"
-                        , style "background-color" "#1a2f4a"
+                        , style "background-color" theme.toolbarBg
                         , style "flex-shrink" "0"
                         ]
                         (if model.efficientMode then
@@ -1195,8 +1205,8 @@ view consoleOpen model =
                             ]
 
                          else
-                            [ viewToggleTab "Automat" model.showCanvas ToggleCanvas
-                            , viewToggleTab "Strom" model.showTree ToggleTree
+                            [ viewToggleTab theme "Automat" model.showCanvas ToggleCanvas
+                            , viewToggleTab theme "Strom" model.showTree ToggleTree
                             ]
                         )
 
@@ -1220,7 +1230,7 @@ view consoleOpen model =
                             , style "flex-grow" (if model.mode == NfaMode && model.showCanvas && model.showTree && not model.efficientMode then "0" else "1")
                             , style "min-width" "150px"
                             , style "overflow" "auto"
-                            , style "background-color" "#ecf0f1"
+                            , style "background-color" theme.canvasBg
                             ]
                             [ Canvas.view
                                 { states = model.automaton.states
@@ -1256,6 +1266,7 @@ view consoleOpen model =
                                 , height = 600
                                 , isSimulateMode = True
                                 , highlightedStateIds = efficientHighlights
+                                , theme = theme
                                 }
                             ]
 
@@ -1264,7 +1275,7 @@ view consoleOpen model =
                     , if model.mode == NfaMode && model.showCanvas && model.showTree && not model.efficientMode then
                         div
                             [ style "width" "6px"
-                            , style "background-color" "#b0bec5"
+                            , style "background-color" theme.dividerColor
                             , style "cursor" "col-resize"
                             , style "flex-shrink" "0"
                             , style "transition" "background-color 0.15s"
@@ -1275,14 +1286,14 @@ view consoleOpen model =
                       else if model.mode == NfaMode && model.showTree && not model.efficientMode then
                         div
                             [ style "width" "1px"
-                            , style "background-color" "#ccc"
+                            , style "background-color" theme.separatorColor
                             ]
                             []
 
                       else
                         div [] []
                     , if model.mode == NfaMode && model.showTree && not model.efficientMode then
-                        Html.Lazy.lazy6 viewNfaTree
+                        viewNfaTree theme
                             model.nfaTree
                             model.nfaInstances
                             model.automaton.states
@@ -1296,13 +1307,13 @@ view consoleOpen model =
                 ]
             , div
                 [ style "width" "300px"
-                , style "border-left" "2px solid #34495e"
+                , style "border-left" ("2px solid " ++ theme.rightPanelBorder)
                 , style "display" "flex"
                 , style "flex-direction" "column"
-                , style "background-color" "#f8f9fa"
+                , style "background-color" theme.rightPanelBg
                 , style "overflow" "hidden"
                 ]
-                [ div [ style "padding" "10px 15px 6px 15px" ]
+                [ div [ style "padding" "10px 15px 6px 15px", style "color" theme.textPrimary ]
                     [ text "Vstupné slovo:"
                     , input
                         [ type_ "text"
@@ -1311,13 +1322,15 @@ view consoleOpen model =
                         , style "width" "100%"
                         , style "padding" "8px"
                         , style "margin-top" "5px"
-                        , style "border" "1px solid #bdc3c7"
+                        , style "border" ("1px solid " ++ theme.inputBorder)
                         , style "border-radius" "4px"
                         , style "box-sizing" "border-box"
+                        , style "background-color" theme.inputBg
+                        , style "color" theme.inputText
                         ]
                         []
                     ]
-                , viewReadingHead model.inputString readingHeadRemaining
+                , viewReadingHead theme model.inputString readingHeadRemaining
                 , case model.mode of
                     DfaMode ->
                         SimulationStatus.view
@@ -1325,6 +1338,7 @@ view consoleOpen model =
                             , remainingInput = model.remainingInput
                             , currentState = getStateById (Maybe.withDefault -1 model.currentStateId) model.automaton.states
                             , verdict = model.verdict
+                            , theme = theme
                             }
 
                     NfaMode ->
@@ -1340,13 +1354,14 @@ view consoleOpen model =
                                     , remainingInput = selectedInstanceRemaining
                                     , currentState = selectedInstanceState
                                     , verdict = selectedInstanceVerdict
+                                    , theme = theme
                                     }
 
                               else
                                 div [] []
                             , div
                                 [ style "padding" "6px 15px"
-                                , style "border-top" "1px solid #ccc"
+                                , style "border-top" ("1px solid " ++ theme.separatorColor)
                                 , style "display" "flex"
                                 , style "align-items" "center"
                                 , style "justify-content" "space-between"
@@ -1363,7 +1378,7 @@ view consoleOpen model =
                                          , style "font-size" "12px"
                                          , style "user-select" "none"
                                          , style "cursor" (if hasEpsilon then "not-allowed" else "pointer")
-                                         , style "color" (if hasEpsilon then "#b0bec5" else "#546e7a")
+                                         , style "color" (if hasEpsilon then theme.textMuted else theme.textMuted)
                                          ]
                                             ++ (if hasEpsilon then
                                                     [ Html.Attributes.title "Zlúčenie stavov nie je dostupné pre automaty s ε-prechodmi" ]
@@ -1458,7 +1473,7 @@ view consoleOpen model =
                                         [ onClick RunEfficient
                                         , style "width" "100%"
                                         , style "padding" "12px 16px"
-                                        , style "background-color" "#0277bd"
+                                        , style "background-color" theme.btnPrimary
                                         , style "color" "white"
                                         , style "border" "none"
                                         , style "border-radius" "6px"
@@ -1468,7 +1483,7 @@ view consoleOpen model =
                                         , style "margin" "8px 15px"
                                         , style "box-sizing" "border-box"
                                         ]
-                                        [ text "Okamžitý beh" ]
+                                        [ text "Okamzity beh" ]
                                     , case model.efficientResult of
                                         Just result ->
                                             div
@@ -1476,7 +1491,7 @@ view consoleOpen model =
                                                 , style "margin" "4px 15px"
                                                 , style "border-radius" "6px"
                                                 , style "background-color"
-                                                    (if result.isAccepted then "#e8f5e9" else "#ffebee")
+                                                    (if result.isAccepted then theme.resultAcceptBg else theme.resultRejectBg)
                                                 , style "border-left"
                                                     (if result.isAccepted then "4px solid #43a047" else "4px solid #e53935")
                                                 ]
@@ -1484,12 +1499,12 @@ view consoleOpen model =
                                                     [ style "font-weight" "bold"
                                                     , style "font-size" "14px"
                                                     , style "color"
-                                                        (if result.isAccepted then "#2e7d32" else "#c62828")
+                                                        (if result.isAccepted then theme.resultAcceptText else theme.resultRejectText)
                                                     ]
                                                     [ text result.text ]
                                                 , div
                                                     [ style "font-size" "12px"
-                                                    , style "color" "#546e7a"
+                                                    , style "color" theme.textMuted
                                                     , style "margin-top" "4px"
                                                     ]
                                                     [ text ("Dosiahnuté stavy: " ++ String.join ", " (List.map (\sid -> getStateLabel sid model.automaton.states) result.reachedStates)) ]
@@ -1503,11 +1518,11 @@ view consoleOpen model =
                                         , style "align-items" "center"
                                         , style "justify-content" "center"
                                         , style "padding" "15px"
-                                        , style "color" "#90a4ae"
+                                        , style "color" theme.textMuted
                                         , style "font-size" "13px"
                                         , style "text-align" "center"
                                         ]
-                                        [ text "Panel inštancií je deaktivovaný v efektívnom režime." ]
+                                        [ text "Panel instancií je deaktivovaný v efektívnom režime." ]
                                     ]
 
                               else
@@ -1523,6 +1538,7 @@ view consoleOpen model =
                                         , states = model.automaton.states
                                         , visibleCount = model.instancePanelVisible
                                         , onLoadMore = LoadMoreInstances
+                                        , theme = theme
                                         }
                                     ]
                             ]
@@ -1533,5 +1549,6 @@ view consoleOpen model =
             , isOpen = consoleOpen
             , onToggle = ToggleConsole
             , onLinkClick = Nothing
+            , theme = theme
             }
         ]

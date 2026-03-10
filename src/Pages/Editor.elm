@@ -8,6 +8,7 @@ import Components.Toolbar as Toolbar
 import Components.Canvas as Canvas
 import Components.Console as Console
 import Components.AutomatonDisplay as AutomatonDisplay
+import Utils.Theme as Theme
 import UndoList exposing (UndoList)
 import Shared exposing (State, Transition, AutomatonState)
 import Utils.AutomatonHelpers exposing
@@ -134,6 +135,8 @@ type Msg
     | ShowAboutGuide
     | ShowError String
     | ToggleConsole
+    | ToggleSettings
+    | ToggleDarkMode
 
 
 init : Model
@@ -195,6 +198,12 @@ update msg model =
             ( model, Cmd.none )
 
         ToggleConsole ->
+            ( model, Cmd.none )
+
+        ToggleSettings ->
+            ( model, Cmd.none )
+
+        ToggleDarkMode ->
             ( model, Cmd.none )
 
         ExportJson ->
@@ -1000,9 +1009,10 @@ toolToString tool =
             "DeleteTool"
 
 
-view : Bool -> Model -> Html Msg
-view consoleOpen model =
+view : Bool -> Bool -> Bool -> Model -> Html Msg
+view consoleOpen darkMode settingsOpen model =
     let
+        theme = Theme.getTheme darkMode
         { states, transitions } = model.automaton.present
         hasStart = List.any .isStart states
         hasEnd = List.any .isEnd states
@@ -1010,22 +1020,22 @@ view consoleOpen model =
         isConvertEnabled = not (List.isEmpty states) && hasStart && hasEnd && not (isDFA states transitions)
         simulateDisabledReason =
             if List.isEmpty states then
-                Just "Pridajte aspoň jeden stav."
+                Just "Pridajte aspon jeden stav."
             else if not hasStart then
-                Just "Nastavte počiatočný stav."
+                Just "Nastavte pociatocny stav."
             else if not hasEnd then
-                Just "Nastavte aspoň jeden koncový stav."
+                Just "Nastavte aspon jeden koncovy stav."
             else
                 Nothing
         convertDisabledReason =
             if List.isEmpty states then
-                Just "Pridajte aspoň jeden stav."
+                Just "Pridajte aspon jeden stav."
             else if not hasStart then
-                Just "Nastavte počiatočný stav."
+                Just "Nastavte pociatocny stav."
             else if not hasEnd then
-                Just "Nastavte aspoň jeden koncový stav."
+                Just "Nastavte aspon jeden koncovy stav."
             else if isDFA states transitions then
-                Just "Preveďte NFA (musí obsahovať ε-prechody alebo viacero prechodov na rovnakej abecede)."
+                Just "Prevedte NFA (musi obsahovat eps-prechody alebo viacero prechodov na rovnakej abecede)."
             else
                 Nothing
     in
@@ -1060,6 +1070,11 @@ view consoleOpen model =
                 , convertDisabledReason = convertDisabledReason
                 , onConvertDisabledClick = ShowError (Maybe.withDefault "" convertDisabledReason)
                 , onShowGuide = ShowGuide
+                , theme = theme
+                , settingsOpen = settingsOpen
+                , onToggleSettings = ToggleSettings
+                , onToggleDarkMode = ToggleDarkMode
+                , darkMode = darkMode
                 }
             ]
         ,
@@ -1073,7 +1088,7 @@ view consoleOpen model =
               div
                 [ style "flex" "1"
                 , style "overflow" "hidden"
-                , style "background-color" "#ecf0f1"
+                , style "background-color" theme.canvasBg
                 , style "user-select" "none"
                 ]
                 [ Canvas.view
@@ -1105,13 +1120,14 @@ view consoleOpen model =
                     , height = 600
                     , isSimulateMode = False
                     , highlightedStateIds = []
+                    , theme = theme
                     }
                 ]
             , div
                 [ style "width" "300px"
                 , style "flex-shrink" "0"
-                , style "background-color" "#f8f9fa"
-                , style "border-left" "2px solid #34495e"
+                , style "background-color" theme.rightPanelBg
+                , style "border-left" ("2px solid " ++ theme.rightPanelBorder)
                 , style "display" "flex"
                 , style "flex-direction" "column"
                 , style "overflow" "hidden"
@@ -1119,6 +1135,7 @@ view consoleOpen model =
                 [ AutomatonDisplay.view
                     { states = states
                     , transitions = transitions
+                    , theme = theme
                     }
                 ]
             ]
@@ -1128,20 +1145,21 @@ view consoleOpen model =
             , isOpen = consoleOpen
             , onToggle = ToggleConsole
             , onLinkClick = Just ShowAboutGuide
+            , theme = theme
             }
         ,
-          viewInlineTransitionInput model
+          viewInlineTransitionInput theme model
         ,
-          viewStateModal model
+          viewStateModal theme model
         ,
-          viewLoadModal model
+          viewLoadModal theme model
         ,
-          viewSaveModal model
+          viewSaveModal theme model
         ]
 
 
-viewInlineTransitionInput : Model -> Html Msg
-viewInlineTransitionInput model =
+viewInlineTransitionInput : Theme.Theme -> Model -> Html Msg
+viewInlineTransitionInput theme model =
     case model.editingTransition of
         Just { x, y } ->
             let
@@ -1153,35 +1171,37 @@ viewInlineTransitionInput model =
                 , style "left" (String.fromFloat (screenX - 75) ++ "px")
                 , style "top" (String.fromFloat (screenY - 60) ++ "px")
                 , style "z-index" "1000"
-                , style "background-color" "white"
-                , style "border" "2px solid #3498db"
+                , style "background-color" theme.inputBg
+                , style "border" ("2px solid " ++ theme.overlayBorder)
                 , style "border-radius" "4px"
                 , style "padding" "8px"
                 , style "box-shadow" "0 2px 8px rgba(0,0,0,0.2)"
                 ]
                 [ div
                     [ style "font-size" "11px"
-                    , style "color" "#666"
+                    , style "color" theme.overlayHint
                     , style "margin-bottom" "4px"
                     , style "white-space" "nowrap"
                     ]
                     [ text (case model.editingTransitionOldSymbol of
-                        Just _ -> "Upraviť symbol:"
-                        Nothing -> "Symbol(y): a,b,ε (prázdny=ε)")
+                        Just _ -> "Upravit symbol:"
+                        Nothing -> "Symbol(y): a,b,eps (prazdny=eps)")
                     ]
                 , input
                     [ type_ "text"
                     , Html.Attributes.id "transition-input"
-                    , placeholder "a,b,ε"
+                    , placeholder "a,b,eps"
                     , value model.transitionInput
                     , onInput UpdateTransitionInput
                     , autofocus True
                     , onEnterKey ConfirmTransitionSymbol
                     , style "width" "130px"
                     , style "padding" "4px 6px"
-                    , style "border" "1px solid #ccc"
+                    , style "border" ("1px solid " ++ theme.inputBorder)
                     , style "border-radius" "3px"
                     , style "font-size" "13px"
+                    , style "background-color" theme.inputBg
+                    , style "color" theme.inputText
                     ]
                     []
                 ]
@@ -1190,8 +1210,8 @@ viewInlineTransitionInput model =
             div [] []
 
 
-viewStateModal : Model -> Html Msg
-viewStateModal model =
+viewStateModal : Theme.Theme -> Model -> Html Msg
+viewStateModal theme model =
     case model.editingStateId of
         Just stateId ->
             let
@@ -1208,8 +1228,8 @@ viewStateModal model =
                         , style "left" (String.fromFloat (screenX - 110) ++ "px")
                         , style "top" (String.fromFloat (screenY - 160) ++ "px")
                         , style "z-index" "1000"
-                        , style "background-color" "white"
-                        , style "border" "2px solid #3498db"
+                        , style "background-color" theme.inputBg
+                        , style "border" ("2px solid " ++ theme.overlayBorder)
                         , style "border-radius" "6px"
                         , style "padding" "12px"
                         , style "box-shadow" "0 4px 12px rgba(0,0,0,0.25)"
@@ -1219,23 +1239,25 @@ viewStateModal model =
                             [ style "font-weight" "bold"
                             , style "font-size" "13px"
                             , style "margin-bottom" "8px"
-                            , style "color" "#333"
+                            , style "color" theme.textPrimary
                             ]
-                            [ text "Upraviť stav" ]
+                            [ text "Upravit stav" ]
                         , input
                             [ type_ "text"
                             , Html.Attributes.id "state-modal-input"
-                            , placeholder "Názov stavu"
+                            , placeholder "Nazov stavu"
                             , value model.stateLabelInput
                             , onInput UpdateStateLabelInput
                             , onEnterKey ConfirmStateModal
                             , style "width" "100%"
                             , style "padding" "4px 6px"
-                            , style "border" "1px solid #ccc"
+                            , style "border" ("1px solid " ++ theme.inputBorder)
                             , style "border-radius" "3px"
                             , style "font-size" "13px"
                             , style "margin-bottom" "8px"
                             , style "box-sizing" "border-box"
+                            , style "background-color" theme.inputBg
+                            , style "color" theme.inputText
                             ]
                             []
                         , div
@@ -1251,8 +1273,8 @@ viewStateModal model =
                                 , onCheck SetStateModalIsStart
                                 ]
                                 []
-                            , label [ Html.Attributes.for "modal-start-cb", style "font-size" "13px", style "cursor" "pointer" ]
-                                [ text "Počiatočný stav" ]
+                            , label [ Html.Attributes.for "modal-start-cb", style "font-size" "13px", style "cursor" "pointer", style "color" theme.textPrimary ]
+                                [ text "Pociatocny stav" ]
                             ]
                         , div
                             [ style "display" "flex"
@@ -1267,8 +1289,8 @@ viewStateModal model =
                                 , onCheck SetStateModalIsEnd
                                 ]
                                 []
-                            , label [ Html.Attributes.for "modal-end-cb", style "font-size" "13px", style "cursor" "pointer" ]
-                                [ text "Koncový stav" ]
+                            , label [ Html.Attributes.for "modal-end-cb", style "font-size" "13px", style "cursor" "pointer", style "color" theme.textPrimary ]
+                                [ text "Koncovy stav" ]
                             ]
                         , div
                             [ style "display" "flex"
@@ -1278,7 +1300,7 @@ viewStateModal model =
                                 [ onClick ConfirmStateModal
                                 , style "flex" "1"
                                 , style "padding" "6px"
-                                , style "background-color" "#00897b"
+                                , style "background-color" theme.btnAutoRunActive
                                 , style "color" "white"
                                 , style "border" "none"
                                 , style "border-radius" "4px"
@@ -1291,14 +1313,14 @@ viewStateModal model =
                                 [ onClick DismissStateModal
                                 , style "flex" "1"
                                 , style "padding" "6px"
-                                , style "background-color" "#c62828"
+                                , style "background-color" theme.btnDelete
                                 , style "color" "white"
                                 , style "border" "none"
                                 , style "border-radius" "4px"
                                 , style "cursor" "pointer"
                                 , style "font-size" "13px"
                                 ]
-                                [ text "Zrušiť" ]
+                                [ text "Zrusit" ]
                             ]
                         ]
                 Nothing ->
@@ -1307,8 +1329,8 @@ viewStateModal model =
             div [] []
 
 
-viewLoadModal : Model -> Html Msg
-viewLoadModal model =
+viewLoadModal : Theme.Theme -> Model -> Html Msg
+viewLoadModal theme model =
     if model.showLoadModal then
         div
             [ style "position" "fixed"
@@ -1323,7 +1345,7 @@ viewLoadModal model =
             , style "justify-content" "center"
             ]
             [ div
-                [ style "background" "white"
+                [ style "background" theme.modalBg
                 , style "padding" "24px"
                 , style "border-radius" "8px"
                 , style "display" "flex"
@@ -1333,8 +1355,8 @@ viewLoadModal model =
                 , style "max-height" "70vh"
                 , style "overflow-y" "auto"
                 ]
-                ([ div [ style "font-weight" "bold", style "font-size" "16px", style "margin-bottom" "4px" ]
-                    [ text "Načítať automat" ]
+                ([ div [ style "font-weight" "bold", style "font-size" "16px", style "margin-bottom" "4px", style "color" theme.textPrimary ]
+                    [ text "Nacítat automat" ]
                 ]
                 ++ List.map
                     (\entry ->
@@ -1345,31 +1367,31 @@ viewLoadModal model =
                             , style "gap" "8px"
                             , style "padding" "8px 0"
                             ]
-                            [ div [ style "font-size" "14px", style "flex" "1" ] [ text entry.name ]
+                            [ div [ style "font-size" "14px", style "flex" "1", style "color" theme.textPrimary ] [ text entry.name ]
                             , button
                                 [ onClick (SelectStoredAutomaton entry.name)
                                 , Html.Attributes.class "elm-btn"
                                 , style "padding" "6px 14px"
-                                , style "background-color" "#546e7a"
+                                , style "background-color" theme.btnSecondaryBg
                                 , style "color" "white"
                                 , style "border" "none"
                                 , style "border-radius" "5px"
                                 , style "cursor" "pointer"
                                 , style "font-size" "13px"
                                 ]
-                                [ text "Načítať" ]
+                                [ text "Nacítat" ]
                             , button
                                 [ onClick (DeleteStoredAutomaton entry.name)
                                 , Html.Attributes.class "elm-btn"
                                 , style "padding" "6px 14px"
-                                , style "background-color" "#c62828"
+                                , style "background-color" theme.btnDelete
                                 , style "color" "white"
                                 , style "border" "none"
                                 , style "border-radius" "5px"
                                 , style "cursor" "pointer"
                                 , style "font-size" "13px"
                                 ]
-                                [ text "Vymazať" ]
+                                [ text "Vymazat" ]
                             ]
                     )
                     model.storedAutomata
@@ -1377,7 +1399,7 @@ viewLoadModal model =
                         [ onClick ImportJsonRequested
                         , Html.Attributes.class "elm-btn"
                         , style "padding" "10px"
-                        , style "background-color" "#546e7a"
+                        , style "background-color" theme.btnSecondaryBg
                         , style "color" "white"
                         , style "border" "none"
                         , style "border-radius" "5px"
@@ -1385,19 +1407,19 @@ viewLoadModal model =
                         , style "font-size" "14px"
                         , style "margin-top" "8px"
                         ]
-                        [ text "Načítať zo súboru .json" ]
+                        [ text "Nacítat zo súboru .json" ]
                    , button
                         [ onClick DismissLoadModal
                         , Html.Attributes.class "elm-btn"
                         , style "padding" "8px"
-                        , style "background-color" "#c62828"
+                        , style "background-color" theme.btnDelete
                         , style "color" "white"
                         , style "border" "none"
                         , style "border-radius" "5px"
                         , style "cursor" "pointer"
                         , style "font-size" "13px"
                         ]
-                        [ text "Zrušiť" ]
+                        [ text "Zrusit" ]
                    ]
                 )
             ]
@@ -1405,8 +1427,8 @@ viewLoadModal model =
         div [] []
 
 
-viewSaveModal : Model -> Html Msg
-viewSaveModal model =
+viewSaveModal : Theme.Theme -> Model -> Html Msg
+viewSaveModal theme model =
     if model.showSaveModal then
         div
             [ style "position" "fixed"
@@ -1421,7 +1443,7 @@ viewSaveModal model =
             , style "justify-content" "center"
             ]
             [ div
-                [ style "background" "white"
+                [ style "background" theme.modalBg
                 , style "padding" "24px"
                 , style "border-radius" "8px"
                 , style "display" "flex"
@@ -1429,45 +1451,47 @@ viewSaveModal model =
                 , style "gap" "12px"
                 , style "min-width" "260px"
                 ]
-                [ div [ style "font-weight" "bold", style "font-size" "16px" ]
-                    [ text "Uložiť automat" ]
+                [ div [ style "font-weight" "bold", style "font-size" "16px", style "color" theme.textPrimary ]
+                    [ text "Ulozit automat" ]
                 , input
                     [ type_ "text"
-                    , placeholder "Názov automatu"
+                    , placeholder "Nazov automatu"
                     , value model.saveNameInput
                     , onInput UpdateSaveNameInput
                     , autofocus True
                     , onEnterKey ConfirmSave
                     , style "padding" "8px"
-                    , style "border" "1px solid #ccc"
+                    , style "border" ("1px solid " ++ theme.inputBorder)
                     , style "border-radius" "5px"
                     , style "font-size" "14px"
+                    , style "background-color" theme.inputBg
+                    , style "color" theme.inputText
                     ]
                     []
                 , button
                     [ onClick ConfirmSave
                     , Html.Attributes.class "elm-btn"
                     , style "padding" "10px"
-                    , style "background-color" "#546e7a"
+                    , style "background-color" theme.btnSecondaryBg
                     , style "color" "white"
                     , style "border" "none"
                     , style "border-radius" "5px"
                     , style "cursor" "pointer"
                     , style "font-size" "14px"
                     ]
-                    [ text "Uložiť" ]
+                    [ text "Ulozit" ]
                 , button
                     [ onClick DismissSaveModal
                     , Html.Attributes.class "elm-btn"
                     , style "padding" "8px"
-                    , style "background-color" "#c62828"
+                    , style "background-color" theme.btnDelete
                     , style "color" "white"
                     , style "border" "none"
                     , style "border-radius" "5px"
                     , style "cursor" "pointer"
                     , style "font-size" "13px"
                     ]
-                    [ text "Zrušiť" ]
+                    [ text "Zrusit" ]
                 ]
             ]
     else

@@ -3,6 +3,7 @@ module Components.Console exposing (view, Message, MessageType(..))
 import Html exposing (Html, div, text, p, span)
 import Html.Attributes exposing (style)
 import Html.Events exposing (onClick)
+import Utils.Theme as Theme
 
 
 type MessageType
@@ -22,6 +23,7 @@ type alias Config msg =
     , isOpen : Bool
     , onToggle : msg
     , onLinkClick : Maybe msg
+    , theme : Theme.Theme
     }
 
 
@@ -33,7 +35,7 @@ view config =
         , style "border-top" "2px solid #0d1e30"
         ]
         [ div
-            [ style "background-color" "#1a2f4a"
+            [ style "background-color" config.theme.consoleHeaderBg
             , style "color" "#ecf0f1"
             , style "padding" "2px 10px"
             , style "font-size" "12px"
@@ -63,8 +65,8 @@ view config =
             ]
         , if config.isOpen then
             div
-                [ style "background-color" "#000000"
-                , style "color" "#d4d4d4"
+                [ style "background-color" config.theme.consoleBg
+                , style "color" config.theme.consoleText
                 , style "padding" "10px"
                 , style "height" "150px"
                 , style "overflow-y" "auto"

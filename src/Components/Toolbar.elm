@@ -5,6 +5,7 @@ import Html.Attributes as HA exposing (style)
 import Html.Events exposing (onClick)
 import Svg
 import Svg.Attributes as SA
+import Utils.Theme as Theme
 
 
 type alias Config msg =
@@ -29,20 +30,25 @@ type alias Config msg =
     , convertDisabledReason : Maybe String
     , onConvertDisabledClick : msg
     , onShowGuide : msg
+    , theme : Theme.Theme
+    , settingsOpen : Bool
+    , onToggleSettings : msg
+    , onToggleDarkMode : msg
+    , darkMode : Bool
     }
 
 
-toolbarBg : String -> String
-toolbarBg tool =
+toolbarBg : Theme.Theme -> String -> String
+toolbarBg theme tool =
     case tool of
         "BuildTool" ->
-            "#1a2f4a"
+            theme.toolbarBg
 
         "DeleteTool" ->
-            "#4a1a1a"
+            theme.toolbarDeleteBg
 
         _ ->
-            "#1a2f4a"
+            theme.toolbarBg
 
 
 view : Config msg -> Html msg
@@ -51,26 +57,26 @@ view config =
         [ style "display" "flex"
         , style "flex-direction" "row"
         , style "padding" "14px 12px"
-        , style "background-color" (toolbarBg config.currentTool)
+        , style "background-color" (toolbarBg config.theme config.currentTool)
         , style "gap" "10px"
-        , style "border-bottom" "2px solid #263238"
+        , style "border-bottom" ("2px solid " ++ config.theme.toolbarBorderColor)
         , style "align-items" "center"
         , style "transition" "background-color 0.25s"
         ]
         [ btnGroup
-            [ tooltipBtn "Reset" config.onResetTool False "Reset"
-            , iconBtn undoIcon config.onUndo (not config.canUndo) "Späť (Ctrl+Z)"
-            , iconBtn redoIcon config.onRedo (not config.canRedo) "Dopredu (Ctrl+Y)"
+            [ tooltipBtn config.theme "Reset" config.onResetTool False "Reset"
+            , iconBtn config.theme undoIcon config.onUndo (not config.canUndo) "Späť (Ctrl+Z)"
+            , iconBtn config.theme redoIcon config.onRedo (not config.canRedo) "Dopredu (Ctrl+Y)"
             ]
         , btnGroup
-            [ toolBtn "Stavať" config.onBuildTool (config.currentTool == "BuildTool") "Shift+B" "#1565c0"
-            , toolBtn "Odstrániť" config.onDeleteTool (config.currentTool == "DeleteTool") "Shift+D" "#c62828"
+            [ toolBtn config.theme "Stavať" config.onBuildTool (config.currentTool == "BuildTool") "Shift+B" config.theme.btnBuildActive
+            , toolBtn config.theme "Odstrániť" config.onDeleteTool (config.currentTool == "DeleteTool") "Shift+D" config.theme.btnDelete
             ]
         , btnGroup
-            [ tooltipBtn "Export" config.onExport False "Exportovať"
-            , tooltipBtn "Uložiť" config.onSave False "Uložiť lokálne"
-            , tooltipBtn "Načítať" config.onLoad False "Načítať lokálne"
-            , tooltipBtn "Zdieľať cez URL" config.onShare False "Zdieľať cez URL"
+            [ tooltipBtn config.theme "Export" config.onExport False "Exportovať"
+            , tooltipBtn config.theme "Uložiť" config.onSave False "Uložiť lokálne"
+            , tooltipBtn config.theme "Načítať" config.onLoad False "Načítať lokálne"
+            , tooltipBtn config.theme "Zdieľať cez URL" config.onShare False "Zdieľať cez URL"
             ]
         , div
             [ style "width" "1px"
@@ -79,7 +85,7 @@ view config =
             , style "margin" "0 4px"
             ]
             []
-        , actionButton "NFA→DFA" config.onSwitchToConversion config.isConvertEnabled config.convertDisabledReason (Just config.onConvertDisabledClick) "#6a1b9a"
+        , actionButton config.theme "NFA->DFA" config.onSwitchToConversion config.isConvertEnabled config.convertDisabledReason (Just config.onConvertDisabledClick) config.theme.btnConvert
         , div [ style "flex" "1" ] []
         , div
             [ style "width" "300px"
@@ -87,9 +93,93 @@ view config =
             , style "justify-content" "flex-end"
             , style "gap" "8px"
             ]
-            [ guideButton config.onShowGuide
-            , actionButton "Simulovať" config.onSwitchToSimulator config.isSimulateEnabled config.simulateDisabledReason (Just config.onSimulateDisabledClick) "#0277bd"
+            [ guideButton config.theme config.onShowGuide
+            , actionButton config.theme "Simulovat" config.onSwitchToSimulator config.isSimulateEnabled config.simulateDisabledReason (Just config.onSimulateDisabledClick) config.theme.btnPrimary
+            , settingsGearBtn config
             ]
+        ]
+
+
+settingsGearBtn : Config msg -> Html msg
+settingsGearBtn config =
+    div
+        [ style "position" "relative"
+        , style "display" "flex"
+        ]
+        [ button
+            [ onClick config.onToggleSettings
+            , HA.class "elm-btn"
+            , style "padding" "11px 18px"
+            , style "background-color" config.theme.btnSecondaryBg
+            , style "color" "white"
+            , style "border" "none"
+            , style "border-radius" "5px"
+            , style "cursor" "pointer"
+            , style "font-size" "14px"
+            , style "font-weight" "bold"
+            ]
+            [ text "\u{2699}" ]
+        , if config.settingsOpen then
+            div
+                [ style "position" "absolute"
+                , style "top" "100%"
+                , style "right" "0"
+                , style "margin-top" "4px"
+                , style "background-color" config.theme.settingsBg
+                , style "border" ("1px solid " ++ config.theme.settingsBorder)
+                , style "border-radius" "6px"
+                , style "padding" "12px 16px"
+                , style "z-index" "2000"
+                , style "min-width" "180px"
+                , style "box-shadow" "0 4px 16px rgba(0,0,0,0.4)"
+                ]
+                [ div
+                    [ style "color" "white"
+                    , style "font-size" "13px"
+                    , style "font-weight" "bold"
+                    , style "margin-bottom" "10px"
+                    ]
+                    [ text "Nastavenia" ]
+                , div
+                    [ style "display" "flex"
+                    , style "align-items" "center"
+                    , style "justify-content" "space-between"
+                    , style "gap" "12px"
+                    ]
+                    [ div [ style "color" "#cfd8dc", style "font-size" "13px" ]
+                        [ text "Tmavý režim" ]
+                    , pillToggle config.onToggleDarkMode config.darkMode
+                    ]
+                ]
+          else
+            text ""
+        ]
+
+
+pillToggle : msg -> Bool -> Html msg
+pillToggle onToggle isOn =
+    div
+        [ onClick onToggle
+        , style "width" "40px"
+        , style "height" "20px"
+        , style "border-radius" "10px"
+        , style "background-color" (if isOn then "#0288d1" else "#546e7a")
+        , style "cursor" "pointer"
+        , style "position" "relative"
+        , style "transition" "background-color 0.2s"
+        , style "flex-shrink" "0"
+        ]
+        [ div
+            [ style "position" "absolute"
+            , style "top" "2px"
+            , style "left" (if isOn then "22px" else "2px")
+            , style "width" "16px"
+            , style "height" "16px"
+            , style "border-radius" "50%"
+            , style "background-color" "white"
+            , style "transition" "left 0.2s"
+            ]
+            []
         ]
 
 
@@ -106,14 +196,14 @@ btnGroup children =
         children
 
 
-tooltipBtn : String -> msg -> Bool -> String -> Html msg
-tooltipBtn label onClickMsg isDisabled tipText =
+tooltipBtn : Theme.Theme -> String -> msg -> Bool -> String -> Html msg
+tooltipBtn theme label onClickMsg isDisabled tipText =
     button
         [ onClick onClickMsg
         , HA.class "elm-btn"
         , style "padding" "10px 14px"
-        , style "background-color" (if isDisabled then "#78909c" else "#546e7a")
-        , style "color" (if isDisabled then "#b0bec5" else "white")
+        , style "background-color" (if isDisabled then theme.btnDisabledBg else theme.btnSecondaryBg)
+        , style "color" (if isDisabled then theme.btnDisabledText else "white")
         , style "border" "none"
         , style "border-radius" "4px"
         , style "cursor" (if isDisabled then "not-allowed" else "pointer")
@@ -124,14 +214,14 @@ tooltipBtn label onClickMsg isDisabled tipText =
         [ text label ]
 
 
-iconBtn : Html msg -> msg -> Bool -> String -> Html msg
-iconBtn icon onClickMsg isDisabled tipText =
+iconBtn : Theme.Theme -> Html msg -> msg -> Bool -> String -> Html msg
+iconBtn theme icon onClickMsg isDisabled tipText =
     button
         [ onClick onClickMsg
         , HA.class "elm-btn"
         , style "padding" "10px 12px"
-        , style "background-color" (if isDisabled then "#78909c" else "#546e7a")
-        , style "color" (if isDisabled then "#b0bec5" else "white")
+        , style "background-color" (if isDisabled then theme.btnDisabledBg else theme.btnSecondaryBg)
+        , style "color" (if isDisabled then theme.btnDisabledText else "white")
         , style "border" "none"
         , style "border-radius" "4px"
         , style "cursor" (if isDisabled then "not-allowed" else "pointer")
@@ -143,8 +233,8 @@ iconBtn icon onClickMsg isDisabled tipText =
         [ icon ]
 
 
-toolBtn : String -> msg -> Bool -> String -> String -> Html msg
-toolBtn label onClickMsg isActive shortcut activeColor =
+toolBtn : Theme.Theme -> String -> msg -> Bool -> String -> String -> Html msg
+toolBtn theme label onClickMsg isActive shortcut activeColor =
     let
         displayLabel =
             if isActive then
@@ -156,7 +246,7 @@ toolBtn label onClickMsg isActive shortcut activeColor =
         [ onClick onClickMsg
         , HA.class "elm-btn"
         , style "padding" "10px 14px"
-        , style "background-color" (if isActive then activeColor else "#546e7a")
+        , style "background-color" (if isActive then activeColor else theme.btnSecondaryBg)
         , style "color" "white"
         , style "border" "none"
         , style "border-radius" "4px"
@@ -196,13 +286,13 @@ redoIcon =
         ]
 
 
-guideButton : msg -> Html msg
-guideButton onClickMsg =
+guideButton : Theme.Theme -> msg -> Html msg
+guideButton theme onClickMsg =
     button
         [ onClick onClickMsg
         , HA.class "elm-btn"
         , style "padding" "11px 18px"
-        , style "background-color" "#00796b"
+        , style "background-color" theme.btnGuide
         , style "color" "white"
         , style "border" "none"
         , style "border-radius" "5px"
@@ -224,8 +314,8 @@ guideButton onClickMsg =
         ]
 
 
-actionButton : String -> msg -> Bool -> Maybe String -> Maybe msg -> String -> Html msg
-actionButton label onClickMsg isEnabled disabledReason onDisabledClick bgColor =
+actionButton : Theme.Theme -> String -> msg -> Bool -> Maybe String -> Maybe msg -> String -> Html msg
+actionButton theme label onClickMsg isEnabled disabledReason onDisabledClick bgColor =
     let
         ( effectiveClick, isDisabled ) =
             if isEnabled then
@@ -239,8 +329,8 @@ actionButton label onClickMsg isEnabled disabledReason onDisabledClick bgColor =
         [ onClick effectiveClick
         , HA.class "elm-btn"
         , style "padding" "11px 18px"
-        , style "background-color" (if isEnabled then bgColor else "#b0bec5")
-        , style "color" "white"
+        , style "background-color" (if isEnabled then bgColor else theme.btnDisabledBg)
+        , style "color" (if isEnabled then "white" else theme.btnDisabledText)
         , style "border" "none"
         , style "border-radius" "5px"
         , style "cursor" (if isEnabled then "pointer" else "not-allowed")

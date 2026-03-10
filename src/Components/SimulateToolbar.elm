@@ -4,6 +4,7 @@ import Html exposing (Html, div, button, text, input, img)
 import Html.Attributes exposing (style, type_, value, step, disabled, src)
 import Html.Attributes as HA
 import Html.Events exposing (onClick, onInput)
+import Utils.Theme as Theme
 
 
 type alias Config msg =
@@ -19,6 +20,11 @@ type alias Config msg =
     , autoSpeed : Float
     , onSetAutoSpeed : String -> msg
     , onShowGuide : msg
+    , theme : Theme.Theme
+    , settingsOpen : Bool
+    , onToggleSettings : msg
+    , onToggleDarkMode : msg
+    , darkMode : Bool
     }
 
 
@@ -37,14 +43,14 @@ view config =
         [ style "display" "flex"
         , style "flex-direction" "row"
         , style "padding" "14px 12px"
-        , style "background-color" "#1a2f4a"
+        , style "background-color" config.theme.toolbarBg
         , style "gap" "10px"
-        , style "border-bottom" "2px solid white"
+        , style "border-bottom" ("2px solid " ++ config.theme.toolbarBorderColor)
         , style "align-items" "center"
         ]
-        [ toolButton "Reset" config.onReset True False
-        , toolButton "Krok späť" config.onStepBackward config.canStepBackward False
-        , toolButton
+        [ toolButton config.theme "Reset" config.onReset True False
+        , toolButton config.theme "Krok späť" config.onStepBackward config.canStepBackward False
+        , toolButton config.theme
             (case config.nextSymbol of
                 Nothing ->
                     "Krok vpred"
@@ -55,7 +61,7 @@ view config =
             config.onStepForward
             config.canStepForward
             False
-        , autoRunButton config.onToggleAutoRun config.autoRunning
+        , autoRunButton config.theme config.onToggleAutoRun config.autoRunning
         , div
             [ style "display" "flex"
             , style "align-items" "center"
@@ -87,18 +93,102 @@ view config =
             , style "justify-content" "flex-end"
             , style "gap" "8px"
             ]
-            [ guideButton config.onShowGuide
-            , actionButton "<- Editor" config.onSwitchToEditor True
+            [ guideButton config.theme config.onShowGuide
+            , actionButton config.theme "<- Editor" config.onSwitchToEditor True
+            , settingsGearBtn config
             ]
         ]
 
 
-autoRunButton : msg -> Bool -> Html msg
-autoRunButton onToggle running =
+settingsGearBtn : Config msg -> Html msg
+settingsGearBtn config =
+    div
+        [ style "position" "relative"
+        , style "display" "flex"
+        ]
+        [ button
+            [ onClick config.onToggleSettings
+            , HA.class "elm-btn"
+            , style "padding" "11px 18px"
+            , style "background-color" config.theme.btnSecondaryBg
+            , style "color" "white"
+            , style "border" "none"
+            , style "border-radius" "5px"
+            , style "cursor" "pointer"
+            , style "font-size" "14px"
+            , style "font-weight" "bold"
+            ]
+            [ text "\u{2699}" ]
+        , if config.settingsOpen then
+            div
+                [ style "position" "absolute"
+                , style "top" "100%"
+                , style "right" "0"
+                , style "margin-top" "4px"
+                , style "background-color" config.theme.settingsBg
+                , style "border" ("1px solid " ++ config.theme.settingsBorder)
+                , style "border-radius" "6px"
+                , style "padding" "12px 16px"
+                , style "z-index" "2000"
+                , style "min-width" "180px"
+                , style "box-shadow" "0 4px 16px rgba(0,0,0,0.4)"
+                ]
+                [ div
+                    [ style "color" "white"
+                    , style "font-size" "13px"
+                    , style "font-weight" "bold"
+                    , style "margin-bottom" "10px"
+                    ]
+                    [ text "Nastavenia" ]
+                , div
+                    [ style "display" "flex"
+                    , style "align-items" "center"
+                    , style "justify-content" "space-between"
+                    , style "gap" "12px"
+                    ]
+                    [ div [ style "color" "#cfd8dc", style "font-size" "13px" ]
+                        [ text "Tmavý režim" ]
+                    , pillToggle config.onToggleDarkMode config.darkMode
+                    ]
+                ]
+          else
+            text ""
+        ]
+
+
+pillToggle : msg -> Bool -> Html msg
+pillToggle onToggle isOn =
+    div
+        [ onClick onToggle
+        , style "width" "40px"
+        , style "height" "20px"
+        , style "border-radius" "10px"
+        , style "background-color" (if isOn then "#0288d1" else "#546e7a")
+        , style "cursor" "pointer"
+        , style "position" "relative"
+        , style "transition" "background-color 0.2s"
+        , style "flex-shrink" "0"
+        ]
+        [ div
+            [ style "position" "absolute"
+            , style "top" "2px"
+            , style "left" (if isOn then "22px" else "2px")
+            , style "width" "16px"
+            , style "height" "16px"
+            , style "border-radius" "50%"
+            , style "background-color" "white"
+            , style "transition" "left 0.2s"
+            ]
+            []
+        ]
+
+
+autoRunButton : Theme.Theme -> msg -> Bool -> Html msg
+autoRunButton theme onToggle running =
     button
         [ onClick onToggle
         , style "padding" "10px 14px"
-        , style "background-color" (if running then "#00897b" else "#546e7a")
+        , style "background-color" (if running then theme.btnAutoRunActive else theme.btnSecondaryBg)
         , style "color" "white"
         , style "border" "none"
         , style "border-radius" "4px"
@@ -107,17 +197,17 @@ autoRunButton onToggle running =
         , style "font-weight" (if running then "bold" else "normal")
         , style "transition" "all 0.2s"
         ]
-        [ text (if running then "⏸ Pauza" else "▶ Auto") ]
+        [ text (if running then "Pauza" else "Auto") ]
 
 
-toolButton : String -> msg -> Bool -> Bool -> Html msg
-toolButton label onClickMsg isEnabled isActive =
+toolButton : Theme.Theme -> String -> msg -> Bool -> Bool -> Html msg
+toolButton theme label onClickMsg isEnabled isActive =
     button
         [ onClick onClickMsg
-        , Html.Attributes.disabled (not isEnabled)
+        , disabled (not isEnabled)
         , style "padding" "10px 14px"
-        , style "background-color" (if isActive then "#00897b" else if isEnabled then "#546e7a" else "#b0bec5")
-        , style "color" "white"
+        , style "background-color" (if isActive then theme.btnAutoRunActive else if isEnabled then theme.btnSecondaryBg else theme.btnDisabledBg)
+        , style "color" (if isEnabled then "white" else theme.btnDisabledText)
         , style "border" "none"
         , style "border-radius" "4px"
         , style "cursor" (if isEnabled then "pointer" else "not-allowed")
@@ -128,29 +218,29 @@ toolButton label onClickMsg isEnabled isActive =
         [ text label ]
 
 
-actionButton : String -> msg -> Bool -> Html msg
-actionButton label onClickMsg isEnabled =
+actionButton : Theme.Theme -> String -> msg -> Bool -> Html msg
+actionButton theme label onClickMsg isEnabled =
     button
         [ onClick onClickMsg
         , style "padding" "11px 18px"
-        , style "background-color" (if isEnabled then "#0277bd" else "#b3e5fc")
+        , style "background-color" (if isEnabled then theme.btnPrimary else theme.btnDisabledBg)
         , style "color" "white"
         , style "border" "none"
         , style "border-radius" "5px"
         , style "cursor" (if isEnabled then "pointer" else "not-allowed")
         , style "font-size" "14px"
         , style "font-weight" "bold"
-        , Html.Attributes.disabled (not isEnabled)
+        , disabled (not isEnabled)
         ]
         [ text label ]
 
 
-guideButton : msg -> Html msg
-guideButton onClickMsg =
+guideButton : Theme.Theme -> msg -> Html msg
+guideButton theme onClickMsg =
     button
         [ onClick onClickMsg
         , style "padding" "11px 18px"
-        , style "background-color" "#00796b"
+        , style "background-color" theme.btnGuide
         , style "color" "white"
         , style "border" "none"
         , style "border-radius" "5px"

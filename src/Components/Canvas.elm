@@ -9,6 +9,7 @@ import Svg exposing (Svg)
 import Svg.Attributes as SA
 import Svg.Events as SE
 import Shared exposing (State, Transition)
+import Utils.Theme as Theme
 
 
 type alias Config msg =
@@ -40,6 +41,7 @@ type alias Config msg =
     , height : Float
     , isSimulateMode : Bool
     , highlightedStateIds : List { stateId : Int, isAccepted : Bool }
+    , theme : Theme.Theme
     }
 
 
@@ -91,7 +93,7 @@ view config =
                 , style "height" "32px"
                 , style "font-size" "18px"
                 , style "font-weight" "bold"
-                , style "background-color" "#546e7a"
+                , style "background-color" config.theme.btnSecondaryBg
                 , style "color" "white"
                 , style "border" "none"
                 , style "border-radius" "4px"
@@ -105,14 +107,14 @@ view config =
                 , style "height" "32px"
                 , style "font-size" "18px"
                 , style "font-weight" "bold"
-                , style "background-color" "#546e7a"
+                , style "background-color" config.theme.btnSecondaryBg
                 , style "color" "white"
                 , style "border" "none"
                 , style "border-radius" "4px"
                 , style "cursor" "pointer"
                 , style "line-height" "1"
                 ]
-                [ text "−" ]
+                [ text "-" ]
             ]
         ]
 
@@ -278,8 +280,8 @@ svgState config state =
                                 , String.fromFloat rightX ++ "," ++ String.fromFloat rightY
                                 ]
                     in
-                    [ Svg.line [ SA.x1 (String.fromFloat lineX1), SA.y1 (String.fromFloat lineY), SA.x2 (String.fromFloat lineX2), SA.y2 (String.fromFloat lineY), SA.stroke "black", SA.strokeWidth "2" ] []
-                    , Svg.polygon [ SA.points pts, SA.fill "black" ] []
+                    [ Svg.line [ SA.x1 (String.fromFloat lineX1), SA.y1 (String.fromFloat lineY), SA.x2 (String.fromFloat lineX2), SA.y2 (String.fromFloat lineY), SA.stroke config.theme.edgeColor, SA.strokeWidth "2" ] []
+                    , Svg.polygon [ SA.points pts, SA.fill config.theme.edgeColor ] []
                     ]
                else
                     []
@@ -397,7 +399,7 @@ svgSelfLoop config state symbols isActive =
                         , SA.y (String.fromFloat labelY)
                         , SA.textAnchor "middle"
                         , SA.fontSize "16"
-                        , SA.fill "black"
+                        , SA.fill config.theme.edgeLabelColor
                         , SA.fontWeight "bold"
                         , SE.custom "click"
                             (Decode.succeed
@@ -420,7 +422,7 @@ svgSelfLoop config state symbols isActive =
                 symbols
 
         strokeWidth = if isActive then "4" else "2"
-        strokeColor = if isActive then "#e74c3c" else "#222"
+        strokeColor = if isActive then "#e74c3c" else config.theme.edgeColor
     in
     Svg.g []
         ([ Svg.path [ SA.d d, SA.fill "none", SA.stroke strokeColor, SA.strokeWidth strokeWidth, SA.strokeLinecap "round" ] []
@@ -475,7 +477,7 @@ svgEdge config a b symbols isActive =
                             , SA.y "-6"
                             , SA.textAnchor "middle"
                             , SA.fontSize "16"
-                            , SA.fill "black"
+                            , SA.fill config.theme.edgeLabelColor
                             , SA.fontWeight "bold"
                             , SE.custom "click"
                                 (Decode.succeed
@@ -500,7 +502,7 @@ svgEdge config a b symbols isActive =
             ]
 
         strokeWidth = if isActive then "4" else "2"
-        strokeColor = if isActive then "#e74c3c" else "#222"
+        strokeColor = if isActive then "#e74c3c" else config.theme.edgeColor
     in
     Svg.g []
         ([ Svg.path [ SA.d d, SA.fill "none", SA.stroke strokeColor, SA.strokeWidth strokeWidth ] []
@@ -585,7 +587,7 @@ svgCurvedEdge config a b symbols isActive =
                             , SA.y "-6"
                             , SA.textAnchor "middle"
                             , SA.fontSize "16"
-                            , SA.fill "black"
+                            , SA.fill config.theme.edgeLabelColor
                             , SA.fontWeight "bold"
                             , SE.custom "click"
                                 (Decode.succeed
@@ -610,7 +612,7 @@ svgCurvedEdge config a b symbols isActive =
             ]
 
         strokeWidth = if isActive then "4" else "2"
-        strokeColor = if isActive then "#e74c3c" else "#222"
+        strokeColor = if isActive then "#e74c3c" else config.theme.edgeColor
     in
     Svg.g []
         ([ Svg.path [ SA.d d, SA.fill "none", SA.stroke strokeColor, SA.strokeWidth strokeWidth, SA.fill "none" ] []

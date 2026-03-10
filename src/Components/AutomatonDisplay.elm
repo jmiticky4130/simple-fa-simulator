@@ -5,11 +5,13 @@ import Html.Attributes exposing (style)
 import Set
 import Shared exposing (State, Transition)
 import Utils.AutomatonHelpers exposing (getStateLabel)
+import Utils.Theme as Theme
 
 
 type alias Config =
     { states : List State
     , transitions : List Transition
+    , theme : Theme.Theme
     }
 
 
@@ -37,20 +39,21 @@ view config =
 
         typeColor =
             if isNFA then
-                "#ec7c1aff"
+                config.theme.automatonTypeNfa
             else
-                "#358cc7ff"
+                config.theme.automatonTypeDfa
     in
     div
         [ style "padding" "15px"
         , style "height" "100%"
         , style "overflow-y" "auto"
         , style "box-sizing" "border-box"
+        , style "color" config.theme.textPrimary
         ]
         [ h3
             [ style "margin-top" "0"
-            , style "color" "#273646ff"
-            , style "border-bottom" "2px solid #359ee4ff"
+            , style "color" config.theme.automatonDefTitle
+            , style "border-bottom" ("2px solid " ++ config.theme.automatonDefBorder)
             , style "padding-bottom" "10px"
             ]
             [ text "Definícia automatu: "
@@ -65,6 +68,7 @@ viewDefinition config =
     div
         [ style "font-family" "monospace"
         , style "font-size" "14px"
+        , style "color" config.theme.textPrimary
         ]
         [ viewSetQ config.states
         , viewSetSigma config.transitions
@@ -79,7 +83,7 @@ viewSetQ states =
     let
         content =
             if List.isEmpty states then
-                "{∅}"
+                "{empty}"
             else
                 "{ " ++ String.join ", " (List.map .label states) ++ " }"
     in
@@ -97,11 +101,11 @@ viewSetSigma transitions =
 
         content =
             if List.isEmpty alphabet then
-                "{∅}"
+                "{empty}"
             else
                 "{ " ++ String.join ", " alphabet ++ " }"
     in
-    p [ style "margin" "10px 0" ] [ text ("Σ = " ++ content) ]
+    p [ style "margin" "10px 0" ] [ text ("\u{03A3} = " ++ content) ]
 
 
 viewStartQ0 : List State -> Html msg
@@ -114,12 +118,12 @@ viewStartQ0 states =
 
         content =
             case startState of
-                Just label ->
-                    label
+                Just lbl ->
+                    lbl
                 Nothing ->
                     "nebol vybraty pociatocny stav"
     in
-    p [ style "margin" "10px 0" ] [ text ("q₀ = " ++ content) ]
+    p [ style "margin" "10px 0" ] [ text ("q0 = " ++ content) ]
 
 
 viewSetF : List State -> Html msg
@@ -131,7 +135,7 @@ viewSetF states =
 
         content =
             if List.isEmpty endStates then
-                "{∅}"
+                "{empty}"
             else
                 "{ " ++ String.join ", " endStates ++ " }"
     in
@@ -155,4 +159,4 @@ viewDeltaRow states transition =
         toLabel = getStateLabel transition.to states
     in
     p [ style "margin" "10px 0" ]
-        [ text ("δ(" ++ fromLabel ++ ", " ++ transition.symbol ++ ") = " ++ toLabel) ]
+        [ text ("\u{03B4}(" ++ fromLabel ++ ", " ++ transition.symbol ++ ") = " ++ toLabel) ]

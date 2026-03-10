@@ -13,6 +13,7 @@ import Shared exposing (AutomatonState)
 import UndoList
 import Utils.AutomatonCodec
 import Utils.ExampleAutomata as ExampleAutomata
+import Utils.Theme as Theme
 
 
 port setUrlHash : String -> Cmd msg
@@ -24,6 +25,8 @@ port deleteNamedAutomaton : String -> Cmd msg
 port requestStoredAutomata : () -> Cmd msg
 
 port storedAutomataLoaded : (List { name : String, data : String } -> msg) -> Sub msg
+
+port saveDarkMode : Bool -> Cmd msg
 
 
 type Page
@@ -48,14 +51,34 @@ type alias Model =
     , showGuide : Bool
     , guideTab : GuideTab
     , consoleOpen : Bool
+    , darkMode : Bool
+    , settingsOpen : Bool
     }
 
 
-init : Maybe String -> ( Model, Cmd Msg )
-init maybeJson =
+type alias Flags =
+    { urlData : Maybe String
+    , darkMode : Bool
+    }
+
+
+flagsDecoder : Decode.Decoder Flags
+flagsDecoder =
+    Decode.map2 Flags
+        (Decode.maybe (Decode.field "urlData" Decode.string))
+        (Decode.field "darkMode" Decode.bool)
+
+
+init : Decode.Value -> ( Model, Cmd Msg )
+init flagsValue =
     let
+        flags =
+            case Decode.decodeValue flagsDecoder flagsValue of
+                Ok f -> f
+                Err _ -> { urlData = Nothing, darkMode = False }
+
         loadedAutomaton =
-            maybeJson
+            flags.urlData
                 |> Maybe.andThen (Decode.decodeString Utils.AutomatonCodec.decoder >> Result.toMaybe)
 
         editorInit =
@@ -74,6 +97,8 @@ init maybeJson =
       , showGuide = False
       , guideTab = GuideEditor
       , consoleOpen = True
+      , darkMode = flags.darkMode
+      , settingsOpen = False
       }
     , Cmd.none
     )
@@ -88,6 +113,9 @@ type Msg
     | SetGuideTab GuideTab
     | GuideLoadExample AutomatonState
     | NoOp
+    | ToggleDarkMode
+    | ToggleSettings
+    | CloseSettings
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
@@ -178,6 +206,15 @@ update msg model =
                     , Cmd.batch [ Cmd.map EditorMsg editorCmd, deleteNamedAutomaton name, requestStoredAutomata () ]
                     )
 
+                Editor.ToggleSettings ->
+                    ( { model | settingsOpen = not model.settingsOpen }, Cmd.none )
+
+                Editor.ToggleDarkMode ->
+                    let
+                        newDark = not model.darkMode
+                    in
+                    ( { model | darkMode = newDark }, saveDarkMode newDark )
+
                 _ ->
                     let
                         ( newEditorModel, editorCmd ) =
@@ -207,6 +244,15 @@ update msg model =
                 Simulator.ShowGuide ->
                     ( { model | showGuide = True, guideTab = GuideSimulator }, Cmd.none )
 
+                Simulator.ToggleSettings ->
+                    ( { model | settingsOpen = not model.settingsOpen }, Cmd.none )
+
+                Simulator.ToggleDarkMode ->
+                    let
+                        newDark = not model.darkMode
+                    in
+                    ( { model | darkMode = newDark }, saveDarkMode newDark )
+
                 _ ->
                     let
                         newSimulatorModel =
@@ -226,6 +272,15 @@ update msg model =
 
                 Conversion.ShowGuide ->
                     ( { model | showGuide = True, guideTab = GuideConversion }, Cmd.none )
+
+                Conversion.ToggleSettings ->
+                    ( { model | settingsOpen = not model.settingsOpen }, Cmd.none )
+
+                Conversion.ToggleDarkMode ->
+                    let
+                        newDark = not model.darkMode
+                    in
+                    ( { model | darkMode = newDark }, saveDarkMode newDark )
 
                 Conversion.ReplaceAutomaton ->
                     let
@@ -291,6 +346,18 @@ update msg model =
         NoOp ->
             ( model, Cmd.none )
 
+        ToggleDarkMode ->
+            let
+                newDark = not model.darkMode
+            in
+            ( { model | darkMode = newDark }, saveDarkMode newDark )
+
+        ToggleSettings ->
+            ( { model | settingsOpen = not model.settingsOpen }, Cmd.none )
+
+        CloseSettings ->
+            ( { model | settingsOpen = False }, Cmd.none )
+
 
 subscriptions : Model -> Sub Msg
 subscriptions model =
@@ -317,6 +384,7 @@ keyDecoder model =
         else if shift && (key == "d" || key == "D") then EditorMsg (Editor.ChangeTool Editor.DeleteTool)
         else if key == "Escape" then
             if model.showGuide then CloseGuide
+            else if model.settingsOpen then CloseSettings
             else if model.editorModel.showSaveModal then EditorMsg Editor.DismissSaveModal
             else if model.editorModel.showLoadModal then EditorMsg Editor.DismissLoadModal
             else EditorMsg Editor.CancelAction
@@ -329,10 +397,26 @@ keyDecoder model =
 
 view : Model -> Html Msg
 view model =
+    let
+        theme = Theme.getTheme model.darkMode
+    in
     div []
-        [ case model.currentPage of
+        [ if model.settingsOpen then
+            div
+                [ style "position" "fixed"
+                , style "top" "0"
+                , style "left" "0"
+                , style "width" "100%"
+                , style "height" "100%"
+                , style "z-index" "1999"
+                , onClick CloseSettings
+                ]
+                []
+          else
+            text ""
+        , case model.currentPage of
             EditorPage ->
-                Html.map EditorMsg (Editor.view model.consoleOpen model.editorModel)
+                Html.map EditorMsg (Editor.view model.consoleOpen model.darkMode model.settingsOpen model.editorModel)
 
             SimulatorPage ->
                 div
@@ -340,17 +424,17 @@ view model =
                     , style "flex-direction" "column"
                     , style "height" "100vh"
                     ]
-                    [ Html.map SimulatorMsg (Simulator.view model.consoleOpen model.simulatorModel)
+                    [ Html.map SimulatorMsg (Simulator.view model.consoleOpen model.darkMode model.settingsOpen model.simulatorModel)
                     ]
 
             ConversionPage ->
-                Html.map ConversionMsg (Conversion.view model.consoleOpen model.conversionModel)
+                Html.map ConversionMsg (Conversion.view model.consoleOpen model.darkMode model.settingsOpen model.conversionModel)
 
-        , if model.showGuide then viewGuideModal model else text ""
+        , if model.showGuide then viewGuideModal theme model else text ""
         ]
 
 
-main : Program (Maybe String) Model Msg
+main : Program Decode.Value Model Msg
 main =
     Browser.element
         { init = init
@@ -360,11 +444,11 @@ main =
         }
 
 
--- ─── GUIDE MODAL ─────────────────────────────────────────────────────────────
+-- GUIDE MODAL
 
 
-viewGuideModal : Model -> Html Msg
-viewGuideModal model =
+viewGuideModal : Theme.Theme -> Model -> Html Msg
+viewGuideModal theme model =
     div
         [ style "position" "fixed"
         , style "top" "0"
@@ -379,7 +463,7 @@ viewGuideModal model =
         , onClick CloseGuide
         ]
         [ div
-            [ style "background" "white"
+            [ style "background" theme.modalBg
             , style "border-radius" "10px"
             , style "width" "740px"
             , style "max-width" "96vw"
@@ -390,8 +474,8 @@ viewGuideModal model =
             , style "box-shadow" "0 8px 32px rgba(0,0,0,0.4)"
             , Html.Events.stopPropagationOn "click" (Decode.succeed ( NoOp, True ))
             ]
-            [ viewGuideHeader
-            , viewGuideTabBar model.guideTab
+            [ viewGuideHeader theme
+            , viewGuideTabBar theme model.guideTab
             , div
                 [ style "flex" "1"
                 , style "overflow-y" "auto"
@@ -399,20 +483,20 @@ viewGuideModal model =
                 , style "font-family" "sans-serif"
                 , style "font-size" "13px"
                 , style "line-height" "1.65"
-                , style "color" "#212121"
+                , style "color" theme.modalText
                 ]
-                [ viewGuideContent model.guideTab ]
+                [ viewGuideContent theme model.guideTab ]
             ]
         ]
 
 
-viewGuideHeader : Html Msg
-viewGuideHeader =
+viewGuideHeader : Theme.Theme -> Html Msg
+viewGuideHeader theme =
     div
         [ style "display" "flex"
         , style "align-items" "center"
         , style "padding" "14px 20px"
-        , style "background-color" "#1a2f4a"
+        , style "background-color" theme.toolbarBg
         , style "color" "white"
         , style "flex-shrink" "0"
         ]
@@ -428,36 +512,36 @@ viewGuideHeader =
             , style "padding" "0 2px"
             , style "line-height" "1"
             ]
-            [ text "×" ]
+            [ text "x" ]
         ]
 
 
-viewGuideTabBar : GuideTab -> Html Msg
-viewGuideTabBar current =
+viewGuideTabBar : Theme.Theme -> GuideTab -> Html Msg
+viewGuideTabBar theme current =
     div
         [ style "display" "flex"
-        , style "background-color" "#263238"
+        , style "background-color" theme.modalTabBg
         , style "flex-shrink" "0"
         ]
-        [ guideTabBtn GuideEditor "Editor" current
-        , guideTabBtn GuideSimulator "Simulátor" current
-        , guideTabBtn GuideConversion "Konverzia NFA→DFA" current
-        , guideTabBtn GuideErrors "Chybové správy" current
-        , guideTabBtn GuideAbout "O projekte" current
+        [ guideTabBtn theme GuideEditor "Editor" current
+        , guideTabBtn theme GuideSimulator "Simulátor" current
+        , guideTabBtn theme GuideConversion "Konverzia NFA->DFA" current
+        , guideTabBtn theme GuideErrors "Chybové správy" current
+        , guideTabBtn theme GuideAbout "O projekte" current
         ]
 
 
-guideTabBtn : GuideTab -> String -> GuideTab -> Html Msg
-guideTabBtn tab label current =
+guideTabBtn : Theme.Theme -> GuideTab -> String -> GuideTab -> Html Msg
+guideTabBtn theme tab label current =
     button
         [ onClick (SetGuideTab tab)
         , style "padding" "10px 18px"
         , style "background-color"
-            (if tab == current then "#37474f" else "transparent")
+            (if tab == current then theme.modalTabActiveBg else "transparent")
         , style "color" "white"
         , style "border" "none"
         , style "border-bottom"
-            (if tab == current then "2px solid #4fc3f7" else "2px solid transparent")
+            (if tab == current then ("2px solid " ++ theme.modalTabActiveBorder) else "2px solid transparent")
         , style "cursor" "pointer"
         , style "font-size" "13px"
         , style "font-weight"
@@ -466,36 +550,36 @@ guideTabBtn tab label current =
         [ text label ]
 
 
-viewGuideContent : GuideTab -> Html Msg
-viewGuideContent tab =
+viewGuideContent : Theme.Theme -> GuideTab -> Html Msg
+viewGuideContent theme tab =
     case tab of
         GuideEditor ->
-            viewGuideEditor
+            viewGuideEditor theme
 
         GuideSimulator ->
-            viewGuideSimulator
+            viewGuideSimulator theme
 
         GuideConversion ->
-            viewGuideConversion
+            viewGuideConversion theme
 
         GuideErrors ->
-            viewGuideErrors
+            viewGuideErrors theme
 
         GuideAbout ->
-            viewGuideAbout
+            viewGuideAbout theme
 
 
--- ─── GUIDE HELPERS ───────────────────────────────────────────────────────────
+-- GUIDE HELPERS
 
 
-guideSection : String -> List (Html Msg) -> Html Msg
-guideSection title children =
+guideSection : Theme.Theme -> String -> List (Html Msg) -> Html Msg
+guideSection theme title children =
     div [ style "margin-bottom" "18px" ]
         (div
             [ style "font-weight" "bold"
             , style "font-size" "14px"
-            , style "color" "#1a2f4a"
-            , style "border-bottom" "1px solid #cfd8dc"
+            , style "color" theme.modalSectionTitle
+            , style "border-bottom" ("1px solid " ++ theme.modalBorder)
             , style "padding-bottom" "4px"
             , style "margin-bottom" "8px"
             ]
@@ -504,8 +588,8 @@ guideSection title children =
         )
 
 
-guideRow : String -> String -> Html Msg
-guideRow key val =
+guideRow : Theme.Theme -> String -> String -> Html Msg
+guideRow theme key val =
     div
         [ style "display" "flex"
         , style "gap" "10px"
@@ -514,95 +598,95 @@ guideRow key val =
         [ span
             [ style "font-weight" "bold"
             , style "min-width" "195px"
-            , style "color" "#37474f"
+            , style "color" theme.textSecondary
             , style "flex-shrink" "0"
             ]
             [ text key ]
-        , span [ style "color" "#424242" ] [ text val ]
+        , span [ style "color" theme.modalText ] [ text val ]
         ]
 
 
-guideNote : String -> Html Msg
-guideNote txt =
+guideNote : Theme.Theme -> String -> Html Msg
+guideNote theme txt =
     div
-        [ style "background-color" "#e8f5e9"
+        [ style "background-color" theme.modalNoteBg
         , style "padding" "8px 12px"
         , style "border-radius" "4px"
         , style "border-left" "3px solid #43a047"
         , style "font-size" "12px"
-        , style "color" "#1b5e20"
+        , style "color" theme.modalNoteText
         , style "margin-bottom" "10px"
         ]
         [ text txt ]
 
 
-guidePara : String -> Html Msg
-guidePara txt =
+guidePara : Theme.Theme -> String -> Html Msg
+guidePara theme txt =
     div
         [ style "margin-bottom" "12px"
-        , style "color" "#424242"
+        , style "color" theme.modalText
         ]
         [ text txt ]
 
 
-guideCode : String -> Html Msg
-guideCode txt =
+guideCode : Theme.Theme -> String -> Html Msg
+guideCode theme txt =
     span
         [ style "font-family" "monospace"
-        , style "background" "#f5f5f5"
+        , style "background" theme.modalCodeBg
         , style "padding" "1px 5px"
         , style "border-radius" "3px"
         , style "font-size" "12px"
-        , style "color" "#c62828"
+        , style "color" theme.modalCodeText
         ]
         [ text txt ]
 
 
-guideErrorRow : String -> String -> Html Msg
-guideErrorRow err cause =
+guideErrorRow : Theme.Theme -> String -> String -> Html Msg
+guideErrorRow theme err cause =
     div
         [ style "display" "flex"
         , style "gap" "10px"
         , style "margin-bottom" "8px"
         , style "padding" "8px 10px"
-        , style "background" "#fff8f8"
+        , style "background" theme.modalErrorBg
         , style "border-left" "3px solid #e53935"
         , style "border-radius" "3px"
         ]
         [ span
             [ style "font-family" "monospace"
             , style "font-size" "12px"
-            , style "color" "#c62828"
+            , style "color" theme.modalCodeText
             , style "min-width" "240px"
             , style "flex-shrink" "0"
             , style "font-weight" "bold"
             ]
             [ text err ]
-        , span [ style "font-size" "12px", style "color" "#424242" ] [ text cause ]
+        , span [ style "font-size" "12px", style "color" theme.modalText ] [ text cause ]
         ]
 
 
-exampleCard : ExampleAutomata.ExampleDef -> Html Msg
-exampleCard ex =
+exampleCard : Theme.Theme -> ExampleAutomata.ExampleDef -> Html Msg
+exampleCard theme ex =
     div
-        [ style "border" "1px solid #cfd8dc"
+        [ style "border" ("1px solid " ++ theme.exampleCardBorder)
         , style "border-radius" "6px"
         , style "padding" "12px 14px"
-        , style "background" "#fafafa"
+        , style "background" theme.exampleCardBg
         , style "display" "flex"
         , style "flex-direction" "column"
         , style "gap" "6px"
         , style "flex" "1"
         , style "min-width" "200px"
         ]
-        [ div [ style "font-weight" "bold", style "font-size" "13px", style "color" "#1a2f4a" ]
+        [ div [ style "font-weight" "bold", style "font-size" "13px", style "color" theme.modalSectionTitle ]
             [ text ex.name ]
-        , div [ style "font-size" "12px", style "color" "#616161", style "flex" "1" ]
+        , div [ style "font-size" "12px", style "color" theme.textMuted, style "flex" "1" ]
             [ text ex.description ]
         , button
             [ onClick (GuideLoadExample ex.automaton)
             , style "padding" "6px 12px"
-            , style "background-color" "#0277bd"
+            , style "background-color" theme.btnPrimary
             , style "color" "white"
             , style "border" "none"
             , style "border-radius" "4px"
@@ -615,201 +699,196 @@ exampleCard ex =
         ]
 
 
--- ─── EDITOR TAB ──────────────────────────────────────────────────────────────
+-- EDITOR TAB
 
 
-viewGuideEditor : Html Msg
-viewGuideEditor =
+viewGuideEditor : Theme.Theme -> Html Msg
+viewGuideEditor theme =
     div []
-        [ guidePara "Editor slúži na budovanie deterministických (DFA) a nedeterministických (NFA) konečných automatov. Stavy a prechody vytvárate priamo na plátne."
-        , guideSection "Akcie na plátne (nástroj Stavať)"
-            [ guideRow "Pridanie stavu" "Dvojklik na prázdne plátno (predvolený názov q0, q1, …)"
-            , guideRow "Premenovanie stavu" "Rýchly dvojklik na stav → upraviť názov v modáli"
-            , guideRow "Nastavenie počiatočného stavu" "Rýchly dvojklik na stav → zaškrtnúť Počiatočný stav"
-            , guideRow "Nastavenie koncového stavu" "Rýchly dvojklik na stav → zaškrtnúť Koncový stav"
-            , guideRow "Pridanie prechodu" "Kliknutie na zdrojový stav, potom kliknutie na cieľový stav"
-            , guideRow "Pridanie slučky (self-loop)" "Pomalý dvojklik na stav"
-            , guideRow "Epsilon prechod" "Nechajte vstupné pole prázdne"
-            , guideRow "Viac prechodov naraz" "Symboly oddeľte čiarkou, napr. a,b"
-            , guideRow "Úprava symbolu prechodu" "Dvojklik na symbol prechodu"
-            , guideRow "Presun stavu" "Ťahanie stavu myšou"
-            , guideRow "Zrušenie akcie / výberu" "Klik na prázdne plátno alebo Escape"
+        [ guidePara theme "Editor slúži na budovanie deterministických (DFA) a nedeterministických (NFA) konečných automatov. Stavy a prechody vytvárate priamo na plátne."
+        , guideSection theme "Akcie na plátne (nástroj Stavať)"
+            [ guideRow theme "Pridanie stavu" "Dvojklik na prázdne plátno (predvolený názov q0, q1, ...)"
+            , guideRow theme "Premenovanie stavu" "Rýchly dvojklik na stav -> upraviť názov v modáli"
+            , guideRow theme "Nastavenie počiatočného stavu" "Rýchly dvojklik na stav -> zaškrtnúť Počiatočný stav"
+            , guideRow theme "Nastavenie koncového stavu" "Rýchly dvojklik na stav -> zaškrtnúť Koncový stav"
+            , guideRow theme "Pridanie prechodu" "Kliknutie na zdrojový stav, potom kliknutie na cieľový stav"
+            , guideRow theme "Pridanie slučky (self-loop)" "Pomalý dvojklik na stav"
+            , guideRow theme "Epsilon prechod" "Nechajte vstupné pole prázdne"
+            , guideRow theme "Viac prechodov naraz" "Symboly oddeľujte čiarkou, napr. a,b"
+            , guideRow theme "Úprava symbolu prechodu" "Dvojklik na symbol prechodu"
+            , guideRow theme "Presun stavu" "Ťahanie stavu myšou"
+            , guideRow theme "Zrušenie akcie / výberu" "Klik na prázdne plátno alebo Escape"
             ]
-        , guideSection "Nástroje"
-            [ guideRow "Stavať  (Shift+B)" "Predvolený nástroj: vytváranie stavov a prechodov"
-            , guideRow "Odstrániť  (Shift+D)" "Klik na stav alebo prechod ho vymaže; opätovné kliknutie prepne späť na Stavať"
+        , guideSection theme "Nástroje"
+            [ guideRow theme "Stavať  (Shift+B)" "Predvolený nástroj: vytváranie stavov a prechodov"
+            , guideRow theme "Odstrániť  (Shift+D)" "Klik na stav alebo prechod ho vymaže; opätovné kliknutie prepne späť na Stavať"
             ]
-        , guideSection "Klávesové skratky"
-            [ guideRow "Ctrl+Z / Ctrl+Y" "Späť / Dopredu (undo/redo)"
-            , guideRow "Shift+B" "Nástroj Stavať"
-            , guideRow "Shift+D" "Nástroj Odstrániť"
-            , guideRow "Escape" "Zruší aktuálnu akciu (zatvorí vstupné polia, modály)"
+        , guideSection theme "Klávesové skratky"
+            [ guideRow theme "Ctrl+Z / Ctrl+Y" "Späť / Dopredu (undo/redo)"
+            , guideRow theme "Shift+B" "Nástroj Stavať"
+            , guideRow theme "Shift+D" "Nástroj Odstrániť"
+            , guideRow theme "Escape" "Zruší aktuálnu akciu (zatvorí vstupné polia, modály)"
             ]
-        , guideSection "Navigácia plátna"
-            [ guideRow "Koliesko myši (alebo ± tlačidlá)" "Priblíženie / oddialenie"
-            , guideRow "Ťahanie prázdneho plátna" "Posúvanie pohľadu (pan)"
+        , guideSection theme "Navigácia plátna"
+            [ guideRow theme "Koliesko myši (alebo +/- tlačidlá)" "Priblíženie / oddialenie"
+            , guideRow theme "Ťahanie prázdneho plátna" "Posúvanie pohľadu (pan)"
             ]
-        , guideSection "Súbory a ukladanie"
-            [ guideRow "Export" "Stiahne automat ako súbor .json"
-            , guideRow "Uložiť" "Uloží automat do lokálneho úložiska prehliadača s názvom"
-            , guideRow "Načítať" "Načíta zo súboru .json alebo z lokálneho úložiska"
-            , guideRow "Zdieľať cez URL" "Zakóduje automat do URL (hash); zdieľateľný link"
-            , guideNote "Lokálne úložisko je viazané na prehliadač a doménu. Automaty zo sprievodcu sa do neho neukladajú."
+        , guideSection theme "Súbory a ukladanie"
+            [ guideRow theme "Export" "Stiahne automat ako súbor .json"
+            , guideRow theme "Uložiť" "Uloží automat do lokálneho úložiska prehliadača s názvom"
+            , guideRow theme "Načítať" "Načíta zo súboru .json alebo z lokálneho úložiska"
+            , guideRow theme "Zdieľať cez URL" "Zakóduje automat do URL (hash); zdieľateľný link"
+            , guideNote theme "Lokálne úložisko je viazané na prehliadač a doménu. Automaty zo sprievodcu sa do neho neukladajú."
             ]
-        , guideSection "Konzola"
-            [ guidePara "Spodná lišta zobrazuje informačné a chybové správy. Konzola je skrývateľná – kliknutím na lištu ju zrolujete alebo rozbalíte."
+        , guideSection theme "Konzola"
+            [ guidePara theme "Spodná lišta zobrazuje informačné a chybové správy. Konzola je skrývateľná - kliknutím na lištu ju zrolujete alebo rozbalíte."
             ]
-        , guideSection "Príklady automatov"
+        , guideSection theme "Príklady automatov"
             [ div
                 [ style "display" "flex"
                 , style "flex-wrap" "wrap"
                 , style "gap" "10px"
                 ]
-                (List.map exampleCard ExampleAutomata.examples)
+                (List.map (exampleCard theme) ExampleAutomata.examples)
             ]
         ]
 
 
--- ─── SIMULATOR TAB ───────────────────────────────────────────────────────────
+-- SIMULATOR TAB
 
 
-viewGuideSimulator : Html Msg
-viewGuideSimulator =
+viewGuideSimulator : Theme.Theme -> Html Msg
+viewGuideSimulator theme =
     div []
-        [ guidePara "Simulátor umožňuje spúšťať automat krok za krokom na zadanom vstupnom reťazci. Tlačidlo Simulovať je aktívne len vtedy, keď automat má počiatočný aj aspoň jeden koncový stav."
-        , guideSection "Ovládanie"
-            [ guideRow "Vstupné pole" "Zadajte reťazec, ktorý chcete simulovať (napr. aab)"
-            , guideRow "Krok vpred" "Prečíta ďalší symbol a posunie simuláciu o jeden krok"
-            , guideRow "Krok späť" "Vráti simuláciu do predchádzajúceho stavu"
-            , guideRow "Reset" "Vráti simuláciu na začiatok (vstup zostane)"
-            , guideRow "▶ Auto / ⏸ Pauza" "Spustí / pozastaví automatické krokovanie"
-            , guideRow "Posuvník rýchlosti" "Nastaví interval krokovania (100 ms – 2 s)"
+        [ guidePara theme "Simulátor umožňuje spúšťať automat krok za krokom na zadanom vstupnom reťazci. Tlačidlo Simulovať je aktívne len vtedy, keď automat má počiatočný aj aspoň jeden koncový stav."
+        , guideSection theme "Ovládanie"
+            [ guideRow theme "Vstupné pole" "Zadajte reťazec, ktorý chcete simulovať (napr. aab)"
+            , guideRow theme "Krok vpred" "Prečíta ďalší symbol a posunie simuláciu o jeden krok"
+            , guideRow theme "Krok späť" "Vráti simuláciu do predchádzajúceho stavu"
+            , guideRow theme "Reset" "Vráti simuláciu na začiatok (vstup zostane)"
+            , guideRow theme "Auto / Pauza" "Spustí / pozastaví automatické krokovanie"
+            , guideRow theme "Posuvník rýchlosti" "Nastaví interval krokovania (100 ms - 2 s)"
             ]
-        , guideSection "DFA simulácia"
-            [ guideRow "Aktívny stav" "Zvýraznený na plátne modrým orámovaním"
-            , guideRow "Aktívny prechod" "Šípka prechodu sa zvýrazní pri každom kroku"
-            , guideRow "Výsledok" "Zelená = Akceptované, červená = Zamietnuté"
-            , guideNote "DFA má vždy práve jednu aktívnu cestu — žiadny nedeterminizmus."
+        , guideSection theme "DFA simulácia"
+            [ guideRow theme "Aktívny stav" "Zvýraznený na plátne modrým orámovaním"
+            , guideRow theme "Aktívny prechod" "Šípka prechodu sa zvýrazní pri každom kroku"
+            , guideRow theme "Výsledok" "Zelená = Akceptované, červená = Zamietnuté"
+            , guideNote theme "DFA má vždy práve jednu aktívnu cestu - žiadny nedeterminizmus."
             ]
-        , guideSection "NFA simulácia"
-            [ guideRow "Inštancie" "Každá inštancia sleduje jednu možnú cestu automate"
-            , guideRow "Panel inštancií (vľavo)" "Zoznam všetkých inštancií; klik = zvýrazní stav na plátne"
-            , guideRow "Stav inštancie" "Modrá = bežiaca, zelená = akceptovala, červená = zamietnutá"
-            , guideRow "Strom rozhodnutí (vpravo)" "Vizualizácia všetkých ciest vrátane ε-krokov; sivé uzly = ukončené predka"
-            , guideRow "Klik na uzol stromu" "Zvýrazní zodpovedajúcu inštanciu a stav na plátne"
-            , guideRow "Prepínače Plátno / Strom" "Zobraziť alebo skryť každú sekciu nezávisle"
-            , guideRow "Zlúčiť stavy" "Ak zaškrtnuté: inštancie s rovnakým (stav, zostatok vstupu) sa zlúčia do jednej. Bez zlučovania môže počet inštancií rásť exponenciálne (až k^n, kde k je priemerný počet vetvení a n dĺžka vstupu). Zlučovanie obmedzuje počet aktívnych inštancií na najviac |Q| v každom kroku. Odporúčané pre komplexné NFA."
-            , guideNote "NFA akceptuje reťazec, ak aspoň jedna inštancia dosiahne akceptujúci stav po prečítaní celého vstupu."
+        , guideSection theme "NFA simulácia"
+            [ guideRow theme "Inštancie" "Každá inštancia sleduje jednu možnú cestu v automate"
+            , guideRow theme "Panel inštancií (vľavo)" "Zoznam všetkých inštancií; klik = zvýrazní stav na plátne"
+            , guideRow theme "Stav inštancie" "Modrá = bežiaca, zelená = akceptovala, červená = zamietnutá"
+            , guideRow theme "Strom rozhodnutí (vpravo)" "Vizualizácia všetkých ciest vrátane eps-krokov; sivé uzly = ukončené predka"
+            , guideRow theme "Klik na uzol stromu" "Zvýrazní zodpovedajúcu inštanciu a stav na plátne"
+            , guideRow theme "Prepínače Plátno / Strom" "Zobraziť alebo skryť každú sekciu nezávisle"
+            , guideRow theme "Zlúčiť stavy" "Ak zaškrtnuté: inštancie s rovnakým (stav, zostatok vstupu) sa zlúčia do jednej."
+            , guideNote theme "NFA akceptuje reťazec, ak aspoň jedna inštancia dosiahne akceptujúci stav po prečítaní celého vstupu."
             ]
-        , guideSection "Efektívny režim (NFA)"
-            [ guideRow "Zaškrtnite \"Efektívny režim\"" "V pravom paneli NFA simulátora zapne efektívny režim, ktorý nahradí strom inštancií zobrazením výsledku priamo na plátne."
-            , guideRow "Okamžitý beh" "Spustí kompletnú simuláciu naraz bez budovania inštancií. Výsledok (akceptované/zamietnuté) a dosiahnuté stavy sa zobrazia okamžite na plátne."
-            , guideNote "V efektívnom režime je krokovanie, auto-run a panel inštancií deaktivovaný. Vhodné pre komplexné NFA s dlhým vstupom."
+        , guideSection theme "Efektívny režim (NFA)"
+            [ guideRow theme "Zaškrtnite Efektívny režim" "V pravom paneli NFA simulátora zapne efektívny režim."
+            , guideRow theme "Okamžitý beh" "Spustí kompletnú simuláciu naraz bez budovania inštancií."
+            , guideNote theme "V efektívnom režime je krokovanie, auto-run a panel inštancií deaktivovaný."
             ]
-        , guideSection "ε-prechody v NFA"
-            [ guideRow "ε-rozvinutie" "Po každom symbolickom kroku sa automaticky vytvoria ε-deti"
-            , guideRow "Zobrazenie" "ε-kroky sú viditeľné v strome rozhodnutí ako samostatné úrovne"
+        , guideSection theme "eps-prechody v NFA"
+            [ guideRow theme "eps-rozvinutie" "Po každom symbolickom kroku sa automaticky vytvoria eps-deti"
+            , guideRow theme "Zobrazenie" "eps-kroky sú viditeľné v strome rozhodnutí ako samostatné úrovne"
             ]
         ]
 
 
--- ─── CONVERSION TAB ──────────────────────────────────────────────────────────
+-- CONVERSION TAB
 
 
-viewGuideConversion : Html Msg
-viewGuideConversion =
+viewGuideConversion : Theme.Theme -> Html Msg
+viewGuideConversion theme =
     div []
-        [ guidePara "Konverzia NFA→DFA prevádza nedeterministický automat na ekvivalentný deterministický pomocou algoritmu podmnožín (subset construction). Tlačidlo NFA→DFA je aktívne len pre NFA; pre DFA je neaktívne."
-        , guideSection "Kľúčové pojmy"
-            [ guideRow "ε-closure(S)" "Množina všetkých stavov dosiahnuteľných z množiny S cez ε-prechody (vrátane S). Príklad: ak q0→ε→q1, potom ε-closure({q0}) = {q0, q1}."
-            , guideRow "move(S, a)" "Množina NFA stavov dosiahnuteľných z niektorého stavu S po symbole a (bez ε). Príklad: ak q0→a→q1 a q0→a→q2, potom move({q0}, a) = {q1, q2}."
-            , guideRow "DFA stav" "Každý stav výsledného DFA zodpovedá podmnožine NFA stavov."
-            , guideNote "DFA stav je akceptujúci práve vtedy, keď obsahuje aspoň jeden akceptujúci NFA stav."
+        [ guidePara theme "Konverzia NFA->DFA prevádza nedeterministický automat na ekvivalentný deterministický pomocou algoritmu podmnožín (subset construction)."
+        , guideSection theme "Kľúčové pojmy"
+            [ guideRow theme "eps-closure(S)" "Množina všetkých stavov dosiahnuteľných z množiny S cez eps-prechody (vrátane S)."
+            , guideRow theme "move(S, a)" "Množina NFA stavov dosiahnuteľných z niektorého stavu S po symbole a (bez eps)."
+            , guideRow theme "DFA stav" "Každý stav výsledného DFA zodpovedá podmnožine NFA stavov."
+            , guideNote theme "DFA stav je akceptujúci práve vtedy, keď obsahuje aspoň jeden akceptujúci NFA stav."
             ]
-        , guideSection "Algoritmus podmnožín (krok za krokom)"
-            [ guideRow "1. Počiatočný stav" "Vypočítaj ε-closure({q₀_NFA}) — to je počiatočný DFA stav. Pridaj ho do pracovného zoznamu (worklist)."
-            , guideRow "2. Výber zo worklistu" "Vyber nepracovaný DFA stav S."
-            , guideRow "3. Pre každý symbol a" "Vypočítaj T = ε-closure(move(S, a))."
-            , guideRow "4. Nový stav?" "Ak T ešte neexistuje ako DFA stav, vytvor ho a pridaj do worklistu."
-            , guideRow "5. Prechod" "Pridaj DFA prechod S →a→ T."
-            , guideRow "6. Označ S" "Označ DFA stav S ako spracovaný."
-            , guideRow "7. Opakovanie" "Pokračuj, kým worklist nie je prázdny."
+        , guideSection theme "Algoritmus podmnožín (krok za krokom)"
+            [ guideRow theme "1. Počiatočný stav" "Vypočítaj eps-closure({q0_NFA}) - to je počiatočný DFA stav."
+            , guideRow theme "2. Výber z worklistu" "Vyber nespracovaný DFA stav S."
+            , guideRow theme "3. Pre každý symbol a" "Vypočítaj T = eps-closure(move(S, a))."
+            , guideRow theme "4. Nový stav?" "Ak T ešte neexistuje ako DFA stav, vytvor ho a pridaj do worklistu."
+            , guideRow theme "5. Prechod" "Pridaj DFA prechod S ->a-> T."
+            , guideRow theme "6. Označ S" "Označ DFA stav S ako spracovaný."
+            , guideRow theme "7. Opakovanie" "Pokračuj, kým worklist nie je prázdny."
             ]
-        , guideSection "Vizualizácia konverzie"
-            [ guideRow "Plátno" "DFA stavy (podmnožiny NFA stavov); farebné zvýraznenie: žltá = aktívny, sivá = spracovaný, svetlomodrá = novo vytvorený"
-            , guideRow "Pravý panel – Popis kroku" "Textové vysvetlenie aktuálneho kroku algoritmu v slovenčine"
-            , guideRow "Pravý panel – Tabuľka podmnožín" "Prehľad všetkých DFA stavov a ich prechodov; zvýraznené sú riadok a stĺpec aktuálneho kroku"
-            , guideRow "Navigácia ⏮ ◀ ▶ ⏭" "Pohyb cez jednotlivé kroky algoritmu dopredu/dozadu"
-            , guideRow "Ťahanie stavov" "DFA stavy na plátne je možné presúvať"
+        , guideSection theme "Vizualizácia konverzie"
+            [ guideRow theme "Plátno" "DFA stavy (podmnožiny NFA stavov); farebné zvýraznenie"
+            , guideRow theme "Pravý panel - Popis kroku" "Textové vysvetlenie aktuálneho kroku algoritmu"
+            , guideRow theme "Navigácia" "Pohyb cez jednotlivé kroky algoritmu dopredu/dozadu"
             ]
-        , guideSection "Výstup konverzie"
-            [ guideRow "Nahradiť automat" "Otvorí výsledný DFA v editore (nahradí aktuálny automat)"
-            , guideRow "Uložiť DFA" "Uloží výsledný DFA do lokálneho úložiska prehliadača s názvom"
-            , guideNote "Tlačidlá Nahradiť a Uložiť sú aktívne až po dokončení posledného kroku konverzie."
+        , guideSection theme "Výstup konverzie"
+            [ guideRow theme "Nahradiť automat" "Otvorí výsledný DFA v editore (nahradí aktuálny automat)"
+            , guideRow theme "Uložiť DFA" "Uloží výsledný DFA do lokálneho úložiska prehliadača s názvom"
+            , guideNote theme "Tlačidlá Nahradiť a Uložiť sú aktívne až po dokončení posledného kroku konverzie."
             ]
         ]
 
 
--- ─── ERRORS TAB ──────────────────────────────────────────────────────────────
+-- ERRORS TAB
 
 
-viewGuideErrors : Html Msg
-viewGuideErrors =
+viewGuideErrors : Theme.Theme -> Html Msg
+viewGuideErrors theme =
     div []
-        [ guidePara "Zoznam chýb a upozornení, ktoré sa môžu v aplikácii objaviť, vrátane ich príčiny a riešenia."
-        , guideSection "Chyby v editore"
-            [ guideErrorRow "Prázdny názov nie je povolený"
+        [ guidePara theme "Zoznam chýb a upozornení, ktoré sa môžu v aplikácii objaviť, vrátane ich príčiny a riešenia."
+        , guideSection theme "Chyby v editore"
+            [ guideErrorRow theme "Prázdny názov nie je povolený"
                 "Stav musí mať neprázdny názov. Zadajte aspoň jeden znak."
-            , guideErrorRow "Stav s názvom '...' už existuje"
+            , guideErrorRow theme "Stav s názvom '...' už existuje"
                 "Každý stav musí mať unikátny názov. Zvoľte iný názov."
-            , guideErrorRow "Slučka nemôže byť ε-prechodom"
+            , guideErrorRow theme "Slučka nemôže byť eps-prechodom"
                 "Epsilon self-loop (stav na seba samého) nie je povolený."
-            , guideErrorRow "Prechod '...' už existuje"
+            , guideErrorRow theme "Prechod '...' už existuje"
                 "Duplikátny prechod: rovnaký (zdroj, symbol, cieľ) už existuje."
-            , guideErrorRow "Symbol nemôže obsahovať medzery"
-                "Symbol prechodu nesmie obsahovať medzery (napr. použite 'ab' nie 'a b')."
-            , guideErrorRow "Chyba importu: ..."
+            , guideErrorRow theme "Symbol nemôže obsahovať medzery"
+                "Symbol prechodu nesmie obsahovať medzery."
+            , guideErrorRow theme "Chyba importu: ..."
                 "Neplatný JSON súbor alebo formát nezodpovedá schéme automatu."
-            , guideErrorRow "Zadajte názov automatu"
-                "Pri ukladaní do lokálneho úložiska musíte zadať neprázdny názov."
             ]
-        , guideSection "Neaktívne tlačidlá (podmienky spustenia)"
-            [ guideErrorRow "Simulovať – 'Pridajte aspoň jeden stav'"
+        , guideSection theme "Neaktívne tlačidlá (podmienky spustenia)"
+            [ guideErrorRow theme "Simulovať - 'Pridajte aspoň jeden stav'"
                 "Automat nemá žiadne stavy. Dvojklikom na plátno pridajte stav."
-            , guideErrorRow "Simulovať – 'Nastavte počiatočný stav'"
-                "Automat nemá počiatočný stav. Dvojklik na stav → zaškrtnúť 'Počiatočný stav'."
-            , guideErrorRow "Simulovať – 'Nastavte aspoň jeden koncový stav'"
+            , guideErrorRow theme "Simulovať - 'Nastavte počiatočný stav'"
+                "Automat nemá počiatočný stav. Dvojklik na stav -> zaškrtnúť Počiatočný stav."
+            , guideErrorRow theme "Simulovať - 'Nastavte aspoň jeden koncový stav'"
                 "Automat nemá žiadny akceptujúci stav. Nastavte ho cez modál stavu."
-            , guideErrorRow "NFA→DFA – dostupné iba pre NFA"
-                "Tlačidlo je neaktívne pre DFA (žiadne ε-prechody ani nedeterminizmus)."
+            , guideErrorRow theme "NFA->DFA - dostupné iba pre NFA"
+                "Tlačidlo je neaktívne pre DFA (žiadne eps-prechody ani nedeterminizmus)."
             ]
         ]
 
 
--- ─── ABOUT TAB ───────────────────────────────────────────────────────────────
+-- ABOUT TAB
 
 
-viewGuideAbout : Html Msg
-viewGuideAbout =
+viewGuideAbout : Theme.Theme -> Html Msg
+viewGuideAbout theme =
     div []
-        [ guideSection
-            [ guideRow "Názov" "Simulátor konečných automatov (DFA/NFA)"
-            , guideRow "Typ" "Bakalárska práca"
-            , guideRow "Rok" "2026"
-            , guideRow "Škola" "STU FIIT"
+        [ guideSection theme "O projekte"
+            [ guideRow theme "Názov" "Simulátor konečných automatov (DFA/NFA)"
+            , guideRow theme "Typ" "Bakalárska práca"
+            , guideRow theme "Rok" "2026"
+            , guideRow theme "Škola" "STU FIIT"
             ]
         , div
             [ style "margin-top" "16px"
             , style "font-size" "15px"
-            , style "color" "#424242"
+            , style "color" theme.modalText
             ]
-            [ text "Spätná väzba, otázky alebo hlásenie chýb – napíšte na: "
+            [ text "Spätná väzba, otázky alebo hlásenie chýb - napíšte na: "
             , a
                 [ href "mailto:xmiticky@stuba.sk"
-                , style "color" "#0277bd"
+                , style "color" theme.btnPrimary
                 , style "font-weight" "bold"
                 ]
                 [ text "xmiticky@stuba.sk" ]
             ]
         ]
-

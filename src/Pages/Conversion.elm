@@ -18,6 +18,7 @@ import Utils.ConversionHelpers exposing
     , nfaAlphabet
     , getDfaLabel
     )
+import Utils.Theme as Theme
 
 
 -- MODEL
@@ -69,6 +70,8 @@ type Msg
     | NoOp
     | ShowGuide
     | ToggleConsole
+    | ToggleSettings
+    | ToggleDarkMode
 
 
 -- INIT
@@ -94,7 +97,7 @@ init nfa =
         , draggingStateId = Nothing
         , dragOffsetX = 0
         , dragOffsetY = 0
-        , consoleMessages = [ { text = "Konverzia NFA -> DFA spustena.", msgType = Console.Info } ]
+        , consoleMessages = [ { text = "Konverzia NFA -> DFA spustená.", msgType = Console.Info } ]
         }
 
 
@@ -114,7 +117,7 @@ update msg model =
                 isNowDone = newStep >= total - 1 && model.currentStep < total - 1
                 msgs =
                     if isNowDone then
-                        { text = "Konverzia dokoncena.", msgType = Console.Info } :: model.consoleMessages
+                        { text = "Konverzia dokončená.", msgType = Console.Info } :: model.consoleMessages
                     else
                         model.consoleMessages
             in
@@ -128,7 +131,7 @@ update msg model =
                 isNowDone = model.currentStep < total - 1
                 msgs =
                     if isNowDone then
-                        { text = "Konverzia dokoncena.", msgType = Console.Info } :: model.consoleMessages
+                        { text = "Konverzia dokončená.", msgType = Console.Info } :: model.consoleMessages
                     else
                         model.consoleMessages
             in
@@ -141,7 +144,7 @@ update msg model =
             model
 
         ReplaceAutomaton ->
-            { model | consoleMessages = { text = "Automat nahradeny konvertovanym DFA.", msgType = Console.Info } :: model.consoleMessages }
+            { model | consoleMessages = { text = "Automat nahradený konvertovaným DFA.", msgType = Console.Info } :: model.consoleMessages }
 
         ShowSaveModal ->
             { model | showSaveModal = True, saveNameInput = "" }
@@ -150,7 +153,7 @@ update msg model =
             { model | saveNameInput = s }
 
         ConfirmSaveToStorage ->
-            { model | consoleMessages = { text = "DFA ulozeny: " ++ model.saveNameInput, msgType = Console.Info } :: model.consoleMessages }
+            { model | consoleMessages = { text = "DFA uložený: " ++ model.saveNameInput, msgType = Console.Info } :: model.consoleMessages }
 
         DismissSaveModal ->
             { model | showSaveModal = False, saveNameInput = "" }
@@ -234,6 +237,12 @@ update msg model =
         ToggleConsole ->
             model
 
+        ToggleSettings ->
+            model
+
+        ToggleDarkMode ->
+            model
+
 
 updateHighlight : Model -> Model
 updateHighlight model =
@@ -302,9 +311,11 @@ conversionResultToAutomaton model =
 -- VIEW
 
 
-view : Bool -> Model -> Html Msg
-view consoleOpen model =
+view : Bool -> Bool -> Bool -> Model -> Html Msg
+view consoleOpen darkMode settingsOpen model =
     let
+        theme = Theme.getTheme darkMode
+
         total =
             List.length model.snapshots
 
@@ -324,44 +335,45 @@ view consoleOpen model =
         , style "overflow" "hidden"
         , style "font-family" "sans-serif"
         ]
-        [ viewTopBar (model.currentStep + 1) total isAtStart isAtEnd
+        [ viewTopBar theme settingsOpen darkMode (model.currentStep + 1) total isAtStart isAtEnd
         , div
             [ style "display" "flex"
             , style "flex" "1"
             , style "overflow" "hidden"
             ]
-            [ viewCanvas model currentSnap
-            , viewRightPanel model currentSnap
+            [ viewCanvas theme model currentSnap
+            , viewRightPanel theme model currentSnap
             ]
         , Console.view
             { messages = model.consoleMessages
             , isOpen = consoleOpen
             , onToggle = ToggleConsole
             , onLinkClick = Nothing
+            , theme = theme
             }
-        , viewSaveModal model
+        , viewSaveModal theme model
         ]
 
 
 -- TOP BAR
 
 
-viewTopBar : Int -> Int -> Bool -> Bool -> Html Msg
-viewTopBar stepNum total isAtStart isAtEnd =
+viewTopBar : Theme.Theme -> Bool -> Bool -> Int -> Int -> Bool -> Bool -> Html Msg
+viewTopBar theme settingsOpen darkMode stepNum total isAtStart isAtEnd =
     div
         [ style "display" "flex"
         , style "flex-direction" "row"
         , style "padding" "14px 12px"
-        , style "background-color" "#1a2f4a"
+        , style "background-color" theme.toolbarBg
         , style "gap" "8px"
         , style "align-items" "center"
-        , style "border-bottom" "2px solid #263238"
+        , style "border-bottom" ("2px solid " ++ theme.toolbarBorderColor)
         , style "flex-shrink" "0"
         ]
-        [ navBtn "⏮" JumpToStart isAtStart
-        , navBtn "◀" StepBackward isAtStart
-        , navBtn "▶" StepForward isAtEnd
-        , navBtn "⏭" JumpToEnd isAtEnd
+        [ navBtn theme "<<" JumpToStart isAtStart
+        , navBtn theme "<" StepBackward isAtStart
+        , navBtn theme ">" StepForward isAtEnd
+        , navBtn theme ">>" JumpToEnd isAtEnd
         , div [ style "color" "white", style "font-size" "14px", style "padding" "0 8px" ]
             [ text ("Krok " ++ String.fromInt stepNum ++ " / " ++ String.fromInt total) ]
         , div
@@ -371,8 +383,8 @@ viewTopBar stepNum total isAtStart isAtEnd =
             , style "margin" "0 4px"
             ]
             []
-        , actionBtn "Nahradiť automat" ReplaceAutomaton isAtEnd
-        , actionBtn "Uložiť DFA" ShowSaveModal isAtEnd
+        , actionBtn theme "Nahradiť automat" ReplaceAutomaton isAtEnd
+        , actionBtn theme "Uložiť DFA" ShowSaveModal isAtEnd
         , div [ style "flex" "1" ] []
         , div
             [ style "width" "300px"
@@ -380,19 +392,97 @@ viewTopBar stepNum total isAtStart isAtEnd =
             , style "justify-content" "flex-end"
             , style "gap" "8px"
             ]
-            [ guideColorBtn ShowGuide
-            , colorBtn "← Editor" "#0277bd" SwitchToEditor True
+            [ guideColorBtn theme ShowGuide
+            , colorBtn theme "← Editor" theme.btnPrimary SwitchToEditor True
+            , settingsGearBtn theme settingsOpen darkMode
             ]
         ]
 
 
-navBtn : String -> Msg -> Bool -> Html Msg
-navBtn label msg isDisabled =
+settingsGearBtn : Theme.Theme -> Bool -> Bool -> Html Msg
+settingsGearBtn theme settingsOpen darkMode =
+    div
+        [ style "position" "relative"
+        , style "display" "flex"
+        ]
+        [ button
+            [ onClick ToggleSettings
+            , style "padding" "11px 16px"
+            , style "background-color" theme.btnSecondaryBg
+            , style "color" "white"
+            , style "border" "none"
+            , style "border-radius" "5px"
+            , style "cursor" "pointer"
+            , style "font-size" "14px"
+            , style "font-weight" "bold"
+            ]
+            [ text "⚙" ]
+        , if settingsOpen then
+            div
+                [ style "position" "absolute"
+                , style "top" "calc(100% + 6px)"
+                , style "right" "0"
+                , style "background-color" theme.settingsBg
+                , style "border" ("1px solid " ++ theme.settingsBorder)
+                , style "border-radius" "6px"
+                , style "padding" "12px 16px"
+                , style "min-width" "180px"
+                , style "z-index" "2000"
+                , style "display" "flex"
+                , style "flex-direction" "column"
+                , style "gap" "10px"
+                ]
+                [ div
+                    [ style "color" "white"
+                    , style "font-size" "13px"
+                    , style "display" "flex"
+                    , style "align-items" "center"
+                    , style "justify-content" "space-between"
+                    , style "gap" "10px"
+                    ]
+                    [ text "Tmavý režim"
+                    , pillToggle ToggleDarkMode darkMode
+                    ]
+                ]
+          else
+            div [] []
+        ]
+
+
+pillToggle : msg -> Bool -> Html msg
+pillToggle toggleMsg isOn =
+    div
+        [ onClick toggleMsg
+        , style "width" "40px"
+        , style "height" "20px"
+        , style "border-radius" "10px"
+        , style "background-color" (if isOn then "#0288d1" else "#607d8b")
+        , style "position" "relative"
+        , style "cursor" "pointer"
+        , style "flex-shrink" "0"
+        , style "transition" "background-color 0.2s"
+        ]
+        [ div
+            [ style "width" "16px"
+            , style "height" "16px"
+            , style "border-radius" "50%"
+            , style "background-color" "white"
+            , style "position" "absolute"
+            , style "top" "2px"
+            , style "left" (if isOn then "22px" else "2px")
+            , style "transition" "left 0.2s"
+            ]
+            []
+        ]
+
+
+navBtn : Theme.Theme -> String -> Msg -> Bool -> Html Msg
+navBtn theme label msg isDisabled =
     button
         [ onClick msg
         , style "padding" "11px 16px"
-        , style "background-color" (if isDisabled then "#b0bec5" else "#546e7a")
-        , style "color" "white"
+        , style "background-color" (if isDisabled then theme.btnDisabledBg else theme.btnSecondaryBg)
+        , style "color" (if isDisabled then theme.btnDisabledText else "white")
         , style "border" "none"
         , style "border-radius" "5px"
         , style "cursor" (if isDisabled then "not-allowed" else "pointer")
@@ -402,13 +492,13 @@ navBtn label msg isDisabled =
         [ text label ]
 
 
-actionBtn : String -> Msg -> Bool -> Html Msg
-actionBtn label msg isEnabled =
+actionBtn : Theme.Theme -> String -> Msg -> Bool -> Html Msg
+actionBtn theme label msg isEnabled =
     button
         [ onClick msg
         , style "padding" "11px 18px"
-        , style "background-color" (if isEnabled then "#0277bd" else "#b0bec5")
-        , style "color" "white"
+        , style "background-color" (if isEnabled then theme.btnPrimary else theme.btnDisabledBg)
+        , style "color" (if isEnabled then "white" else theme.btnDisabledText)
         , style "border" "none"
         , style "border-radius" "5px"
         , style "cursor" (if isEnabled then "pointer" else "not-allowed")
@@ -419,13 +509,13 @@ actionBtn label msg isEnabled =
         [ text label ]
 
 
-colorBtn : String -> String -> Msg -> Bool -> Html Msg
-colorBtn label color msg isEnabled =
+colorBtn : Theme.Theme -> String -> String -> Msg -> Bool -> Html Msg
+colorBtn theme label color msg isEnabled =
     button
         [ onClick msg
         , style "padding" "11px 18px"
-        , style "background-color" (if isEnabled then color else "#b0bec5")
-        , style "color" "white"
+        , style "background-color" (if isEnabled then color else theme.btnDisabledBg)
+        , style "color" (if isEnabled then "white" else theme.btnDisabledText)
         , style "border" "none"
         , style "border-radius" "5px"
         , style "cursor" (if isEnabled then "pointer" else "not-allowed")
@@ -436,12 +526,12 @@ colorBtn label color msg isEnabled =
         [ text label ]
 
 
-guideColorBtn : Msg -> Html Msg
-guideColorBtn msg =
+guideColorBtn : Theme.Theme -> Msg -> Html Msg
+guideColorBtn theme msg =
     button
         [ onClick msg
         , style "padding" "11px 18px"
-        , style "background-color" "#00796b"
+        , style "background-color" theme.btnGuide
         , style "color" "white"
         , style "border" "none"
         , style "border-radius" "5px"
@@ -466,8 +556,8 @@ guideColorBtn msg =
 -- CANVAS
 
 
-viewCanvas : Model -> Maybe StepSnapshot -> Html Msg
-viewCanvas model maybeSnap =
+viewCanvas : Theme.Theme -> Model -> Maybe StepSnapshot -> Html Msg
+viewCanvas theme model maybeSnap =
     let
         snap =
             Maybe.withDefault { states = [], transitions = [], step = StepDone, processedIds = [], worklist = [] } maybeSnap
@@ -497,14 +587,15 @@ viewCanvas model maybeSnap =
         , onZoomOut = ZoomOut
         , onWheel = Wheel
         , onStateMouseDown = StateMouseDown
+        , theme = theme
         }
 
 
 -- RIGHT PANEL
 
 
-viewRightPanel : Model -> Maybe StepSnapshot -> Html Msg
-viewRightPanel model maybeSnap =
+viewRightPanel : Theme.Theme -> Model -> Maybe StepSnapshot -> Html Msg
+viewRightPanel theme model maybeSnap =
     let
         snap =
             Maybe.withDefault { states = [], transitions = [], step = StepDone, processedIds = [], worklist = [] } maybeSnap
@@ -520,39 +611,41 @@ viewRightPanel model maybeSnap =
     div
         [ style "width" "300px"
         , style "flex-shrink" "0"
-        , style "background-color" "#f8f9fa"
-        , style "border-left" "2px solid #34495e"
+        , style "background-color" theme.rightPanelBg
+        , style "border-left" ("2px solid " ++ theme.rightPanelBorder)
         , style "display" "flex"
         , style "flex-direction" "column"
         , style "overflow" "hidden"
         ]
-        [ panelHeader "#e8eaf6" "Popis kroku"
+        [ panelHeader theme theme.convSectionHeaderBg "Popis kroku"
         , div
             [ style "padding" "10px 12px"
             , style "font-size" "12px"
             , style "line-height" "1.5"
-            , style "background-color" "#fffde7"
-            , style "border-bottom" "1px solid #ccc"
+            , style "background-color" theme.convStepDescBg
+            , style "border-bottom" ("1px solid " ++ theme.separatorColor)
             , style "min-height" "54px"
+            , style "color" theme.textPrimary
             ]
             [ text (stepExplanation model.nfa.states snap.states snap.step) ]
-        , panelHeader "#e8f5e9" "Pôvodné NFA stavy"
-        , div [ style "max-height" "120px", style "overflow-y" "auto", style "border-bottom" "1px solid #ccc" ]
-            [ viewNfaTable model.nfa.states ]
-        , panelHeader "#e3f2fd" "Tabuľka podmnožín"
+        , panelHeader theme theme.convSectionHeaderBg "Povodne NFA stavy"
+        , div [ style "max-height" "120px", style "overflow-y" "auto", style "border-bottom" ("1px solid " ++ theme.separatorColor) ]
+            [ viewNfaTable theme model.nfa.states ]
+        , panelHeader theme theme.convSectionHeaderBg "Tabulka podmnozin"
         , div [ style "flex" "1", style "overflow-y" "auto", style "overflow-x" "auto" ]
-            [ viewWorktable snap alph model.highlightDfaStateId currentSymbol ]
+            [ viewWorktable theme snap alph model.highlightDfaStateId currentSymbol ]
         ]
 
 
-panelHeader : String -> String -> Html Msg
-panelHeader bgColor title =
+panelHeader : Theme.Theme -> String -> String -> Html Msg
+panelHeader theme bgColor title =
     div
         [ style "padding" "8px 12px"
         , style "font-weight" "bold"
         , style "font-size" "12px"
         , style "background-color" bgColor
-        , style "border-bottom" "1px solid #ccc"
+        , style "border-bottom" ("1px solid " ++ theme.separatorColor)
+        , style "color" theme.textPrimary
         ]
         [ text title ]
 
@@ -560,36 +653,37 @@ panelHeader bgColor title =
 -- NFA TABLE
 
 
-viewNfaTable : List State -> Html Msg
-viewNfaTable states =
+viewNfaTable : Theme.Theme -> List State -> Html Msg
+viewNfaTable theme states =
     table [ style "border-collapse" "collapse", style "font-size" "12px", style "width" "100%" ]
         [ thead []
             [ tr []
-                [ tableHeader "left" "Stav"
-                , tableHeader "center" "Poč."
-                , tableHeader "center" "Konc."
+                [ tableHeader theme "left" "Stav"
+                , tableHeader theme "center" "Poc."
+                , tableHeader theme "center" "Konc."
                 ]
             ]
-        , tbody [] (List.map viewNfaRow states)
+        , tbody [] (List.map (viewNfaRow theme) states)
         ]
 
 
-viewNfaRow : State -> Html Msg
-viewNfaRow state =
+viewNfaRow : Theme.Theme -> State -> Html Msg
+viewNfaRow theme state =
     tr []
-        [ td [ style "padding" "2px 8px", style "border-top" "1px solid #ddd", style "font-size" "11px" ] [ text state.label ]
-        , td [ style "padding" "2px 8px", style "text-align" "center", style "border-top" "1px solid #ddd", style "font-size" "11px" ] [ text (if state.isStart then "✓" else "") ]
-        , td [ style "padding" "2px 8px", style "text-align" "center", style "border-top" "1px solid #ddd", style "font-size" "11px" ] [ text (if state.isEnd then "✓" else "") ]
+        [ td [ style "padding" "2px 8px", style "border-top" ("1px solid " ++ theme.separatorColor), style "font-size" "11px", style "color" theme.textPrimary ] [ text state.label ]
+        , td [ style "padding" "2px 8px", style "text-align" "center", style "border-top" ("1px solid " ++ theme.separatorColor), style "font-size" "11px", style "color" theme.textPrimary ] [ text (if state.isStart then "✓" else "") ]
+        , td [ style "padding" "2px 8px", style "text-align" "center", style "border-top" ("1px solid " ++ theme.separatorColor), style "font-size" "11px", style "color" theme.textPrimary ] [ text (if state.isEnd then "✓" else "") ]
         ]
 
 
-tableHeader : String -> String -> Html Msg
-tableHeader align label =
+tableHeader : Theme.Theme -> String -> String -> Html Msg
+tableHeader theme align label =
     th
         [ style "padding" "4px 8px"
         , style "text-align" align
-        , style "background" "#ccc"
+        , style "background" theme.convTableHeaderBg
         , style "font-size" "11px"
+        , style "color" theme.textPrimary
         ]
         [ text label ]
 
@@ -597,50 +691,52 @@ tableHeader align label =
 -- WORKTABLE
 
 
-viewWorktable : StepSnapshot -> List String -> Maybe Int -> Maybe String -> Html Msg
-viewWorktable snap alph highlightStateId highlightSymbol =
+viewWorktable : Theme.Theme -> StepSnapshot -> List String -> Maybe Int -> Maybe String -> Html Msg
+viewWorktable theme snap alph highlightStateId highlightSymbol =
     table [ style "border-collapse" "collapse", style "font-size" "11px", style "width" "100%" ]
         [ thead []
             [ tr []
                 ([ th
                     [ style "padding" "4px 8px"
                     , style "text-align" "left"
-                    , style "background" "#bbb"
+                    , style "background" theme.convTableHeaderBg
                     , style "white-space" "nowrap"
                     , style "position" "sticky"
                     , style "top" "0"
+                    , style "color" theme.textPrimary
                     ]
                     [ text "Stav DFA" ]
                  ]
-                    ++ List.map (worktableColHeader highlightSymbol) alph
+                    ++ List.map (worktableColHeader theme highlightSymbol) alph
                 )
             ]
         , tbody []
-            (List.map (viewWorktableRow snap alph highlightStateId highlightSymbol) snap.states)
+            (List.map (viewWorktableRow theme snap alph highlightStateId highlightSymbol) snap.states)
         ]
 
 
-worktableColHeader : Maybe String -> String -> Html Msg
-worktableColHeader highlightSymbol sym =
+worktableColHeader : Theme.Theme -> Maybe String -> String -> Html Msg
+worktableColHeader theme highlightSymbol sym =
     th
         [ style "padding" "4px 8px"
         , style "text-align" "center"
-        , style "background" (if highlightSymbol == Just sym then "#90caf9" else "#ccc")
+        , style "background" (if highlightSymbol == Just sym then theme.convTableColHeaderHighlight else theme.convTableHeaderBg)
         , style "white-space" "nowrap"
         , style "position" "sticky"
         , style "top" "0"
+        , style "color" theme.textPrimary
         ]
         [ text sym ]
 
 
-viewWorktableRow : StepSnapshot -> List String -> Maybe Int -> Maybe String -> DfaSubsetState -> Html Msg
-viewWorktableRow snap alph highlightStateId highlightSymbol state =
+viewWorktableRow : Theme.Theme -> StepSnapshot -> List String -> Maybe Int -> Maybe String -> DfaSubsetState -> Html Msg
+viewWorktableRow theme snap alph highlightStateId highlightSymbol state =
     let
         isRowHighlighted =
             highlightStateId == Just state.id
 
         rowBg =
-            if isRowHighlighted then "#fff9c4" else "transparent"
+            if isRowHighlighted then theme.convTableRowHighlight else "transparent"
 
         isProcessed =
             List.member state.id snap.processedIds
@@ -648,27 +744,28 @@ viewWorktableRow snap alph highlightStateId highlightSymbol state =
     tr []
         ([ td
             [ style "padding" "3px 8px"
-            , style "border-top" "1px solid #ddd"
+            , style "border-top" ("1px solid " ++ theme.separatorColor)
             , style "background-color" rowBg
             , style "white-space" "nowrap"
             , style "font-weight" "bold"
+            , style "color" theme.textPrimary
             ]
             [ text state.label ]
          ]
-            ++ List.map (worktableCell snap isRowHighlighted isProcessed rowBg highlightSymbol state.id) alph
+            ++ List.map (worktableCell theme snap isRowHighlighted isProcessed rowBg highlightSymbol state.id) alph
         )
 
 
-worktableCell : StepSnapshot -> Bool -> Bool -> String -> Maybe String -> Int -> String -> Html Msg
-worktableCell snap isRowHighlighted isProcessed rowBg highlightSymbol stateId sym =
+worktableCell : Theme.Theme -> StepSnapshot -> Bool -> Bool -> String -> Maybe String -> Int -> String -> Html Msg
+worktableCell theme snap isRowHighlighted isProcessed rowBg highlightSymbol stateId sym =
     let
         cellBg =
             if isRowHighlighted && highlightSymbol == Just sym then
-                "#fff176"
+                theme.convTableCellHighlight
             else if isRowHighlighted then
                 rowBg
             else if highlightSymbol == Just sym then
-                "#e3f2fd"
+                theme.convTableColHighlight
             else
                 "transparent"
 
@@ -680,15 +777,16 @@ worktableCell snap isRowHighlighted isProcessed rowBg highlightSymbol stateId sy
 
         cellText =
             if isProcessed then
-                Maybe.withDefault "—" target
+                Maybe.withDefault "-" target
             else
                 Maybe.withDefault "" target
     in
     td
         [ style "padding" "3px 8px"
         , style "text-align" "center"
-        , style "border-top" "1px solid #ddd"
+        , style "border-top" ("1px solid " ++ theme.separatorColor)
         , style "background-color" cellBg
+        , style "color" theme.textPrimary
         ]
         [ text cellText ]
 
@@ -696,8 +794,8 @@ worktableCell snap isRowHighlighted isProcessed rowBg highlightSymbol stateId sy
 -- SAVE MODAL
 
 
-viewSaveModal : Model -> Html Msg
-viewSaveModal model =
+viewSaveModal : Theme.Theme -> Model -> Html Msg
+viewSaveModal theme model =
     if not model.showSaveModal then
         div [] []
 
@@ -715,7 +813,7 @@ viewSaveModal model =
             , style "justify-content" "center"
             ]
             [ div
-                [ style "background" "white"
+                [ style "background" theme.modalBg
                 , style "padding" "24px"
                 , style "border-radius" "8px"
                 , style "display" "flex"
@@ -723,40 +821,42 @@ viewSaveModal model =
                 , style "gap" "12px"
                 , style "min-width" "260px"
                 ]
-                [ div [ style "font-weight" "bold", style "font-size" "16px" ] [ text "Uložiť DFA" ]
+                [ div [ style "font-weight" "bold", style "font-size" "16px", style "color" theme.textPrimary ] [ text "Ulozit DFA" ]
                 , input
                     [ type_ "text"
-                    , placeholder "Názov automatu"
+                    , placeholder "Nazov automatu"
                     , value model.saveNameInput
                     , onInput UpdateSaveNameInput
                     , autofocus True
                     , style "padding" "8px"
-                    , style "border" "1px solid #ccc"
+                    , style "border" ("1px solid " ++ theme.inputBorder)
                     , style "border-radius" "5px"
                     , style "font-size" "14px"
+                    , style "background-color" theme.inputBg
+                    , style "color" theme.inputText
                     ]
                     []
                 , button
                     [ onClick ConfirmSaveToStorage
                     , style "padding" "10px"
-                    , style "background-color" "#546e7a"
+                    , style "background-color" theme.btnSecondaryBg
                     , style "color" "white"
                     , style "border" "none"
                     , style "border-radius" "5px"
                     , style "cursor" "pointer"
                     , style "font-size" "14px"
                     ]
-                    [ text "Uložiť" ]
+                    [ text "Ulozit" ]
                 , button
                     [ onClick DismissSaveModal
                     , style "padding" "8px"
-                    , style "background-color" "#c62828"
+                    , style "background-color" theme.btnDelete
                     , style "color" "white"
                     , style "border" "none"
                     , style "border-radius" "5px"
                     , style "cursor" "pointer"
                     , style "font-size" "13px"
                     ]
-                    [ text "Zrušiť" ]
+                    [ text "Zrusit" ]
                 ]
             ]

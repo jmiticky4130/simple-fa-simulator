@@ -4,6 +4,7 @@ import Html exposing (Html, button, div, span, text)
 import Html.Attributes exposing (style)
 import Html.Events exposing (onClick)
 import Shared exposing (NfaInstance, State)
+import Utils.Theme as Theme
 
 
 type alias Config msg =
@@ -13,6 +14,7 @@ type alias Config msg =
     , states : List State
     , visibleCount : Int
     , onLoadMore : msg
+    , theme : Theme.Theme
     }
 
 
@@ -43,9 +45,10 @@ view config =
                             [ onClick config.onLoadMore
                             , style "padding" "6px 16px"
                             , style "cursor" "pointer"
-                            , style "border" "1px solid #aaa"
+                            , style "border" ("1px solid " ++ config.theme.inputBorder)
                             , style "border-radius" "4px"
-                            , style "background" "#f5f5f5"
+                            , style "background" config.theme.inputBg
+                            , style "color" config.theme.textPrimary
                             , style "font-size" "12px"
                             ]
                             [ text ("Načítať ďalšie (zobrazených " ++ String.fromInt config.visibleCount ++ " z " ++ String.fromInt total ++ ")") ]
@@ -94,6 +97,12 @@ viewInstance config displayIdx instance =
 
             else
                 "2px"
+
+        itemBg =
+            if isSelected then
+                config.theme.inputBg
+            else
+                config.theme.rightPanelBg
     in
     div
         [ style "border" (borderWidth ++ " solid " ++ borderColor)
@@ -101,7 +110,7 @@ viewInstance config displayIdx instance =
         , style "padding" "8px"
         , style "margin-bottom" "8px"
         , style "cursor" "pointer"
-        , style "background-color" (if isSelected then "#f0f8ff" else "white")
+        , style "background-color" itemBg
         , onClick (config.onSelect instance.id)
         ]
         [ div
@@ -113,8 +122,9 @@ viewInstance config displayIdx instance =
             [ span
                 [ style "font-weight" "bold"
                 , style "font-size" "13px"
+                , style "color" config.theme.textPrimary
                 ]
-                [ text ("Inštancia #" ++ String.fromInt displayIdx) ]
+                [ text ("Instancia #" ++ String.fromInt displayIdx) ]
             , span
                 [ style "background-color" statusBg
                 , style "color" "white"
@@ -124,11 +134,11 @@ viewInstance config displayIdx instance =
                 ]
                 [ text statusText ]
             ]
-        , div [ style "font-size" "12px", style "margin-bottom" "2px" ]
+        , div [ style "font-size" "12px", style "margin-bottom" "2px", style "color" config.theme.textPrimary ]
             [ span [ style "font-weight" "bold" ] [ text "Stav: " ]
             , text stateLabel
             ]
-        , div [ style "font-size" "12px" ]
+        , div [ style "font-size" "12px", style "color" config.theme.textPrimary ]
             [ span [ style "font-weight" "bold" ] [ text "Zostatok: " ]
             , text
                 (if String.isEmpty instance.remainingInput then

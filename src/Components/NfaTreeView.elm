@@ -7,6 +7,7 @@ import Svg exposing (Svg)
 import Svg.Attributes as SA
 import Svg.Events as SE
 import Shared exposing (NfaInstance, NfaTreeNode, State)
+import Utils.Theme as Theme
 
 
 type alias Config msg =
@@ -19,6 +20,7 @@ type alias Config msg =
     , zoom : Float
     , onZoomIn : msg
     , onZoomOut : msg
+    , theme : Theme.Theme
     }
 
 
@@ -515,7 +517,7 @@ view config =
             [ style "width" "100%"
             , style "height" "100%"
             , style "overflow" "auto"
-            , style "background-color" "#ecf0f1"
+            , style "background-color" config.theme.canvasBg
             ]
             [ Svg.svg
                 [ SA.width (String.fromFloat scaledW)
@@ -545,7 +547,7 @@ view config =
                 , style "height" "32px"
                 , style "font-size" "18px"
                 , style "font-weight" "bold"
-                , style "background-color" "#546e7a"
+                , style "background-color" config.theme.btnSecondaryBg
                 , style "color" "white"
                 , style "border" "none"
                 , style "border-radius" "4px"
@@ -559,13 +561,13 @@ view config =
                 , style "height" "32px"
                 , style "font-size" "18px"
                 , style "font-weight" "bold"
-                , style "background-color" "#546e7a"
+                , style "background-color" config.theme.btnSecondaryBg
                 , style "color" "white"
                 , style "border" "none"
                 , style "border-radius" "4px"
                 , style "cursor" "pointer"
                 , style "line-height" "1"
                 ]
-                [ text "−" ]
+                [ text "-" ]
             ]
         ]

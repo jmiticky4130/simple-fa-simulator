@@ -9,6 +9,7 @@ import Svg.Attributes as SA
 import Svg.Events as SE
 import Utils.AutomatonHelpers exposing (calculateArrowHead)
 import Utils.ConversionHelpers exposing (DfaSubsetState, DfaSubsetTransition)
+import Utils.Theme as Theme
 
 
 type alias Config msg =
@@ -28,6 +29,7 @@ type alias Config msg =
     , onZoomOut : msg
     , onWheel : Float -> Float -> Float -> msg
     , onStateMouseDown : Int -> Float -> Float -> msg
+    , theme : Theme.Theme
     }
 
 
@@ -40,7 +42,7 @@ view config =
     div
         [ style "flex" "1"
         , style "overflow" "hidden"
-        , style "background-color" "#ecf0f1"
+        , style "background-color" config.theme.canvasBg
         , style "position" "relative"
         , style "user-select" "none"
         ]
@@ -64,16 +66,16 @@ view config =
                         ++ ")"
                     )
                 ]
-                (List.map (viewDfaEdge config.dfaTransitions config.dfaStates config.highlightTransition) grouped
-                    ++ List.map (viewDfaState config.onStateMouseDown config.highlightDfaStateId config.newlyCreatedId config.processedIds) config.dfaStates
+                (List.map (viewDfaEdge config.theme config.dfaTransitions config.dfaStates config.highlightTransition) grouped
+                    ++ List.map (viewDfaState config.theme config.onStateMouseDown config.highlightDfaStateId config.newlyCreatedId config.processedIds) config.dfaStates
                 )
             ]
-        , zoomControls config.onZoomIn config.onZoomOut
+        , zoomControls config.theme config.onZoomIn config.onZoomOut
         ]
 
 
-zoomControls : msg -> msg -> Html msg
-zoomControls onZoomIn onZoomOut =
+zoomControls : Theme.Theme -> msg -> msg -> Html msg
+zoomControls theme onZoomIn onZoomOut =
     div
         [ style "position" "absolute"
         , style "bottom" "16px"
@@ -82,20 +84,20 @@ zoomControls onZoomIn onZoomOut =
         , style "flex-direction" "column"
         , style "gap" "4px"
         ]
-        [ zoomBtn "+" onZoomIn
-        , zoomBtn "−" onZoomOut
+        [ zoomBtn theme "+" onZoomIn
+        , zoomBtn theme "-" onZoomOut
         ]
 
 
-zoomBtn : String -> msg -> Html msg
-zoomBtn label msg =
+zoomBtn : Theme.Theme -> String -> msg -> Html msg
+zoomBtn theme label msg =
     button
         [ onClick msg
         , style "width" "32px"
         , style "height" "32px"
         , style "font-size" "18px"
         , style "font-weight" "bold"
-        , style "background-color" "#546e7a"
+        , style "background-color" theme.btnSecondaryBg
         , style "color" "white"
         , style "border" "none"
         , style "border-radius" "4px"
@@ -151,8 +153,8 @@ groupDfaTransitions transitions =
 -- EDGE RENDERING
 
 
-viewDfaEdge : List DfaSubsetTransition -> List DfaSubsetState -> Maybe { fromId : Int, toId : Int, symbol : String } -> { from : Int, to : Int, symbols : List String } -> Svg msg
-viewDfaEdge allTransitions allStates highlightTransition grouped =
+viewDfaEdge : Theme.Theme -> List DfaSubsetTransition -> List DfaSubsetState -> Maybe { fromId : Int, toId : Int, symbol : String } -> { from : Int, to : Int, symbols : List String } -> Svg msg
+viewDfaEdge theme allTransitions allStates highlightTransition grouped =
     let
         maybeA =
             List.filter (\s -> s.id == grouped.from) allStates |> List.head
@@ -174,18 +176,18 @@ viewDfaEdge allTransitions allStates highlightTransition grouped =
     case ( maybeA, maybeB ) of
         ( Just a, Just b ) ->
             if a.id == b.id then
-                viewSelfLoop a grouped.symbols isActive
+                viewSelfLoop theme a grouped.symbols isActive
             else if hasReverse then
-                viewCurvedEdge a b grouped.symbols isActive
+                viewCurvedEdge theme a b grouped.symbols isActive
             else
-                viewStraightEdge a b grouped.symbols isActive
+                viewStraightEdge theme a b grouped.symbols isActive
 
         _ ->
             Svg.g [] []
 
 
-viewStraightEdge : DfaSubsetState -> DfaSubsetState -> List String -> Bool -> Svg msg
-viewStraightEdge a b symbols isActive =
+viewStraightEdge : Theme.Theme -> DfaSubsetState -> DfaSubsetState -> List String -> Bool -> Svg msg
+viewStraightEdge theme a b symbols isActive =
     let
         r =
             35.0
@@ -221,7 +223,7 @@ viewStraightEdge a b symbols isActive =
             calculateArrowHead ex ey ux uy
 
         strokeColor =
-            if isActive then "#e74c3c" else "#222"
+            if isActive then "#e74c3c" else theme.edgeColor
 
         strokeWidth =
             if isActive then "4" else "2"
@@ -284,8 +286,8 @@ viewStraightEdge a b symbols isActive =
         )
 
 
-viewCurvedEdge : DfaSubsetState -> DfaSubsetState -> List String -> Bool -> Svg msg
-viewCurvedEdge a b symbols isActive =
+viewCurvedEdge : Theme.Theme -> DfaSubsetState -> DfaSubsetState -> List String -> Bool -> Svg msg
+viewCurvedEdge theme a b symbols isActive =
     let
         r =
             35.0
@@ -366,7 +368,7 @@ viewCurvedEdge a b symbols isActive =
             calculateArrowHead ex ey tUx tUy
 
         strokeColor =
-            if isActive then "#e74c3c" else "#222"
+            if isActive then "#e74c3c" else theme.edgeColor
 
         strokeWidth =
             if isActive then "4" else "2"
@@ -433,8 +435,8 @@ viewCurvedEdge a b symbols isActive =
         )
 
 
-viewSelfLoop : DfaSubsetState -> List String -> Bool -> Svg msg
-viewSelfLoop state symbols isActive =
+viewSelfLoop : Theme.Theme -> DfaSubsetState -> List String -> Bool -> Svg msg
+viewSelfLoop theme state symbols isActive =
     let
         r =
             35
@@ -479,7 +481,7 @@ viewSelfLoop state symbols isActive =
             calculateArrowHead ex ey ux uy
 
         strokeColor =
-            if isActive then "#e74c3c" else "#222"
+            if isActive then "#e74c3c" else theme.edgeColor
 
         strokeWidth =
             if isActive then "4" else "2"
@@ -520,8 +522,8 @@ edgeLabel x y label color =
 -- STATE RENDERING
 
 
-viewDfaState : (Int -> Float -> Float -> msg) -> Maybe Int -> Maybe Int -> List Int -> DfaSubsetState -> Svg msg
-viewDfaState onStateMouseDown highlightId newlyCreatedId processedIds state =
+viewDfaState : Theme.Theme -> (Int -> Float -> Float -> msg) -> Maybe Int -> Maybe Int -> List Int -> DfaSubsetState -> Svg msg
+viewDfaState theme onStateMouseDown highlightId newlyCreatedId processedIds state =
     let
         isHighlighted =
             highlightId == Just state.id
@@ -593,12 +595,12 @@ viewDfaState onStateMouseDown highlightId newlyCreatedId processedIds state =
                     ]
                     [ Svg.text state.label ]
                ]
-            ++ startArrow state r
+            ++ startArrow theme state r
         )
 
 
-startArrow : DfaSubsetState -> Int -> List (Svg msg)
-startArrow state r =
+startArrow : Theme.Theme -> DfaSubsetState -> Int -> List (Svg msg)
+startArrow theme state r =
     if not state.isStart then
         []
 
@@ -625,9 +627,9 @@ startArrow state r =
             , SA.y1 (String.fromFloat lineY)
             , SA.x2 (String.fromFloat lineX2)
             , SA.y2 (String.fromFloat lineY)
-            , SA.stroke "black"
+            , SA.stroke theme.edgeColor
             , SA.strokeWidth "2"
             ]
             []
-        , Svg.polygon [ SA.points pts, SA.fill "black" ] []
+        , Svg.polygon [ SA.points pts, SA.fill theme.edgeColor ] []
         ]
