@@ -6,6 +6,7 @@ import Html exposing (Html, div, button, text, span, h3, p, ul, li, strong, a)
 import Html.Attributes exposing (style, href, target)
 import Html.Events exposing (onClick)
 import Json.Decode as Decode
+import Set
 import Pages.Editor as Editor
 import Pages.Simulator as Simulator
 import Pages.Conversion as Conversion
@@ -14,6 +15,7 @@ import UndoList
 import Utils.AutomatonCodec
 import Utils.ExampleAutomata as ExampleAutomata
 import Utils.Theme as Theme
+import Utils.Translations as Translations exposing (Language(..))
 
 
 port setUrlHash : String -> Cmd msg
@@ -27,6 +29,10 @@ port requestStoredAutomata : () -> Cmd msg
 port storedAutomataLoaded : (List { name : String, data : String } -> msg) -> Sub msg
 
 port saveDarkMode : Bool -> Cmd msg
+
+port saveLanguage : String -> Cmd msg
+
+port copyToClipboard : String -> Cmd msg
 
 
 type Page
@@ -53,20 +59,23 @@ type alias Model =
     , consoleOpen : Bool
     , darkMode : Bool
     , settingsOpen : Bool
+    , language : Language
     }
 
 
 type alias Flags =
     { urlData : Maybe String
     , darkMode : Bool
+    , language : String
     }
 
 
 flagsDecoder : Decode.Decoder Flags
 flagsDecoder =
-    Decode.map2 Flags
+    Decode.map3 Flags
         (Decode.maybe (Decode.field "urlData" Decode.string))
         (Decode.field "darkMode" Decode.bool)
+        (Decode.field "language" Decode.string)
 
 
 init : Decode.Value -> ( Model, Cmd Msg )
@@ -75,20 +84,23 @@ init flagsValue =
         flags =
             case Decode.decodeValue flagsDecoder flagsValue of
                 Ok f -> f
-                Err _ -> { urlData = Nothing, darkMode = False }
+                Err _ -> { urlData = Nothing, darkMode = False, language = "sk" }
+
+        lang =
+            if flags.language == "en" then English else Slovak
 
         loadedAutomaton =
             flags.urlData
                 |> Maybe.andThen (Decode.decodeString Utils.AutomatonCodec.decoder >> Result.toMaybe)
 
         editorInit =
-            Editor.initWith loadedAutomaton
+            Editor.initWith lang loadedAutomaton
 
         simulatorInit =
-            Simulator.init { states = [], transitions = [], nextStateId = 0 }
+            Simulator.init lang { states = [], transitions = [], nextStateId = 0 }
 
         conversionInit =
-            Conversion.init { states = [], transitions = [], nextStateId = 0 }
+            Conversion.init lang { states = [], transitions = [], nextStateId = 0 }
     in
     ( { currentPage = EditorPage
       , editorModel = editorInit
@@ -99,9 +111,39 @@ init flagsValue =
       , consoleOpen = True
       , darkMode = flags.darkMode
       , settingsOpen = False
+      , language = lang
       }
     , Cmd.none
     )
+
+
+setLanguageForAllPages : Language -> Model -> Model
+setLanguageForAllPages newLang model =
+    let
+        currentEditorModel =
+            model.editorModel
+
+        currentSimulatorModel =
+            model.simulatorModel
+
+        currentConversionModel =
+            model.conversionModel
+
+        editorModel =
+            { currentEditorModel | language = newLang }
+
+        simulatorModel =
+            { currentSimulatorModel | language = newLang }
+
+        conversionModel =
+            { currentConversionModel | language = newLang }
+    in
+    { model
+        | language = newLang
+        , editorModel = editorModel
+        , simulatorModel = simulatorModel
+        , conversionModel = conversionModel
+    }
 
 
 type Msg
@@ -116,6 +158,7 @@ type Msg
     | ToggleDarkMode
     | ToggleSettings
     | CloseSettings
+    | ToggleLanguage
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
@@ -135,7 +178,7 @@ update msg model =
                 Editor.SwitchToConversion ->
                     ( { model
                         | currentPage = ConversionPage
-                        , conversionModel = Conversion.init model.editorModel.automaton.present
+                                                , conversionModel = Conversion.init model.language model.editorModel.automaton.present
                       }
                     , Cmd.none
                     )
@@ -143,7 +186,7 @@ update msg model =
                 Editor.SwitchToSimulator ->
                     let
                         currentAutomaton = model.editorModel.automaton.present
-                        simulatorInit = Simulator.init currentAutomaton
+                        simulatorInit = Simulator.init model.language currentAutomaton
                     in
                     ( { model
                         | currentPage = SimulatorPage
@@ -215,6 +258,27 @@ update msg model =
                     in
                     ( { model | darkMode = newDark }, saveDarkMode newDark )
 
+                Editor.ToggleLanguage ->
+                    let
+                        newLang = if model.language == Slovak then English else Slovak
+                        langStr = if newLang == English then "en" else "sk"
+                    in
+                    ( setLanguageForAllPages newLang model
+                    , saveLanguage langStr
+                    )
+
+                Editor.CopyDefinition ->
+                    let
+                        ( newEditorModel, editorCmd ) =
+                            Editor.update editorMsg model.editorModel
+                        automaton = model.editorModel.automaton.present
+                        t = Translations.getTranslations model.language
+                        defText = formatDefinitionText t.notSelected automaton.states automaton.transitions
+                    in
+                    ( { model | editorModel = newEditorModel }
+                    , Cmd.batch [ Cmd.map EditorMsg editorCmd, copyToClipboard defText ]
+                    )
+
                 _ ->
                     let
                         ( newEditorModel, editorCmd ) =
@@ -253,6 +317,15 @@ update msg model =
                     in
                     ( { model | darkMode = newDark }, saveDarkMode newDark )
 
+                Simulator.ToggleLanguage ->
+                    let
+                        newLang = if model.language == Slovak then English else Slovak
+                        langStr = if newLang == English then "en" else "sk"
+                    in
+                    ( setLanguageForAllPages newLang model
+                    , saveLanguage langStr
+                    )
+
                 _ ->
                     let
                         newSimulatorModel =
@@ -281,6 +354,15 @@ update msg model =
                         newDark = not model.darkMode
                     in
                     ( { model | darkMode = newDark }, saveDarkMode newDark )
+
+                Conversion.ToggleLanguage ->
+                    let
+                        newLang = if model.language == Slovak then English else Slovak
+                        langStr = if newLang == English then "en" else "sk"
+                    in
+                    ( setLanguageForAllPages newLang model
+                    , saveLanguage langStr
+                    )
 
                 Conversion.ReplaceAutomaton ->
                     let
@@ -358,6 +440,15 @@ update msg model =
         CloseSettings ->
             ( { model | settingsOpen = False }, Cmd.none )
 
+        ToggleLanguage ->
+            let
+                newLang = if model.language == Slovak then English else Slovak
+                langStr = if newLang == English then "en" else "sk"
+            in
+            ( setLanguageForAllPages newLang model
+            , saveLanguage langStr
+            )
+
 
 subscriptions : Model -> Sub Msg
 subscriptions model =
@@ -399,6 +490,7 @@ view : Model -> Html Msg
 view model =
     let
         theme = Theme.getTheme model.darkMode
+        t = Translations.getTranslations model.language
     in
     div []
         [ if model.settingsOpen then
@@ -416,7 +508,7 @@ view model =
             text ""
         , case model.currentPage of
             EditorPage ->
-                Html.map EditorMsg (Editor.view model.consoleOpen model.darkMode model.settingsOpen model.editorModel)
+                Html.map EditorMsg (Editor.view model.consoleOpen model.darkMode model.settingsOpen model.language model.editorModel)
 
             SimulatorPage ->
                 div
@@ -424,14 +516,51 @@ view model =
                     , style "flex-direction" "column"
                     , style "height" "100vh"
                     ]
-                    [ Html.map SimulatorMsg (Simulator.view model.consoleOpen model.darkMode model.settingsOpen model.simulatorModel)
+                    [ Html.map SimulatorMsg (Simulator.view model.consoleOpen model.darkMode model.settingsOpen model.language model.simulatorModel)
                     ]
 
             ConversionPage ->
-                Html.map ConversionMsg (Conversion.view model.consoleOpen model.darkMode model.settingsOpen model.conversionModel)
+                Html.map ConversionMsg (Conversion.view model.consoleOpen model.darkMode model.settingsOpen model.language model.conversionModel)
 
-        , if model.showGuide then viewGuideModal theme model else text ""
+        , if model.showGuide then viewGuideModal theme t model else text ""
         ]
+
+
+formatDefinitionText : String -> List Shared.State -> List Shared.Transition -> String
+formatDefinitionText notSelected states transitions =
+    let
+        q = "Q = { " ++ String.join ", " (List.map .label states) ++ " }"
+
+        alphabet =
+            List.map .symbol transitions
+                |> Set.fromList
+                |> Set.toList
+                |> List.sort
+
+        sigma = "\u{03A3} = { " ++ String.join ", " alphabet ++ " }"
+
+        startLabel =
+            List.filter .isStart states
+                |> List.head
+                |> Maybe.map .label
+                |> Maybe.withDefault notSelected
+
+        q0 = "q0 = " ++ startLabel
+
+        endLabels = List.filter .isEnd states |> List.map .label
+        f = "F = { " ++ String.join ", " endLabels ++ " }"
+
+        stateLabel id =
+            List.filter (\s -> s.id == id) states
+                |> List.head
+                |> Maybe.map .label
+                |> Maybe.withDefault "?"
+
+        deltaLines =
+            List.sortBy (\t -> ( t.from, t.to, t.symbol )) transitions
+                |> List.map (\t -> "\u{03B4}(" ++ stateLabel t.from ++ ", " ++ t.symbol ++ ") = " ++ stateLabel t.to)
+    in
+    String.join "\n" ([ q, sigma, q0, f ] ++ deltaLines)
 
 
 main : Program Decode.Value Model Msg
@@ -447,8 +576,8 @@ main =
 -- GUIDE MODAL
 
 
-viewGuideModal : Theme.Theme -> Model -> Html Msg
-viewGuideModal theme model =
+viewGuideModal : Theme.Theme -> Translations.Translations -> Model -> Html Msg
+viewGuideModal theme t model =
     div
         [ style "position" "fixed"
         , style "top" "0"
@@ -474,8 +603,8 @@ viewGuideModal theme model =
             , style "box-shadow" "0 8px 32px rgba(0,0,0,0.4)"
             , Html.Events.stopPropagationOn "click" (Decode.succeed ( NoOp, True ))
             ]
-            [ viewGuideHeader theme
-            , viewGuideTabBar theme model.guideTab
+            [ viewGuideHeader theme t
+            , viewGuideTabBar theme t model.guideTab
             , div
                 [ style "flex" "1"
                 , style "overflow-y" "auto"
@@ -485,13 +614,13 @@ viewGuideModal theme model =
                 , style "line-height" "1.65"
                 , style "color" theme.modalText
                 ]
-                [ viewGuideContent theme model.guideTab ]
+                [ viewGuideContent theme t model.language model.guideTab ]
             ]
         ]
 
 
-viewGuideHeader : Theme.Theme -> Html Msg
-viewGuideHeader theme =
+viewGuideHeader : Theme.Theme -> Translations.Translations -> Html Msg
+viewGuideHeader theme t =
     div
         [ style "display" "flex"
         , style "align-items" "center"
@@ -501,7 +630,7 @@ viewGuideHeader theme =
         , style "flex-shrink" "0"
         ]
         [ div [ style "font-size" "17px", style "font-weight" "bold", style "flex" "1" ]
-            [ text "Sprievodca simulátorom DFA/NFA" ]
+            [ text t.guideTitle ]
         , button
             [ onClick CloseGuide
             , style "background" "none"
@@ -516,18 +645,18 @@ viewGuideHeader theme =
         ]
 
 
-viewGuideTabBar : Theme.Theme -> GuideTab -> Html Msg
-viewGuideTabBar theme current =
+viewGuideTabBar : Theme.Theme -> Translations.Translations -> GuideTab -> Html Msg
+viewGuideTabBar theme t current =
     div
         [ style "display" "flex"
         , style "background-color" theme.modalTabBg
         , style "flex-shrink" "0"
         ]
         [ guideTabBtn theme GuideEditor "Editor" current
-        , guideTabBtn theme GuideSimulator "Simulátor" current
-        , guideTabBtn theme GuideConversion "Konverzia NFA->DFA" current
-        , guideTabBtn theme GuideErrors "Chybové správy" current
-        , guideTabBtn theme GuideAbout "O projekte" current
+        , guideTabBtn theme GuideSimulator t.guideTabSimulator current
+        , guideTabBtn theme GuideConversion t.guideTabConversion current
+        , guideTabBtn theme GuideErrors t.guideTabErrors current
+        , guideTabBtn theme GuideAbout t.guideTabAbout current
         ]
 
 
@@ -550,23 +679,53 @@ guideTabBtn theme tab label current =
         [ text label ]
 
 
-viewGuideContent : Theme.Theme -> GuideTab -> Html Msg
-viewGuideContent theme tab =
+viewGuideContent : Theme.Theme -> Translations.Translations -> Language -> GuideTab -> Html Msg
+viewGuideContent theme t lang tab =
     case tab of
         GuideEditor ->
-            viewGuideEditor theme
+            viewGuideEditor theme t lang
 
         GuideSimulator ->
-            viewGuideSimulator theme
+            viewGuideSimulator theme lang
 
         GuideConversion ->
-            viewGuideConversion theme
+            viewGuideConversion theme lang
 
         GuideErrors ->
-            viewGuideErrors theme
+            viewGuideErrors theme lang
 
         GuideAbout ->
-            viewGuideAbout theme
+            viewGuideAbout theme lang
+
+
+renderGuidePage : Theme.Theme -> Translations.GuidePageText -> List (Html Msg) -> Html Msg
+renderGuidePage theme page extraSections =
+    div []
+        (List.map (guidePara theme) page.intro
+            ++ List.map
+                (\sectionText ->
+                    guideSection theme sectionText.title
+                        (List.map (\rowText -> guideRow theme rowText.label rowText.description) sectionText.rows
+                            ++ List.map (guidePara theme) sectionText.paragraphs
+                            ++ List.map (guideNote theme) sectionText.notes
+                        )
+                )
+                page.sections
+            ++ extraSections
+        )
+
+
+renderGuideErrorsPage : Theme.Theme -> Translations.GuideErrorsPageText -> Html Msg
+renderGuideErrorsPage theme page =
+    div []
+        (guidePara theme page.intro
+            :: List.map
+                (\sectionText ->
+                    guideSection theme sectionText.title
+                        (List.map (\err -> guideErrorRow theme err.error err.cause) sectionText.rows)
+                )
+                page.sections
+        )
 
 
 -- GUIDE HELPERS
@@ -666,8 +825,8 @@ guideErrorRow theme err cause =
         ]
 
 
-exampleCard : Theme.Theme -> ExampleAutomata.ExampleDef -> Html Msg
-exampleCard theme ex =
+exampleCard : Theme.Theme -> Translations.Translations -> ExampleAutomata.ExampleDef -> Html Msg
+exampleCard theme t ex =
     div
         [ style "border" ("1px solid " ++ theme.exampleCardBorder)
         , style "border-radius" "6px"
@@ -695,61 +854,23 @@ exampleCard theme ex =
             , style "align-self" "flex-start"
             , style "margin-top" "4px"
             ]
-            [ text "Načítať do editora" ]
+            [ text t.loadIntoEditor ]
         ]
 
 
 -- EDITOR TAB
 
 
-viewGuideEditor : Theme.Theme -> Html Msg
-viewGuideEditor theme =
-    div []
-        [ guidePara theme "Editor slúži na budovanie deterministických (DFA) a nedeterministických (NFA) konečných automatov. Stavy a prechody vytvárate priamo na plátne."
-        , guideSection theme "Akcie na plátne (nástroj Stavať)"
-            [ guideRow theme "Pridanie stavu" "Dvojklik na prázdne plátno (predvolený názov q0, q1, ...)"
-            , guideRow theme "Premenovanie stavu" "Rýchly dvojklik na stav -> upraviť názov v modáli"
-            , guideRow theme "Nastavenie počiatočného stavu" "Rýchly dvojklik na stav -> zaškrtnúť Počiatočný stav"
-            , guideRow theme "Nastavenie koncového stavu" "Rýchly dvojklik na stav -> zaškrtnúť Koncový stav"
-            , guideRow theme "Pridanie prechodu" "Kliknutie na zdrojový stav, potom kliknutie na cieľový stav"
-            , guideRow theme "Pridanie slučky (self-loop)" "Pomalý dvojklik na stav"
-            , guideRow theme "Epsilon prechod" "Nechajte vstupné pole prázdne"
-            , guideRow theme "Viac prechodov naraz" "Symboly oddeľujte čiarkou, napr. a,b"
-            , guideRow theme "Úprava symbolu prechodu" "Dvojklik na symbol prechodu"
-            , guideRow theme "Presun stavu" "Ťahanie stavu myšou"
-            , guideRow theme "Zrušenie akcie / výberu" "Klik na prázdne plátno alebo Escape"
-            ]
-        , guideSection theme "Nástroje"
-            [ guideRow theme "Stavať  (Shift+B)" "Predvolený nástroj: vytváranie stavov a prechodov"
-            , guideRow theme "Odstrániť  (Shift+D)" "Klik na stav alebo prechod ho vymaže; opätovné kliknutie prepne späť na Stavať"
-            ]
-        , guideSection theme "Klávesové skratky"
-            [ guideRow theme "Ctrl+Z / Ctrl+Y" "Späť / Dopredu (undo/redo)"
-            , guideRow theme "Shift+B" "Nástroj Stavať"
-            , guideRow theme "Shift+D" "Nástroj Odstrániť"
-            , guideRow theme "Escape" "Zruší aktuálnu akciu (zatvorí vstupné polia, modály)"
-            ]
-        , guideSection theme "Navigácia plátna"
-            [ guideRow theme "Koliesko myši (alebo +/- tlačidlá)" "Priblíženie / oddialenie"
-            , guideRow theme "Ťahanie prázdneho plátna" "Posúvanie pohľadu (pan)"
-            ]
-        , guideSection theme "Súbory a ukladanie"
-            [ guideRow theme "Export" "Stiahne automat ako súbor .json"
-            , guideRow theme "Uložiť" "Uloží automat do lokálneho úložiska prehliadača s názvom"
-            , guideRow theme "Načítať" "Načíta zo súboru .json alebo z lokálneho úložiska"
-            , guideRow theme "Zdieľať cez URL" "Zakóduje automat do URL (hash); zdieľateľný link"
-            , guideNote theme "Lokálne úložisko je viazané na prehliadač a doménu. Automaty zo sprievodcu sa do neho neukladajú."
-            ]
-        , guideSection theme "Konzola"
-            [ guidePara theme "Spodná lišta zobrazuje informačné a chybové správy. Konzola je skrývateľná - kliknutím na lištu ju zrolujete alebo rozbalíte."
-            ]
-        , guideSection theme "Príklady automatov"
+viewGuideEditor : Theme.Theme -> Translations.Translations -> Language -> Html Msg
+viewGuideEditor theme t lang =
+    renderGuidePage theme (Translations.guideEditorPage lang)
+        [ guideSection theme t.guideExamplesSection
             [ div
                 [ style "display" "flex"
                 , style "flex-wrap" "wrap"
                 , style "gap" "10px"
                 ]
-                (List.map (exampleCard theme) ExampleAutomata.examples)
+                (List.map (exampleCard theme t) (ExampleAutomata.examples lang))
             ]
         ]
 
@@ -757,133 +878,45 @@ viewGuideEditor theme =
 -- SIMULATOR TAB
 
 
-viewGuideSimulator : Theme.Theme -> Html Msg
-viewGuideSimulator theme =
-    div []
-        [ guidePara theme "Simulátor umožňuje spúšťať automat krok za krokom na zadanom vstupnom reťazci. Tlačidlo Simulovať je aktívne len vtedy, keď automat má počiatočný aj aspoň jeden koncový stav."
-        , guideSection theme "Ovládanie"
-            [ guideRow theme "Vstupné pole" "Zadajte reťazec, ktorý chcete simulovať (napr. aab)"
-            , guideRow theme "Krok vpred" "Prečíta ďalší symbol a posunie simuláciu o jeden krok"
-            , guideRow theme "Krok späť" "Vráti simuláciu do predchádzajúceho stavu"
-            , guideRow theme "Reset" "Vráti simuláciu na začiatok (vstup zostane)"
-            , guideRow theme "Auto / Pauza" "Spustí / pozastaví automatické krokovanie"
-            , guideRow theme "Posuvník rýchlosti" "Nastaví interval krokovania (100 ms - 2 s)"
-            ]
-        , guideSection theme "DFA simulácia"
-            [ guideRow theme "Aktívny stav" "Zvýraznený na plátne modrým orámovaním"
-            , guideRow theme "Aktívny prechod" "Šípka prechodu sa zvýrazní pri každom kroku"
-            , guideRow theme "Výsledok" "Zelená = Akceptované, červená = Zamietnuté"
-            , guideNote theme "DFA má vždy práve jednu aktívnu cestu - žiadny nedeterminizmus."
-            ]
-        , guideSection theme "NFA simulácia"
-            [ guideRow theme "Inštancie" "Každá inštancia sleduje jednu možnú cestu v automate"
-            , guideRow theme "Panel inštancií (vľavo)" "Zoznam všetkých inštancií; klik = zvýrazní stav na plátne"
-            , guideRow theme "Stav inštancie" "Modrá = bežiaca, zelená = akceptovala, červená = zamietnutá"
-            , guideRow theme "Strom rozhodnutí (vpravo)" "Vizualizácia všetkých ciest vrátane eps-krokov; sivé uzly = ukončené predka"
-            , guideRow theme "Klik na uzol stromu" "Zvýrazní zodpovedajúcu inštanciu a stav na plátne"
-            , guideRow theme "Prepínače Plátno / Strom" "Zobraziť alebo skryť každú sekciu nezávisle"
-            , guideRow theme "Zlúčiť stavy" "Ak zaškrtnuté: inštancie s rovnakým (stav, zostatok vstupu) sa zlúčia do jednej."
-            , guideNote theme "NFA akceptuje reťazec, ak aspoň jedna inštancia dosiahne akceptujúci stav po prečítaní celého vstupu."
-            ]
-        , guideSection theme "Efektívny režim (NFA)"
-            [ guideRow theme "Zaškrtnite Efektívny režim" "V pravom paneli NFA simulátora zapne efektívny režim."
-            , guideRow theme "Okamžitý beh" "Spustí kompletnú simuláciu naraz bez budovania inštancií."
-            , guideNote theme "V efektívnom režime je krokovanie, auto-run a panel inštancií deaktivovaný."
-            ]
-        , guideSection theme "eps-prechody v NFA"
-            [ guideRow theme "eps-rozvinutie" "Po každom symbolickom kroku sa automaticky vytvoria eps-deti"
-            , guideRow theme "Zobrazenie" "eps-kroky sú viditeľné v strome rozhodnutí ako samostatné úrovne"
-            ]
-        ]
+viewGuideSimulator : Theme.Theme -> Language -> Html Msg
+viewGuideSimulator theme lang =
+    renderGuidePage theme (Translations.guideSimulatorPage lang) []
 
 
 -- CONVERSION TAB
 
 
-viewGuideConversion : Theme.Theme -> Html Msg
-viewGuideConversion theme =
-    div []
-        [ guidePara theme "Konverzia NFA->DFA prevádza nedeterministický automat na ekvivalentný deterministický pomocou algoritmu podmnožín (subset construction)."
-        , guideSection theme "Kľúčové pojmy"
-            [ guideRow theme "eps-closure(S)" "Množina všetkých stavov dosiahnuteľných z množiny S cez eps-prechody (vrátane S)."
-            , guideRow theme "move(S, a)" "Množina NFA stavov dosiahnuteľných z niektorého stavu S po symbole a (bez eps)."
-            , guideRow theme "DFA stav" "Každý stav výsledného DFA zodpovedá podmnožine NFA stavov."
-            , guideNote theme "DFA stav je akceptujúci práve vtedy, keď obsahuje aspoň jeden akceptujúci NFA stav."
-            ]
-        , guideSection theme "Algoritmus podmnožín (krok za krokom)"
-            [ guideRow theme "1. Počiatočný stav" "Vypočítaj eps-closure({q0_NFA}) - to je počiatočný DFA stav."
-            , guideRow theme "2. Výber z worklistu" "Vyber nespracovaný DFA stav S."
-            , guideRow theme "3. Pre každý symbol a" "Vypočítaj T = eps-closure(move(S, a))."
-            , guideRow theme "4. Nový stav?" "Ak T ešte neexistuje ako DFA stav, vytvor ho a pridaj do worklistu."
-            , guideRow theme "5. Prechod" "Pridaj DFA prechod S ->a-> T."
-            , guideRow theme "6. Označ S" "Označ DFA stav S ako spracovaný."
-            , guideRow theme "7. Opakovanie" "Pokračuj, kým worklist nie je prázdny."
-            ]
-        , guideSection theme "Vizualizácia konverzie"
-            [ guideRow theme "Plátno" "DFA stavy (podmnožiny NFA stavov); farebné zvýraznenie"
-            , guideRow theme "Pravý panel - Popis kroku" "Textové vysvetlenie aktuálneho kroku algoritmu"
-            , guideRow theme "Navigácia" "Pohyb cez jednotlivé kroky algoritmu dopredu/dozadu"
-            ]
-        , guideSection theme "Výstup konverzie"
-            [ guideRow theme "Nahradiť automat" "Otvorí výsledný DFA v editore (nahradí aktuálny automat)"
-            , guideRow theme "Uložiť DFA" "Uloží výsledný DFA do lokálneho úložiska prehliadača s názvom"
-            , guideNote theme "Tlačidlá Nahradiť a Uložiť sú aktívne až po dokončení posledného kroku konverzie."
-            ]
-        ]
+viewGuideConversion : Theme.Theme -> Language -> Html Msg
+viewGuideConversion theme lang =
+    renderGuidePage theme (Translations.guideConversionPage lang) []
 
 
 -- ERRORS TAB
 
 
-viewGuideErrors : Theme.Theme -> Html Msg
-viewGuideErrors theme =
-    div []
-        [ guidePara theme "Zoznam chýb a upozornení, ktoré sa môžu v aplikácii objaviť, vrátane ich príčiny a riešenia."
-        , guideSection theme "Chyby v editore"
-            [ guideErrorRow theme "Prázdny názov nie je povolený"
-                "Stav musí mať neprázdny názov. Zadajte aspoň jeden znak."
-            , guideErrorRow theme "Stav s názvom '...' už existuje"
-                "Každý stav musí mať unikátny názov. Zvoľte iný názov."
-            , guideErrorRow theme "Slučka nemôže byť eps-prechodom"
-                "Epsilon self-loop (stav na seba samého) nie je povolený."
-            , guideErrorRow theme "Prechod '...' už existuje"
-                "Duplikátny prechod: rovnaký (zdroj, symbol, cieľ) už existuje."
-            , guideErrorRow theme "Symbol nemôže obsahovať medzery"
-                "Symbol prechodu nesmie obsahovať medzery."
-            , guideErrorRow theme "Chyba importu: ..."
-                "Neplatný JSON súbor alebo formát nezodpovedá schéme automatu."
-            ]
-        , guideSection theme "Neaktívne tlačidlá (podmienky spustenia)"
-            [ guideErrorRow theme "Simulovať - 'Pridajte aspoň jeden stav'"
-                "Automat nemá žiadne stavy. Dvojklikom na plátno pridajte stav."
-            , guideErrorRow theme "Simulovať - 'Nastavte počiatočný stav'"
-                "Automat nemá počiatočný stav. Dvojklik na stav -> zaškrtnúť Počiatočný stav."
-            , guideErrorRow theme "Simulovať - 'Nastavte aspoň jeden koncový stav'"
-                "Automat nemá žiadny akceptujúci stav. Nastavte ho cez modál stavu."
-            , guideErrorRow theme "NFA->DFA - dostupné iba pre NFA"
-                "Tlačidlo je neaktívne pre DFA (žiadne eps-prechody ani nedeterminizmus)."
-            ]
-        ]
+viewGuideErrors : Theme.Theme -> Language -> Html Msg
+viewGuideErrors theme lang =
+    renderGuideErrorsPage theme (Translations.guideErrorsPage lang)
 
 
 -- ABOUT TAB
 
 
-viewGuideAbout : Theme.Theme -> Html Msg
-viewGuideAbout theme =
+viewGuideAbout : Theme.Theme -> Language -> Html Msg
+viewGuideAbout theme lang =
+    let
+        about =
+            Translations.guideAboutPage lang
+    in
     div []
-        [ guideSection theme "O projekte"
-            [ guideRow theme "Názov" "Simulátor konečných automatov (DFA/NFA)"
-            , guideRow theme "Typ" "Bakalárska práca"
-            , guideRow theme "Rok" "2026"
-            , guideRow theme "Škola" "STU FIIT"
-            ]
+        [ guideSection theme about.sectionTitle
+            (List.map (\rowText -> guideRow theme rowText.label rowText.description) about.rows)
         , div
             [ style "margin-top" "16px"
             , style "font-size" "15px"
             , style "color" theme.modalText
             ]
-            [ text "Spätná väzba, otázky alebo hlásenie chýb - napíšte na: "
+            [ text about.contactPrefix
             , a
                 [ href "mailto:xmiticky@stuba.sk"
                 , style "color" theme.btnPrimary

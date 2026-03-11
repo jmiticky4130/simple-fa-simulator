@@ -1,33 +1,41 @@
 module Components.AutomatonDisplay exposing (view)
 
-import Html exposing (Html, div, h3, p, text, span)
-import Html.Attributes exposing (style)
+import Html exposing (Html, div, h3, p, text, span, button, img)
+import Html.Attributes exposing (style, src)
+import Html.Events exposing (onClick)
 import Set
 import Shared exposing (State, Transition)
 import Utils.AutomatonHelpers exposing (getStateLabel)
 import Utils.Theme as Theme
+import Utils.Translations as Translations exposing (Language)
 
 
-type alias Config =
+type alias Config msg =
     { states : List State
     , transitions : List Transition
     , theme : Theme.Theme
+    , language : Language
+    , onCopyDefinition : msg
+    , copySuccess : Bool
     }
 
 
-view : Config -> Html msg
+view : Config msg -> Html msg
 view config =
     let
+        t =
+            Translations.getTranslations config.language
+
         isNFA =
             let
                 check ts seen =
                     case ts of
                         [] -> False
-                        t :: rest ->
-                            if Set.member (t.from, t.symbol) seen then
+                        transition :: rest ->
+                            if Set.member (transition.from, transition.symbol) seen then
                                 True
                             else
-                                check rest (Set.insert (t.from, t.symbol) seen)
+                                check rest (Set.insert (transition.from, transition.symbol) seen)
             in
             check config.transitions Set.empty
 
@@ -50,20 +58,65 @@ view config =
         , style "box-sizing" "border-box"
         , style "color" config.theme.textPrimary
         ]
-        [ h3
-            [ style "margin-top" "0"
-            , style "color" config.theme.automatonDefTitle
+        [ div
+            [ style "display" "flex"
+            , style "align-items" "center"
+            , style "justify-content" "space-between"
             , style "border-bottom" ("2px solid " ++ config.theme.automatonDefBorder)
             , style "padding-bottom" "10px"
+            , style "margin-bottom" "10px"
             ]
-            [ text "Definícia automatu: "
-            , span [ style "color" typeColor ] [ text typeLabel ]
+            [ h3
+                [ style "margin" "0"
+                , style "color" config.theme.automatonDefTitle
+                ]
+                [ text (t.automatonDefinition ++ ": ")
+                , span [ style "color" typeColor ] [ text typeLabel ]
+                ]
+            , div [ style "position" "relative" ]
+                [ button
+                    [ onClick config.onCopyDefinition
+                    , style "background" config.theme.copyBtnBg
+                    , style "border" "none"
+                    , style "cursor" "pointer"
+                    , style "padding" "4px 6px"
+                    , style "border-radius" "5px"
+                    , style "display" "flex"
+                    , style "align-items" "center"
+                    , style "justify-content" "center"
+                    ]
+                    [ img
+                        [ src (if config.copySuccess then "icons/copy-success-svgrepo-com.svg" else "icons/copy-svgrepo-com.svg")
+                        , style "width" "18px"
+                        , style "height" "18px"
+                        , style "display" "block"
+                        ]
+                        []
+                    ]
+                , if config.copySuccess then
+                    div
+                        [ style "position" "absolute"
+                        , style "top" "calc(100% + 6px)"
+                        , style "right" "0"
+                        , style "background" "#333"
+                        , style "color" "white"
+                        , style "padding" "3px 8px"
+                        , style "border-radius" "4px"
+                        , style "font-size" "11px"
+                        , style "white-space" "nowrap"
+                        , style "pointer-events" "none"
+                        , style "z-index" "10"
+                        ]
+                                                [ text t.copied ]
+                  else
+                    text ""
+                ]
             ]
         , viewDefinition config
         ]
 
 
-viewDefinition : Config -> Html msg
+viewDefinition : Config msg -> Html msg
 viewDefinition config =
     div
         [ style "font-family" "monospace"
@@ -72,7 +125,7 @@ viewDefinition config =
         ]
         [ viewSetQ config.states
         , viewSetSigma config.transitions
-        , viewStartQ0 config.states
+        , viewStartQ0 config.language config.states
         , viewSetF config.states
         , viewDelta config.states config.transitions
         ]
@@ -108,9 +161,12 @@ viewSetSigma transitions =
     p [ style "margin" "10px 0" ] [ text ("\u{03A3} = " ++ content) ]
 
 
-viewStartQ0 : List State -> Html msg
-viewStartQ0 states =
+viewStartQ0 : Language -> List State -> Html msg
+viewStartQ0 language states =
     let
+        t =
+            Translations.getTranslations language
+
         startState =
             List.filter .isStart states
                 |> List.head
@@ -121,7 +177,7 @@ viewStartQ0 states =
                 Just lbl ->
                     lbl
                 Nothing ->
-                    "nebol vybraty pociatocny stav"
+                    t.noStartStateSelected
     in
     p [ style "margin" "10px 0" ] [ text ("q0 = " ++ content) ]
 

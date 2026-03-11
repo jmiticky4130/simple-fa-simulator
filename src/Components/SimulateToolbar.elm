@@ -4,7 +4,10 @@ import Html exposing (Html, div, button, text, input, img)
 import Html.Attributes exposing (style, type_, value, step, disabled, src)
 import Html.Attributes as HA
 import Html.Events exposing (onClick, onInput)
+import Svg
+import Svg.Attributes as SA
 import Utils.Theme as Theme
+import Utils.Translations as Translations exposing (Language)
 
 
 type alias Config msg =
@@ -25,6 +28,8 @@ type alias Config msg =
     , onToggleSettings : msg
     , onToggleDarkMode : msg
     , darkMode : Bool
+    , language : Language
+    , onToggleLanguage : msg
     }
 
 
@@ -39,6 +44,10 @@ speedLabel ms =
 
 view : Config msg -> Html msg
 view config =
+    let
+        t =
+            Translations.getTranslations config.language
+    in
     div
         [ style "display" "flex"
         , style "flex-direction" "row"
@@ -48,20 +57,20 @@ view config =
         , style "border-bottom" ("2px solid " ++ config.theme.toolbarBorderColor)
         , style "align-items" "center"
         ]
-        [ toolButton config.theme "Reset" config.onReset True False
-        , toolButton config.theme "Krok späť" config.onStepBackward config.canStepBackward False
+        [ iconToolButton config.theme resetIcon t.reset config.onReset True False
+        , toolButton config.theme t.stepBack config.onStepBackward config.canStepBackward False
         , toolButton config.theme
             (case config.nextSymbol of
                 Nothing ->
-                    "Krok vpred"
+                    t.stepForward
 
                 Just s ->
-                    "Krok vpred  '" ++ s ++ "'"
+                    t.stepForward ++ "  '" ++ s ++ "'"
             )
             config.onStepForward
             config.canStepForward
             False
-        , autoRunButton config.theme config.onToggleAutoRun config.autoRunning
+        , autoRunButton config.theme t config.onToggleAutoRun config.autoRunning
         , div
             [ style "display" "flex"
             , style "align-items" "center"
@@ -93,8 +102,8 @@ view config =
             , style "justify-content" "flex-end"
             , style "gap" "8px"
             ]
-            [ guideButton config.theme config.onShowGuide
-            , actionButton config.theme "<- Editor" config.onSwitchToEditor True
+            [ guideButton config.theme t.guide config.onShowGuide
+            , actionButton config.theme t.backToEditor config.onSwitchToEditor True
             , settingsGearBtn config
             ]
         ]
@@ -102,6 +111,9 @@ view config =
 
 settingsGearBtn : Config msg -> Html msg
 settingsGearBtn config =
+    let
+        t = Translations.getTranslations config.language
+    in
     div
         [ style "position" "relative"
         , style "display" "flex"
@@ -139,7 +151,7 @@ settingsGearBtn config =
                     , style "font-weight" "bold"
                     , style "margin-bottom" "10px"
                     ]
-                    [ text "Nastavenia" ]
+                    [ text t.settings ]
                 , div
                     [ style "display" "flex"
                     , style "align-items" "center"
@@ -147,8 +159,18 @@ settingsGearBtn config =
                     , style "gap" "12px"
                     ]
                     [ div [ style "color" "#cfd8dc", style "font-size" "13px" ]
-                        [ text "Tmavý režim" ]
+                        [ text t.darkMode ]
                     , pillToggle config.onToggleDarkMode config.darkMode
+                    ]
+                , div
+                    [ style "display" "flex"
+                    , style "align-items" "center"
+                    , style "justify-content" "space-between"
+                    , style "gap" "12px"
+                    ]
+                    [ div [ style "color" "#cfd8dc", style "font-size" "13px" ]
+                        [ text t.language ]
+                    , languageToggleBtn t config.onToggleLanguage
                     ]
                 ]
           else
@@ -183,8 +205,51 @@ pillToggle onToggle isOn =
         ]
 
 
-autoRunButton : Theme.Theme -> msg -> Bool -> Html msg
-autoRunButton theme onToggle running =
+languageToggleBtn : Translations.Translations -> msg -> Html msg
+languageToggleBtn t onToggle =
+    button
+        [ onClick onToggle
+        , style "background" "#37474f"
+        , style "color" "white"
+        , style "border" "none"
+        , style "border-radius" "4px"
+        , style "padding" "2px 8px"
+        , style "font-size" "12px"
+        , style "cursor" "pointer"
+        ]
+        [ text t.languageName ]
+
+
+resetIcon : Html msg
+resetIcon =
+    Svg.svg
+        [ SA.width "16", SA.height "16", SA.viewBox "0 0 1920 1920", SA.fill "currentColor" ]
+        [ Svg.path [ SA.fillRule "evenodd", SA.d "M960 0v112.941c467.125 0 847.059 379.934 847.059 847.059 0 467.125-379.934 847.059-847.059 847.059-467.125 0-847.059-379.934-847.059-847.059 0-267.106 126.607-515.915 338.824-675.727v393.374h112.94V112.941H0v112.941h342.89C127.058 407.38 0 674.711 0 960c0 529.355 430.645 960 960 960s960-430.645 960-960S1489.355 0 960 0" ] [] ]
+
+
+iconToolButton : Theme.Theme -> Html msg -> String -> msg -> Bool -> Bool -> Html msg
+iconToolButton theme icon label onClickMsg isEnabled isActive =
+    button
+        [ onClick onClickMsg
+        , disabled (not isEnabled)
+        , style "padding" "10px 14px"
+        , style "background-color" (if isActive then theme.btnAutoRunActive else if isEnabled then theme.btnSecondaryBg else theme.btnDisabledBg)
+        , style "color" (if isEnabled then "white" else theme.btnDisabledText)
+        , style "border" "none"
+        , style "border-radius" "4px"
+        , style "cursor" (if isEnabled then "pointer" else "not-allowed")
+        , style "font-size" "14px"
+        , style "font-weight" (if isActive then "bold" else "normal")
+        , style "transition" "all 0.3s"
+        , style "display" "flex"
+        , style "align-items" "center"
+        , style "gap" "6px"
+        ]
+        [ icon, text label ]
+
+
+autoRunButton : Theme.Theme -> Translations.Translations -> msg -> Bool -> Html msg
+autoRunButton theme t onToggle running =
     button
         [ onClick onToggle
         , style "padding" "10px 14px"
@@ -197,7 +262,7 @@ autoRunButton theme onToggle running =
         , style "font-weight" (if running then "bold" else "normal")
         , style "transition" "all 0.2s"
         ]
-        [ text (if running then "Pauza" else "Auto") ]
+        [ text (if running then t.pause else t.auto) ]
 
 
 toolButton : Theme.Theme -> String -> msg -> Bool -> Bool -> Html msg
@@ -235,8 +300,8 @@ actionButton theme label onClickMsg isEnabled =
         [ text label ]
 
 
-guideButton : Theme.Theme -> msg -> Html msg
-guideButton theme onClickMsg =
+guideButton : Theme.Theme -> String -> msg -> Html msg
+guideButton theme label onClickMsg =
     button
         [ onClick onClickMsg
         , style "padding" "11px 18px"
@@ -252,11 +317,11 @@ guideButton theme onClickMsg =
         , style "gap" "6px"
         ]
         [ img
-            [ src "guide_icon.png"
+            [ src "icons/guide_icon.png"
             , style "width" "20px"
             , style "height" "20px"
             , style "filter" "brightness(0) invert(1)"
             ]
             []
-        , text "Sprievodca"
+        , text label
         ]

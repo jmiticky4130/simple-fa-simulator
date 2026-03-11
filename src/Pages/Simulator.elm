@@ -18,6 +18,7 @@ import Set
 import Utils.AutomatonHelpers exposing (getStateLabel, getStateById, isDFA, epsilonClosure)
 import Json.Encode
 import Utils.Theme as Theme
+import Utils.Translations as Translations exposing (Language)
 
 
 type SimulationMode
@@ -27,6 +28,7 @@ type SimulationMode
 
 type alias Model =
     { automaton : AutomatonState
+    , language : Language
     , mode : SimulationMode
     -- DFA
     , currentStateId : Maybe Int
@@ -66,8 +68,8 @@ type alias Model =
     }
 
 
-init : AutomatonState -> Model
-init automaton =
+init : Language -> AutomatonState -> Model
+init language automaton =
     let
         mode =
             if isDFA automaton.states automaton.transitions then
@@ -77,18 +79,24 @@ init automaton =
                 NfaMode
 
         nfaState =
-            initNfaState automaton ""
+            initNfaState automaton language ""
 
         startState =
             List.filter .isStart automaton.states |> List.head |> Maybe.map .id
     in
     { automaton = automaton
+    , language = language
     , mode = mode
     , currentStateId = startState
     , inputString = ""
     , remainingInput = ""
     , history = []
-    , consoleMessages = [ { text = "Simulátor pripravený. Zadajte vstupné slovo.", msgType = Console.Info } ]
+    , consoleMessages =
+        let
+            t =
+                Translations.getTranslations language
+        in
+        [ { text = t.simReady, msgType = Console.Info } ]
     , activeTransition = Nothing
     , verdict = Nothing
     , nfaInstances = nfaState.instances
@@ -154,10 +162,15 @@ type Msg
     | RunEfficient
     | ToggleSettings
     | ToggleDarkMode
+    | ToggleLanguage
 
 
 update : Msg -> Model -> Model
 update msg model =
+    let
+        t =
+            Translations.getTranslations model.language
+    in
     case msg of
         SetInput str ->
             let
@@ -165,7 +178,7 @@ update msg model =
                     List.filter .isStart model.automaton.states |> List.head |> Maybe.map .id
 
                 nfaState =
-                    initNfaState model.automaton str
+                    initNfaState model.automaton model.language str
             in
             { model
                 | inputString = str
@@ -180,7 +193,7 @@ update msg model =
                 , nfaMergedEdges = []
                 , selectedInstanceId = Nothing
                 , nextInstanceId = nfaState.nextInstanceId
-                , consoleMessages = [ { text = "Vstup nastavený: " ++ str, msgType = Console.Info } ]
+                , consoleMessages = [ { text = t.simInputSetPrefix ++ str, msgType = Console.Info } ]
                 , instancePanelVisible = 100
                 , efficientResult = Nothing
             }
@@ -204,9 +217,9 @@ update msg model =
         ResetSimulation ->
             let
                 fresh =
-                    update (SetInput model.inputString) (init model.automaton)
+                    update (SetInput model.inputString) (init model.language model.automaton)
             in
-            { fresh | mergeEnabled = model.mergeEnabled, showCanvas = model.showCanvas, showTree = model.showTree, autoSpeed = model.autoSpeed, panX = model.panX, panY = model.panY, zoom = model.zoom, treeZoom = model.treeZoom, splitRatio = model.splitRatio, efficientMode = model.efficientMode, efficientResult = Nothing }
+            { fresh | language = model.language, mergeEnabled = model.mergeEnabled, showCanvas = model.showCanvas, showTree = model.showTree, autoSpeed = model.autoSpeed, panX = model.panX, panY = model.panY, zoom = model.zoom, treeZoom = model.treeZoom, splitRatio = model.splitRatio, efficientMode = model.efficientMode, efficientResult = Nothing }
 
         SwitchToEditor ->
             model
@@ -323,7 +336,7 @@ update msg model =
             else
                 let
                     nfaState =
-                        initNfaState model.automaton model.inputString
+                        initNfaState model.automaton model.language model.inputString
                 in
                 { model
                     | efficientMode = False
@@ -340,11 +353,11 @@ update msg model =
         RunEfficient ->
             let
                 result =
-                    runEfficientNfa model.automaton model.inputString
+                    runEfficientNfa model.language model.automaton model.inputString
             in
             { model
                 | efficientResult = Just result
-                , consoleMessages = { text = "Efektívny beh: " ++ result.text, msgType = Console.Info } :: model.consoleMessages
+                , consoleMessages = { text = t.simEfficientRunPrefix ++ result.text, msgType = Console.Info } :: model.consoleMessages
             }
 
         ToggleConsole ->
@@ -384,6 +397,10 @@ subscriptions model =
 
 stepForwardDfa : Model -> Model
 stepForwardDfa model =
+    let
+        t =
+            Translations.getTranslations model.language
+    in
     case ( model.currentStateId, String.uncons model.remainingInput ) of
         ( Just currentId, Just ( char, rest ) ) ->
             let
@@ -392,14 +409,14 @@ stepForwardDfa model =
 
                 maybeTransition =
                     model.automaton.transitions
-                        |> List.filter (\t -> t.from == currentId && t.symbol == symbol)
+                        |> List.filter (\transition -> transition.from == currentId && transition.symbol == symbol)
                         |> List.head
             in
             case maybeTransition of
-                Just t ->
+                Just transition ->
                     let
                         nextStateId =
-                            t.to
+                            transition.to
 
                         nextRemaining =
                             rest
@@ -412,10 +429,10 @@ stepForwardDfa model =
                         nextVerdict =
                             if String.isEmpty nextRemaining then
                                 if isEnd then
-                                    Just { text = "Slovo je akceptované", isAccepted = True }
+                                    Just { text = t.simWordAccepted, isAccepted = True }
 
                                 else
-                                    Just { text = "Slovo nie je akceptované", isAccepted = False }
+                                    Just { text = t.simWordRejected, isAccepted = False }
 
                             else
                                 Nothing
@@ -424,15 +441,15 @@ stepForwardDfa model =
                         | currentStateId = Just nextStateId
                         , remainingInput = nextRemaining
                         , history = ( model.currentStateId, model.remainingInput ) :: model.history
-                        , consoleMessages = { text = "Prechod cez '" ++ symbol ++ "' do stavu " ++ getStateLabel nextStateId model.automaton.states, msgType = Console.Info } :: model.consoleMessages
-                        , activeTransition = Just { from = t.from, to = t.to, symbol = t.symbol }
+                        , consoleMessages = { text = t.simTransitionThroughPrefix ++ symbol ++ t.simTransitionToStatePrefix ++ getStateLabel nextStateId model.automaton.states, msgType = Console.Info } :: model.consoleMessages
+                        , activeTransition = Just { from = transition.from, to = transition.to, symbol = transition.symbol }
                         , verdict = nextVerdict
                     }
 
                 Nothing ->
                     { model
-                        | consoleMessages = { text = "Chyba: Neexistuje prechod pre symbol '" ++ String.fromChar char ++ "'", msgType = Console.Error } :: model.consoleMessages
-                        , verdict = Just { text = "Slovo nie je akceptované", isAccepted = False }
+                        | consoleMessages = { text = t.simMissingTransitionPrefix ++ String.fromChar char ++ "'", msgType = Console.Error } :: model.consoleMessages
+                        , verdict = Just { text = t.simWordRejected, isAccepted = False }
                         , activeTransition = Nothing
                     }
 
@@ -445,31 +462,35 @@ stepForwardDfa model =
 
                 v =
                     if isEnd then
-                        Just { text = "Slovo je akceptované", isAccepted = True }
+                        Just { text = t.simWordAccepted, isAccepted = True }
 
                     else
-                        Just { text = "Slovo nie je akceptované", isAccepted = False }
+                        Just { text = t.simWordRejected, isAccepted = False }
             in
             { model
-                | consoleMessages = { text = "Koniec vstupu.", msgType = Console.Info } :: model.consoleMessages
+                | consoleMessages = { text = t.simEndOfInput, msgType = Console.Info } :: model.consoleMessages
                 , verdict = v
             }
 
         ( Nothing, _ ) ->
             { model
-                | consoleMessages = { text = "Chyba: Nie je nastavený aktuálny stav.", msgType = Console.Error } :: model.consoleMessages
+                | consoleMessages = { text = t.simNoCurrentState, msgType = Console.Error } :: model.consoleMessages
             }
 
 
 stepBackwardDfa : Model -> Model
 stepBackwardDfa model =
+    let
+        t =
+            Translations.getTranslations model.language
+    in
     case model.history of
         ( prevState, prevInput ) :: restHistory ->
             { model
                 | currentStateId = prevState
                 , remainingInput = prevInput
                 , history = restHistory
-                , consoleMessages = { text = "Krok späť.", msgType = Console.Info } :: model.consoleMessages
+                , consoleMessages = { text = t.simStepBack, msgType = Console.Info } :: model.consoleMessages
                 , activeTransition = Nothing
                 , verdict = Nothing
             }
@@ -480,43 +501,47 @@ stepBackwardDfa model =
 
 expandEpsChain :
     AutomatonState
+    -> Language
     -> String
     -> List Int
     -> NfaInstance
     -> { instances : List NfaInstance, nodes : List NfaTreeNode, nextId : Int }
     -> { instances : List NfaInstance, nodes : List NfaTreeNode, nextId : Int }
-expandEpsChain automaton remaining visited source acc =
+expandEpsChain automaton language remaining visited source acc =
     let
+        translations =
+            Translations.getTranslations language
+
         sid =
             Maybe.withDefault -1 source.currentStateId
 
         directEps =
             List.filter
-                (\t -> t.from == sid && t.symbol == "ε" && not (List.member t.to visited))
+                (\transition -> transition.from == sid && transition.symbol == "ε" && not (List.member transition.to visited))
                 automaton.transitions
     in
     List.foldl
-        (\t innerAcc ->
+        (\transition innerAcc ->
             let
                 childIsEnd =
-                    getStateById t.to automaton.states
+                    getStateById transition.to automaton.states
                         |> Maybe.map .isEnd
                         |> Maybe.withDefault False
 
                 childVerdict =
                     if String.isEmpty remaining then
                         if childIsEnd then
-                            Just { text = "Akceptované", isAccepted = True }
+                            Just { text = translations.accepted, isAccepted = True }
 
                         else
-                            Just { text = "Zamietnuté", isAccepted = False }
+                            Just { text = translations.rejected, isAccepted = False }
 
                     else
                         Nothing
 
                 childInstance =
                     { id = innerAcc.nextId
-                    , currentStateId = Just t.to
+                    , currentStateId = Just transition.to
                     , remainingInput = remaining
                     , verdict = childVerdict
                     , parentId = Just source.id
@@ -525,7 +550,7 @@ expandEpsChain automaton remaining visited source acc =
 
                 childNode =
                     { id = innerAcc.nextId
-                    , stateId = Just t.to
+                    , stateId = Just transition.to
                     , parentId = Just source.id
                     , symbol = Just "ε"
                     }
@@ -537,7 +562,7 @@ expandEpsChain automaton remaining visited source acc =
                         , nextId = innerAcc.nextId + 1
                     }
             in
-            expandEpsChain automaton remaining (t.to :: visited) childInstance newAcc
+            expandEpsChain automaton language remaining (transition.to :: visited) childInstance newAcc
         )
         acc
         directEps
@@ -545,9 +570,10 @@ expandEpsChain automaton remaining visited source acc =
 
 initNfaState :
     AutomatonState
+    -> Language
     -> String
     -> { instances : List NfaInstance, tree : List NfaTreeNode, nextInstanceId : Int }
-initNfaState automaton inputStr =
+initNfaState automaton language inputStr =
     let
         startState =
             List.filter .isStart automaton.states |> List.head |> Maybe.map .id
@@ -577,7 +603,7 @@ initNfaState automaton inputStr =
                     initAcc
 
                 Just sid ->
-                    expandEpsChain automaton inputStr [ sid ] rootInstance initAcc
+                    expandEpsChain automaton language inputStr [ sid ] rootInstance initAcc
     in
     { instances = List.reverse expanded.instances
     , tree = List.reverse expanded.nodes
@@ -587,10 +613,15 @@ initNfaState automaton inputStr =
 
 processInstance :
     AutomatonState
+    -> Language
     -> NfaInstance
     -> { instances : List NfaInstance, nodes : List NfaTreeNode, nextId : Int }
     -> { instances : List NfaInstance, nodes : List NfaTreeNode, nextId : Int }
-processInstance automaton instance acc =
+processInstance automaton language instance acc =
+    let
+        translations =
+            Translations.getTranslations language
+    in
     case String.uncons instance.remainingInput of
         Nothing ->
             let
@@ -606,10 +637,10 @@ processInstance automaton instance acc =
 
                 newVerdict =
                     if isEnd then
-                        Just { text = "Akceptované", isAccepted = True }
+                        Just { text = translations.accepted, isAccepted = True }
 
                     else
-                        Just { text = "Zamietnuté", isAccepted = False }
+                        Just { text = translations.rejected, isAccepted = False }
             in
             { acc | instances = { instance | verdict = newVerdict } :: acc.instances }
 
@@ -630,33 +661,33 @@ processInstance automaton instance acc =
                 [] ->
                     { acc
                         | instances =
-                            { instance | verdict = Just { text = "Zamietnuté", isAccepted = False } }
+                            { instance | verdict = Just { text = translations.rejected, isAccepted = False } }
                                 :: acc.instances
                     }
 
                 _ ->
                     List.foldl
-                        (\t outerAcc ->
+                        (\transition outerAcc ->
                             let
                                 childIsEnd =
-                                    getStateById t.to automaton.states
+                                    getStateById transition.to automaton.states
                                         |> Maybe.map .isEnd
                                         |> Maybe.withDefault False
 
                                 childVerdict =
                                     if String.isEmpty rest then
                                         if childIsEnd then
-                                            Just { text = "Akceptované", isAccepted = True }
+                                            Just { text = translations.accepted, isAccepted = True }
 
                                         else
-                                            Just { text = "Zamietnuté", isAccepted = False }
+                                            Just { text = translations.rejected, isAccepted = False }
 
                                     else
                                         Nothing
 
                                 childInstance =
                                     { id = outerAcc.nextId
-                                    , currentStateId = Just t.to
+                                    , currentStateId = Just transition.to
                                     , remainingInput = rest
                                     , verdict = childVerdict
                                     , parentId = Just instance.id
@@ -665,7 +696,7 @@ processInstance automaton instance acc =
 
                                 childNode =
                                     { id = outerAcc.nextId
-                                    , stateId = Just t.to
+                                    , stateId = Just transition.to
                                     , parentId = Just instance.id
                                     , symbol = Just symbol
                                     }
@@ -677,7 +708,7 @@ processInstance automaton instance acc =
                                         , nextId = outerAcc.nextId + 1
                                     }
                             in
-                            expandEpsChain automaton rest [ t.to ] childInstance newAcc
+                            expandEpsChain automaton language rest [ transition.to ] childInstance newAcc
                         )
                         acc
                         matchingTransitions
@@ -769,7 +800,7 @@ stepForwardNfa model =
             { instances = [], nodes = [], nextId = model.nextInstanceId }
 
         finalAcc =
-            List.foldl (processInstance model.automaton) initAcc alive
+            List.foldl (processInstance model.automaton model.language) initAcc alive
 
         processedInstances =
             List.reverse finalAcc.instances
@@ -805,7 +836,7 @@ stepForwardNfa model =
         , nfaMergedEdges = model.nfaMergedEdges ++ newMergedEdges
         , nextInstanceId = finalAcc.nextId
         , selectedInstanceId = newSelectedId
-        , consoleMessages = { text = "Krok vpred (NFA).", msgType = Console.Info } :: model.consoleMessages
+        , consoleMessages = { text = (Translations.getTranslations model.language).simStepForwardNfa, msgType = Console.Info } :: model.consoleMessages
     }
 
 
@@ -820,7 +851,7 @@ stepBackwardNfa model =
                 , nfaMergedEdges = snapshot.mergedEdges
                 , nfaHistory = restHistory
                 , selectedInstanceId = Nothing
-                , consoleMessages = { text = "Krok späť.", msgType = Console.Info } :: model.consoleMessages
+                , consoleMessages = { text = (Translations.getTranslations model.language).simStepBack, msgType = Console.Info } :: model.consoleMessages
             }
 
         [] ->
@@ -855,9 +886,12 @@ canStepBackward model =
                 not (List.isEmpty model.nfaHistory)
 
 
-runEfficientNfa : AutomatonState -> String -> { text : String, isAccepted : Bool, reachedStates : List Int }
-runEfficientNfa automaton inputStr =
+runEfficientNfa : Language -> AutomatonState -> String -> { text : String, isAccepted : Bool, reachedStates : List Int }
+runEfficientNfa language automaton inputStr =
     let
+        t =
+            Translations.getTranslations language
+
         startState =
             List.filter .isStart automaton.states |> List.head |> Maybe.map .id
 
@@ -879,9 +913,9 @@ runEfficientNfa automaton inputStr =
                     Set.foldl
                         (\stId acc ->
                             List.foldl
-                                (\t innerAcc ->
-                                    if t.from == stId && t.symbol == symbol then
-                                        Set.insert t.to innerAcc
+                                (\transition innerAcc ->
+                                    if transition.from == stId && transition.symbol == symbol then
+                                        Set.insert transition.to innerAcc
 
                                     else
                                         innerAcc
@@ -915,10 +949,10 @@ runEfficientNfa automaton inputStr =
             not (Set.isEmpty (Set.intersect finalSet endStateIds))
     in
     if accepted then
-        { text = "Slovo je akceptované", isAccepted = True, reachedStates = reachedList }
+        { text = t.simWordAccepted, isAccepted = True, reachedStates = reachedList }
 
     else
-        { text = "Slovo nie je akceptované", isAccepted = False, reachedStates = reachedList }
+        { text = t.simWordRejected, isAccepted = False, reachedStates = reachedList }
 
 
 nfaActiveStateId : Model -> Maybe Int
@@ -1072,12 +1106,15 @@ viewToggleTab theme label isActive msg =
         [ Html.text label ]
 
 
-view : Bool -> Bool -> Bool -> Model -> Html Msg
-view consoleOpen darkMode settingsOpen model =
+view : Bool -> Bool -> Bool -> Language -> Model -> Html Msg
+view consoleOpen darkMode settingsOpen language model =
     let
+        t =
+            Translations.getTranslations language
+
         theme = Theme.getTheme darkMode
         hasEpsilon =
-            List.any (\t -> t.symbol == "ε") model.automaton.transitions
+            List.any (\transition -> transition.symbol == "ε") model.automaton.transitions
 
         activeStateId =
             case model.mode of
@@ -1179,6 +1216,8 @@ view consoleOpen darkMode settingsOpen model =
             , onToggleSettings = ToggleSettings
             , onToggleDarkMode = ToggleDarkMode
             , darkMode = darkMode
+            , language = language
+            , onToggleLanguage = ToggleLanguage
             }
         , div
             [ style "display" "flex"
@@ -1200,13 +1239,13 @@ view consoleOpen darkMode settingsOpen model =
                         , style "flex-shrink" "0"
                         ]
                         (if model.efficientMode then
-                            [ viewDisabledToggleTab "Automat"
-                            , viewDisabledToggleTab "Strom"
+                            [ viewDisabledToggleTab t.simAutomatonTab
+                            , viewDisabledToggleTab t.simTreeTab
                             ]
 
                          else
-                            [ viewToggleTab theme "Automat" model.showCanvas ToggleCanvas
-                            , viewToggleTab theme "Strom" model.showTree ToggleTree
+                            [ viewToggleTab theme t.simAutomatonTab model.showCanvas ToggleCanvas
+                            , viewToggleTab theme t.simTreeTab model.showTree ToggleTree
                             ]
                         )
 
@@ -1314,7 +1353,7 @@ view consoleOpen darkMode settingsOpen model =
                 , style "overflow" "hidden"
                 ]
                 [ div [ style "padding" "10px 15px 6px 15px", style "color" theme.textPrimary ]
-                    [ text "Vstupné slovo:"
+                    [ text (t.simInputWordLabel ++ ":")
                     , input
                         [ type_ "text"
                         , value model.inputString
@@ -1339,6 +1378,7 @@ view consoleOpen darkMode settingsOpen model =
                             , currentState = getStateById (Maybe.withDefault -1 model.currentStateId) model.automaton.states
                             , verdict = model.verdict
                             , theme = theme
+                            , language = language
                             }
 
                     NfaMode ->
@@ -1355,6 +1395,7 @@ view consoleOpen darkMode settingsOpen model =
                                     , currentState = selectedInstanceState
                                     , verdict = selectedInstanceVerdict
                                     , theme = theme
+                                    , language = language
                                     }
 
                               else
@@ -1381,7 +1422,7 @@ view consoleOpen darkMode settingsOpen model =
                                          , style "color" (if hasEpsilon then theme.textMuted else theme.textMuted)
                                          ]
                                             ++ (if hasEpsilon then
-                                                    [ Html.Attributes.title "Zlúčenie stavov nie je dostupné pre automaty s ε-prechodmi" ]
+                                                    [ Html.Attributes.title t.simMergeUnavailable ]
 
                                                 else
                                                     []
@@ -1400,7 +1441,7 @@ view consoleOpen darkMode settingsOpen model =
                                                    )
                                             )
                                             []
-                                        , text "Zlúčiť stavy"
+                                        , text t.simMergeLabel
                                         ]
                                     , span
                                         [ style "display" "inline-flex"
@@ -1415,7 +1456,7 @@ view consoleOpen darkMode settingsOpen model =
                                         , style "font-weight" "bold"
                                         , style "cursor" "help"
                                         , style "flex-shrink" "0"
-                                        , Html.Attributes.title "Bez zlucenia moze pocet instancii rst exponencialne s dlzkou vstupu (az k^n, kde k je priemer vetveni a n dlzka vstupu). Zlucenie redukuje pocet aktivnych instancii na najviac |Q| v kazdom kroku - rovnaky princip ako algoritmus podmnozin. Odporucane pre komplexne NFA."
+                                        , Html.Attributes.title t.simMergeTooltip
                                         ]
                                         [ text "?" ]
                                     ]
@@ -1423,7 +1464,7 @@ view consoleOpen darkMode settingsOpen model =
                                     [ style "font-weight" "bold"
                                     , style "font-size" "13px"
                                     ]
-                                    [ text "Inštancie NFA:" ]
+                                    []
                                 ]
                             , div
                                 [ style "padding" "6px 15px"
@@ -1448,7 +1489,7 @@ view consoleOpen darkMode settingsOpen model =
                                         , style "cursor" "pointer"
                                         ]
                                         []
-                                    , text "Efektívny režim"
+                                    , text t.simEfficientModeLabel
                                     ]
                                 , span
                                     [ style "display" "inline-flex"
@@ -1463,7 +1504,7 @@ view consoleOpen darkMode settingsOpen model =
                                     , style "font-weight" "bold"
                                     , style "cursor" "help"
                                     , style "flex-shrink" "0"
-                                    , Html.Attributes.title "Efektívny režim spustí simuláciu naraz bez budovania stromu inštancií. Vhodné pre komplexné NFA s dlhým vstupom, kde by klasická simulácia bola príliš pomalá."
+                                    , Html.Attributes.title t.simEfficientModeTooltip
                                     ]
                                     [ text "?" ]
                                 ]
@@ -1483,7 +1524,7 @@ view consoleOpen darkMode settingsOpen model =
                                         , style "margin" "8px 15px"
                                         , style "box-sizing" "border-box"
                                         ]
-                                        [ text "Okamzity beh" ]
+                                        [ text t.simInstantRun ]
                                     , case model.efficientResult of
                                         Just result ->
                                             div
@@ -1507,7 +1548,7 @@ view consoleOpen darkMode settingsOpen model =
                                                     , style "color" theme.textMuted
                                                     , style "margin-top" "4px"
                                                     ]
-                                                    [ text ("Dosiahnuté stavy: " ++ String.join ", " (List.map (\sid -> getStateLabel sid model.automaton.states) result.reachedStates)) ]
+                                                    [ text (t.simReachedStatesPrefix ++ String.join ", " (List.map (\sid -> getStateLabel sid model.automaton.states) result.reachedStates)) ]
                                                 ]
 
                                         Nothing ->
@@ -1522,7 +1563,7 @@ view consoleOpen darkMode settingsOpen model =
                                         , style "font-size" "13px"
                                         , style "text-align" "center"
                                         ]
-                                        [ text "Panel instancií je deaktivovaný v efektívnom režime." ]
+                                        [ text t.simInstancePanelDisabled ]
                                     ]
 
                               else
@@ -1539,6 +1580,7 @@ view consoleOpen darkMode settingsOpen model =
                                         , visibleCount = model.instancePanelVisible
                                         , onLoadMore = LoadMoreInstances
                                         , theme = theme
+                                        , language = language
                                         }
                                     ]
                             ]
@@ -1550,5 +1592,6 @@ view consoleOpen darkMode settingsOpen model =
             , onToggle = ToggleConsole
             , onLinkClick = Nothing
             , theme = theme
+            , language = language
             }
         ]

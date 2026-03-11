@@ -5,6 +5,7 @@ import Html.Attributes exposing (style)
 import Html.Events exposing (onClick)
 import Shared exposing (NfaInstance, State)
 import Utils.Theme as Theme
+import Utils.Translations as Translations exposing (Language)
 
 
 type alias Config msg =
@@ -15,12 +16,16 @@ type alias Config msg =
     , visibleCount : Int
     , onLoadMore : msg
     , theme : Theme.Theme
+    , language : Language
     }
 
 
 view : Config msg -> Html msg
 view config =
     let
+        t =
+            Translations.getTranslations config.language
+
         total =
             List.length config.instances
 
@@ -51,7 +56,7 @@ view config =
                             , style "color" config.theme.textPrimary
                             , style "font-size" "12px"
                             ]
-                            [ text ("Načítať ďalšie (zobrazených " ++ String.fromInt config.visibleCount ++ " z " ++ String.fromInt total ++ ")") ]
+                            [ text (t.loadMorePrefix ++ String.fromInt config.visibleCount ++ t.loadMoreMiddle ++ String.fromInt total ++ t.loadMoreSuffix) ]
                         ]
                     ]
 
@@ -64,6 +69,9 @@ view config =
 viewInstance : Config msg -> Int -> NfaInstance -> Html msg
 viewInstance config displayIdx instance =
     let
+        t =
+            Translations.getTranslations config.language
+
         isSelected =
             config.selectedId == Just instance.id
 
@@ -77,19 +85,19 @@ viewInstance config displayIdx instance =
                         |> Maybe.withDefault "?"
 
                 Nothing ->
-                    "Mŕtva vetva"
+                    t.deadBranch
 
         ( statusText, statusBg, borderColor ) =
             case instance.verdict of
                 Nothing ->
-                    ( "Beží", "#2196F3", if isSelected then "#1565C0" else "#2196F3" )
+                    ( t.running, "#2196F3", if isSelected then "#1565C0" else "#2196F3" )
 
                 Just v ->
                     if v.isAccepted then
-                        ( "Akceptované", "#4CAF50", if isSelected then "#2E7D32" else "#4CAF50" )
+                        ( t.accepted, "#4CAF50", if isSelected then "#2E7D32" else "#4CAF50" )
 
                     else
-                        ( "Zamietnuté", "#F44336", if isSelected then "#B71C1C" else "#F44336" )
+                        ( t.rejected, "#F44336", if isSelected then "#B71C1C" else "#F44336" )
 
         borderWidth =
             if isSelected then
@@ -124,7 +132,7 @@ viewInstance config displayIdx instance =
                 , style "font-size" "13px"
                 , style "color" config.theme.textPrimary
                 ]
-                [ text ("Instancia #" ++ String.fromInt displayIdx) ]
+                [ text (t.instancePrefix ++ String.fromInt displayIdx) ]
             , span
                 [ style "background-color" statusBg
                 , style "color" "white"
@@ -135,14 +143,14 @@ viewInstance config displayIdx instance =
                 [ text statusText ]
             ]
         , div [ style "font-size" "12px", style "margin-bottom" "2px", style "color" config.theme.textPrimary ]
-            [ span [ style "font-weight" "bold" ] [ text "Stav: " ]
+            [ span [ style "font-weight" "bold" ] [ text (t.stateLabel ++ ": ") ]
             , text stateLabel
             ]
         , div [ style "font-size" "12px", style "color" config.theme.textPrimary ]
-            [ span [ style "font-weight" "bold" ] [ text "Zostatok: " ]
+            [ span [ style "font-weight" "bold" ] [ text (t.remainingLabel ++ ": ") ]
             , text
                 (if String.isEmpty instance.remainingInput then
-                    "(prázdny)"
+                    t.emptyInput
 
                  else
                     instance.remainingInput

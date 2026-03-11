@@ -9,6 +9,7 @@ import Components.Canvas as Canvas
 import Components.Console as Console
 import Components.AutomatonDisplay as AutomatonDisplay
 import Utils.Theme as Theme
+import Utils.Translations as Translations exposing (Language)
 import UndoList exposing (UndoList)
 import Shared exposing (State, Transition, AutomatonState)
 import Utils.AutomatonHelpers exposing
@@ -23,6 +24,7 @@ import Utils.AutomatonHelpers exposing
     )
 import Browser.Dom
 import Task
+import Process
 import Set
 import File
 import File.Download
@@ -51,6 +53,7 @@ type Tool
 
 type alias Model =
     { automaton : UndoList AutomatonState
+    , language : Language
     , currentTool : Tool
     , selectedState : Maybe Int
     , transitionFrom : Maybe Int
@@ -78,6 +81,7 @@ type alias Model =
     , panLastX : Float
     , panLastY : Float
     , hasPanned : Bool
+    , copyDefSuccess : Bool
     }
 
 
@@ -137,15 +141,24 @@ type Msg
     | ToggleConsole
     | ToggleSettings
     | ToggleDarkMode
+    | ToggleLanguage
+    | CopyDefinition
+    | CopyDefReset
 
 
-init : Model
-init =
+init : Language -> Model
+init language =
     { automaton = UndoList.fresh { states = [], transitions = [], nextStateId = 0 }
+    , language = language
     , currentTool = BuildTool
     , selectedState = Nothing
     , transitionFrom = Nothing
-    , consoleMessages = [ { text = "Vitajte v simulátore DFA/NFA. Dvojklikom na plátno pridajte stav.", msgType = Console.InfoLink "O projekte" } ]
+    , consoleMessages =
+        let
+            t =
+                Translations.getTranslations language
+        in
+        [ { text = t.editorWelcome, msgType = Console.InfoLink t.editorAboutProjectLink } ]
     , isDragging = False
     , draggedState = Nothing
     , dragStartX = 0
@@ -169,25 +182,36 @@ init =
     , panLastX = 0
     , panLastY = 0
     , hasPanned = False
+    , copyDefSuccess = False
     }
 
 
-initWith : Maybe AutomatonState -> Model
-initWith maybeAutomaton =
+initWith : Language -> Maybe AutomatonState -> Model
+initWith language maybeAutomaton =
     case maybeAutomaton of
         Nothing ->
-            init
+            init language
 
         Just automaton ->
-            { init
+            let
+                initialModel =
+                    init language
+
+                t =
+                    Translations.getTranslations language
+            in
+            { initialModel
                 | automaton = UndoList.fresh automaton
-                , consoleMessages = [ { text = "Automat načítaný z URL.", msgType = Console.Info } ]
+                , consoleMessages = [ { text = t.editorLoadedFromUrl, msgType = Console.Info } ]
             }
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
     let
+        t =
+            Translations.getTranslations model.language
+
         currentAutomaton = model.automaton.present
     in
     case msg of
@@ -206,6 +230,9 @@ update msg model =
         ToggleDarkMode ->
             ( model, Cmd.none )
 
+        ToggleLanguage ->
+            ( { model | language = if model.language == Translations.Slovak then Translations.English else Translations.Slovak }, Cmd.none )
+
         ExportJson ->
             ( model, File.Download.string "automaton.json" "application/json"
                 (Utils.AutomatonCodec.encode model.automaton.present) )
@@ -221,22 +248,33 @@ update msg model =
                 Ok automaton ->
                     ( { model
                         | automaton = UndoList.fresh automaton
-                        , consoleMessages = { text = "Automat importovaný zo súboru.", msgType = Console.Info } :: model.consoleMessages
+                                                , consoleMessages = { text = t.editorImportedFromFile, msgType = Console.Info } :: model.consoleMessages
                       }
                     , Cmd.none
                     )
 
                 Err err ->
                     ( { model
-                        | consoleMessages = { text = "Chyba importu: " ++ Decode.errorToString err, msgType = Console.Error } :: model.consoleMessages
+                                                | consoleMessages = { text = t.editorImportErrorPrefix ++ Decode.errorToString err, msgType = Console.Error } :: model.consoleMessages
                       }
                     , Cmd.none
                     )
 
         ShareUrl ->
-            ( { model | consoleMessages = { text = "URL skopírovaná do schránky.", msgType = Console.Info } :: model.consoleMessages }
+                        ( { model | consoleMessages = { text = t.editorUrlCopied, msgType = Console.Info } :: model.consoleMessages }
             , Cmd.none
             )
+
+        CopyDefinition ->
+            ( { model
+                | copyDefSuccess = True
+                                , consoleMessages = { text = t.editorDefinitionCopied, msgType = Console.Info } :: model.consoleMessages
+              }
+            , Task.perform (always CopyDefReset) (Process.sleep 2000)
+            )
+
+        CopyDefReset ->
+            ( { model | copyDefSuccess = False }, Cmd.none )
 
         SaveRequested ->
             ( { model | showSaveModal = True, saveNameInput = "" }, Cmd.none )
@@ -246,14 +284,14 @@ update msg model =
 
         ConfirmSave ->
             if String.isEmpty (String.trim model.saveNameInput) then
-                ( { model | consoleMessages = { text = "Zadajte názov automatu.", msgType = Console.Error } :: model.consoleMessages }
+                ( { model | consoleMessages = { text = t.editorEnterName, msgType = Console.Error } :: model.consoleMessages }
                 , Cmd.none
                 )
             else
                 ( { model
                     | showSaveModal = False
                     , saveNameInput = ""
-                    , consoleMessages = { text = "Automat uložený: " ++ model.saveNameInput, msgType = Console.Info } :: model.consoleMessages
+                    , consoleMessages = { text = t.editorSavedPrefix ++ model.saveNameInput, msgType = Console.Info } :: model.consoleMessages
                   }
                 , Cmd.none
                 )
@@ -287,7 +325,7 @@ update msg model =
                             ( { model
                                 | automaton = UndoList.fresh automaton
                                 , showLoadModal = False
-                                , consoleMessages = { text = "Automat načítaný: " ++ name, msgType = Console.Info } :: model.consoleMessages
+                                                                , consoleMessages = { text = t.editorLoadedPrefix ++ name, msgType = Console.Info } :: model.consoleMessages
                               }
                             , Cmd.none
                             )
@@ -295,7 +333,7 @@ update msg model =
                         Err err ->
                             ( { model
                                 | showLoadModal = False
-                                , consoleMessages = { text = "Chyba: " ++ Decode.errorToString err, msgType = Console.Error } :: model.consoleMessages
+                                                                , consoleMessages = { text = t.editorGenericErrorPrefix ++ Decode.errorToString err, msgType = Console.Error } :: model.consoleMessages
                               }
                             , Cmd.none
                             )
@@ -324,7 +362,7 @@ update msg model =
                 , stateLabelInput = ""
                 , stateModalIsStart = False
                 , stateModalIsEnd = False
-                , consoleMessages = { text = "Akcia zrušená.", msgType = Console.Info } :: model.consoleMessages
+                                , consoleMessages = { text = t.editorActionCanceled, msgType = Console.Info } :: model.consoleMessages
               }
             , Cmd.none
             )
@@ -348,7 +386,7 @@ update msg model =
                 , stateLabelInput = ""
                 , stateModalIsStart = False
                 , stateModalIsEnd = False
-                , consoleMessages = { text = getToolMessage newTool, msgType = Console.Info } :: model.consoleMessages
+                                , consoleMessages = { text = getToolMessage t newTool, msgType = Console.Info } :: model.consoleMessages
               }
             , Cmd.none
             )
@@ -367,7 +405,7 @@ update msg model =
                             , isStart = False
                             , isEnd = False
                             }
-                        message = "Pridaný stav: " ++ newState.label
+                        message = t.editorStateAddedPrefix ++ newState.label
                         newAutomaton =
                             { currentAutomaton
                             | states = currentAutomaton.states ++ [ newState ]
@@ -451,7 +489,7 @@ update msg model =
                         | editingTransition = Just { from = from, to = to, x = inputX, y = inputY }
                         , editingTransitionOldSymbol = Just symbol
                         , transitionInput = symbol
-                        , consoleMessages = { text = "Upravte symbol prechodu.", msgType = Console.Info } :: model.consoleMessages
+                                                , consoleMessages = { text = t.editorEditTransitionSymbol, msgType = Console.Info } :: model.consoleMessages
                       }
                     , Task.attempt (\_ -> NoOp) (Browser.Dom.focus "transition-input")
                     )
@@ -536,11 +574,11 @@ update msg model =
             let
                 state = getStateById stateId currentAutomaton.states
                 label = Maybe.map .label state |> Maybe.withDefault ""
-                message = "Odstránený stav: " ++ label
+                message = t.editorStateDeletedPrefix ++ label
                 newAutomaton =
                     { currentAutomaton
                     | states = List.filter (\s -> s.id /= stateId) currentAutomaton.states
-                    , transitions = List.filter (\t -> t.from /= stateId && t.to /= stateId) currentAutomaton.transitions
+                    , transitions = List.filter (\transition -> transition.from /= stateId && transition.to /= stateId) currentAutomaton.transitions
                     }
             in
             ( { model
@@ -553,10 +591,10 @@ update msg model =
 
         DeleteTransition from to symbol ->
             let
-                message = "Odstránený prechod: " ++ symbol
+                message = t.editorTransitionDeletedPrefix ++ symbol
                 newAutomaton =
                     { currentAutomaton
-                    | transitions = List.filter (\t -> not (t.from == from && t.to == to && t.symbol == symbol)) currentAutomaton.transitions
+                    | transitions = List.filter (\transition -> not (transition.from == from && transition.to == to && transition.symbol == symbol)) currentAutomaton.transitions
                     }
             in
             ( { model
@@ -596,7 +634,7 @@ update msg model =
                         ( { model
                             | editingStateId = Nothing
                             , stateLabelInput = ""
-                            , consoleMessages = { text = "Prázdny názov nie je povolený.", msgType = Console.Error } :: model.consoleMessages
+                                                        , consoleMessages = { text = t.editorEmptyName, msgType = Console.Error } :: model.consoleMessages
                           }
                         , Cmd.none
                         )
@@ -607,13 +645,13 @@ update msg model =
                         in
                         if isDuplicate then
                             ( { model
-                                | consoleMessages = { text = "Stav s názvom '" ++ newLabel ++ "' už existuje.", msgType = Console.Error } :: model.consoleMessages
+                                | consoleMessages = { text = t.editorStateExistsPrefix ++ newLabel ++ t.editorStateExistsSuffix, msgType = Console.Error } :: model.consoleMessages
                               }
                             , Cmd.none
                             )
                         else
                             let
-                                message = "Stav premenovaný na: " ++ newLabel
+                                message = t.editorStateRenamedPrefix ++ newLabel
                                 newAutomaton = { currentAutomaton | states = updateStateLabel stateId newLabel currentAutomaton.states }
                             in
                             ( { model
@@ -632,7 +670,7 @@ update msg model =
             case model.editingStateId of
                 Just stateId ->
                     if String.isEmpty (String.trim model.stateLabelInput) then
-                        ( { model | consoleMessages = { text = "Prázdny názov nie je povolený.", msgType = Console.Error } :: model.consoleMessages }
+                        ( { model | consoleMessages = { text = t.editorEmptyName, msgType = Console.Error } :: model.consoleMessages }
                         , Cmd.none
                         )
                     else
@@ -641,7 +679,7 @@ update msg model =
                             isDuplicate = List.any (\s -> s.label == newLabel && s.id /= stateId) currentAutomaton.states
                         in
                         if isDuplicate then
-                            ( { model | consoleMessages = { text = "Stav s názvom '" ++ newLabel ++ "' už existuje.", msgType = Console.Error } :: model.consoleMessages }
+                            ( { model | consoleMessages = { text = t.editorStateExistsPrefix ++ newLabel ++ t.editorStateExistsSuffix, msgType = Console.Error } :: model.consoleMessages }
                             , Cmd.none
                             )
                         else
@@ -655,7 +693,7 @@ update msg model =
                                 statesWithEnd =
                                     List.map (\s -> if s.id == stateId then { s | isEnd = model.stateModalIsEnd } else s) statesWithStart
                                 newAutomaton = { currentAutomaton | states = statesWithEnd }
-                                message = "Stav upravený: " ++ newLabel
+                                message = t.editorStateUpdatedPrefix ++ newLabel
                             in
                             ( { model
                                 | automaton = UndoList.new newAutomaton model.automaton
@@ -700,7 +738,7 @@ update msg model =
                 , currentTool = BuildTool
                 , selectedState = Nothing
                 , transitionFrom = Nothing
-                , consoleMessages = { text = "Automat bol resetovaný.", msgType = Console.Info } :: model.consoleMessages
+                , consoleMessages = { text = t.editorReset, msgType = Console.Info } :: model.consoleMessages
                 , isDragging = False
                 , draggedState = Nothing
                 , editingTransition = Nothing
@@ -735,27 +773,27 @@ update msg model =
                                 newSymbol = if String.isEmpty newInput then "ε" else newInput
                                 -- Remove old transition
                                 filteredTransitions =
-                                    List.filter (\t -> not (t.from == from && t.to == to && t.symbol == oldSymbol)) currentAutomaton.transitions
+                                    List.filter (\transition -> not (transition.from == from && transition.to == to && transition.symbol == oldSymbol)) currentAutomaton.transitions
                                 -- Check duplicate
-                                isDuplicate = List.any (\t -> t.from == from && t.to == to && t.symbol == newSymbol) filteredTransitions
+                                isDuplicate = List.any (\transition -> transition.from == from && transition.to == to && transition.symbol == newSymbol) filteredTransitions
                             in
                             if from == to && newSymbol == "ε" then
-                                ( { model | consoleMessages = { text = "Slučka nemôže byť ε-prechodom.", msgType = Console.Error } :: model.consoleMessages }
+                                ( { model | consoleMessages = { text = t.editorLoopCannotBeEpsilon, msgType = Console.Error } :: model.consoleMessages }
                                 , Cmd.none
                                 )
                             else if symbolHasSpaces newSymbol && newSymbol /= "ε" then
-                                ( { model | consoleMessages = { text = "Symbol nemôže obsahovať medzery.", msgType = Console.Error } :: model.consoleMessages }
+                                ( { model | consoleMessages = { text = t.editorSymbolSpaces, msgType = Console.Error } :: model.consoleMessages }
                                 , Cmd.none
                                 )
                             else if isDuplicate then
-                                ( { model | consoleMessages = { text = "Prechod '" ++ newSymbol ++ "' už existuje.", msgType = Console.Error } :: model.consoleMessages }
+                                ( { model | consoleMessages = { text = t.editorTransitionExistsPrefix ++ newSymbol ++ t.editorTransitionExistsSuffix, msgType = Console.Error } :: model.consoleMessages }
                                 , Cmd.none
                                 )
                             else
                                 let
                                     newTransitions = filteredTransitions ++ [ { from = from, to = to, symbol = newSymbol } ]
                                     newAutomaton = { currentAutomaton | transitions = newTransitions }
-                                    message = "Prechod zmenený na: " ++ newSymbol
+                                    message = t.editorTransitionAddedPrefix ++ newSymbol
                                 in
                                 ( { model
                                     | automaton = UndoList.new newAutomaton model.automaton
@@ -772,12 +810,12 @@ update msg model =
                             -- Create mode: existing behavior
                             if String.isEmpty (String.trim model.transitionInput) then
                                 if from == to then
-                                    ( { model | consoleMessages = { text = "Slučka nemôže byť ε-prechodom.", msgType = Console.Error } :: model.consoleMessages }
+                                    ( { model | consoleMessages = { text = t.editorLoopCannotBeEpsilon, msgType = Console.Error } :: model.consoleMessages }
                                     , Cmd.none
                                     )
                                 else if transitionExists from to "ε" currentAutomaton.transitions then
                                     ( { model
-                                        | consoleMessages = { text = "ε-prechod už existuje.", msgType = Console.Error } :: model.consoleMessages
+                                        | consoleMessages = { text = t.editorEpsilonTransitionExists, msgType = Console.Error } :: model.consoleMessages
                                       }
                                     , Cmd.none
                                     )
@@ -792,7 +830,7 @@ update msg model =
                                         , editingTransition = Nothing
                                         , transitionInput = ""
                                         , transitionFrom = Nothing
-                                        , consoleMessages = { text = "Pridaný ε-prechod.", msgType = Console.Info } :: model.consoleMessages
+                                                                                , consoleMessages = { text = t.editorEpsilonTransitionAdded, msgType = Console.Info } :: model.consoleMessages
                                       }
                                     , Cmd.none
                                     )
@@ -819,16 +857,16 @@ update msg model =
                                         List.filter (\sym -> not (transitionExists from to sym currentAutomaton.transitions)) symbols
                                 in
                                 if not (List.isEmpty symbolsWithSpaces) then
-                                    ( { model | consoleMessages = { text = "Symbol nemôže obsahovať medzery: " ++ String.join ", " symbolsWithSpaces, msgType = Console.Error } :: model.consoleMessages }
+                                    ( { model | consoleMessages = { text = t.editorSymbolSpaces ++ ": " ++ String.join ", " symbolsWithSpaces, msgType = Console.Error } :: model.consoleMessages }
                                     , Cmd.none
                                     )
                                 else if from == to && List.member "ε" symbols then
-                                    ( { model | consoleMessages = { text = "Slučka nemôže byť ε-prechodom.", msgType = Console.Error } :: model.consoleMessages }
+                                    ( { model | consoleMessages = { text = t.editorLoopCannotBeEpsilon, msgType = Console.Error } :: model.consoleMessages }
                                     , Cmd.none
                                     )
                                 else if not (List.isEmpty duplicates) then
                                     let
-                                        errorMsg = "Prechod(y) už existujú: " ++ String.join ", " duplicates
+                                        errorMsg = t.editorTransitionsExistPrefix ++ String.join ", " duplicates
                                     in
                                     ( { model
                                         | consoleMessages = { text = errorMsg, msgType = Console.Error } :: model.consoleMessages
@@ -850,11 +888,11 @@ update msg model =
 
                                         message =
                                             if addedCount == 0 then
-                                                "Všetky prechody už existujú."
+                                                t.editorAllTransitionsExist
                                             else if addedCount == 1 then
-                                                "Pridaný prechod: " ++ String.join ", " uniqueSymbols
+                                                t.editorTransitionAddedPrefix ++ String.join ", " uniqueSymbols
                                             else
-                                                "Pridaných " ++ String.fromInt addedCount ++ " prechodov."
+                                                t.editorTransitionsAddedPrefix ++ String.fromInt addedCount ++ t.editorTransitionsAddedSuffix
 
                                         newAutomaton = { currentAutomaton | transitions = newTransitions }
                                     in
@@ -874,10 +912,10 @@ update msg model =
         TransitionClick from to symbol ->
             if model.currentTool == DeleteTool then
                 let
-                    message = "Odstránený prechod: " ++ symbol
+                    message = t.editorTransitionDeletedPrefix ++ symbol
                     newAutomaton =
                         { currentAutomaton
-                        | transitions = List.filter (\t -> not (t.from == from && t.to == to && t.symbol == symbol)) currentAutomaton.transitions
+                        | transitions = List.filter (\transition -> not (transition.from == from && transition.to == to && transition.symbol == symbol)) currentAutomaton.transitions
                         }
                 in
                 ( { model
@@ -932,17 +970,20 @@ handleStateClick : Int -> Model -> ( Model, Cmd Msg )
 handleStateClick stateId model =
     let
         currentAutomaton = model.automaton.present
+
+        t =
+            Translations.getTranslations model.language
     in
     case model.currentTool of
         DeleteTool ->
             let
                 state = getStateById stateId currentAutomaton.states
                 label = Maybe.map .label state |> Maybe.withDefault ""
-                message = "Odstránený stav: " ++ label
+                message = t.editorStateDeletedPrefix ++ label
                 newAutomaton =
                     { currentAutomaton
                     | states = List.filter (\s -> s.id /= stateId) currentAutomaton.states
-                    , transitions = List.filter (\t -> t.from /= stateId && t.to /= stateId) currentAutomaton.transitions
+                    , transitions = List.filter (\transition -> transition.from /= stateId && transition.to /= stateId) currentAutomaton.transitions
                     }
             in
             ( { model
@@ -960,7 +1001,7 @@ handleStateClick stateId model =
                     Nothing ->
                         ( { model
                             | transitionFrom = Just stateId
-                            , consoleMessages = { text = "Vyberte cieľový stav pre prechod.", msgType = Console.Info } :: model.consoleMessages
+                                                        , consoleMessages = { text = t.editorSelectTargetState, msgType = Console.Info } :: model.consoleMessages
                           }
                         , Cmd.none
                         )
@@ -983,20 +1024,20 @@ handleStateClick stateId model =
                             | editingTransition = Just { from = fromId, to = stateId, x = inputX, y = inputY }
                             , editingTransitionOldSymbol = Nothing
                             , transitionInput = ""
-                            , consoleMessages = { text = "Zadajte symbol(y) pre prechod (oddeľte čiarkou).", msgType = Console.Info } :: model.consoleMessages
+                                                        , consoleMessages = { text = t.editorEnterTransitionSymbols, msgType = Console.Info } :: model.consoleMessages
                           }
                         , Task.attempt (\_ -> NoOp) (Browser.Dom.focus "transition-input")
                         )
 
 
-getToolMessage : Tool -> String
-getToolMessage tool =
+getToolMessage : Translations.Translations -> Tool -> String
+getToolMessage t tool =
     case tool of
         BuildTool ->
-            "Nástroj: Stavať - dvojklik=nový stav, klik na stav=prechod, dvojklik na stav=upraviť"
+            t.editorToolBuildMessage
 
         DeleteTool ->
-            "Nástroj: Odstrániť - kliknite na stav alebo prechod"
+            t.editorToolDeleteMessage
 
 
 toolToString : Tool -> String
@@ -1009,9 +1050,12 @@ toolToString tool =
             "DeleteTool"
 
 
-view : Bool -> Bool -> Bool -> Model -> Html Msg
-view consoleOpen darkMode settingsOpen model =
+view : Bool -> Bool -> Bool -> Language -> Model -> Html Msg
+view consoleOpen darkMode settingsOpen language model =
     let
+        t =
+            Translations.getTranslations language
+
         theme = Theme.getTheme darkMode
         { states, transitions } = model.automaton.present
         hasStart = List.any .isStart states
@@ -1020,22 +1064,22 @@ view consoleOpen darkMode settingsOpen model =
         isConvertEnabled = not (List.isEmpty states) && hasStart && hasEnd && not (isDFA states transitions)
         simulateDisabledReason =
             if List.isEmpty states then
-                Just "Pridajte aspon jeden stav."
+                Just t.editorAddStateRequirement
             else if not hasStart then
-                Just "Nastavte pociatocny stav."
+                Just t.editorStartStateRequirement
             else if not hasEnd then
-                Just "Nastavte aspon jeden koncovy stav."
+                Just t.editorEndStateRequirement
             else
                 Nothing
         convertDisabledReason =
             if List.isEmpty states then
-                Just "Pridajte aspon jeden stav."
+                Just t.editorAddStateRequirement
             else if not hasStart then
-                Just "Nastavte pociatocny stav."
+                Just t.editorStartStateRequirement
             else if not hasEnd then
-                Just "Nastavte aspon jeden koncovy stav."
+                Just t.editorEndStateRequirement
             else if isDFA states transitions then
-                Just "Prevedte NFA (musi obsahovat eps-prechody alebo viacero prechodov na rovnakej abecede)."
+                Just t.editorConvertRequirement
             else
                 Nothing
     in
@@ -1075,6 +1119,8 @@ view consoleOpen darkMode settingsOpen model =
                 , onToggleSettings = ToggleSettings
                 , onToggleDarkMode = ToggleDarkMode
                 , darkMode = darkMode
+                , language = language
+                , onToggleLanguage = ToggleLanguage
                 }
             ]
         ,
@@ -1136,6 +1182,9 @@ view consoleOpen darkMode settingsOpen model =
                     { states = states
                     , transitions = transitions
                     , theme = theme
+                    , language = language
+                    , onCopyDefinition = CopyDefinition
+                    , copySuccess = model.copyDefSuccess
                     }
                 ]
             ]
@@ -1146,20 +1195,21 @@ view consoleOpen darkMode settingsOpen model =
             , onToggle = ToggleConsole
             , onLinkClick = Just ShowAboutGuide
             , theme = theme
+                        , language = language
             }
         ,
-          viewInlineTransitionInput theme model
+                    viewInlineTransitionInput theme t model
         ,
-          viewStateModal theme model
+                    viewStateModal theme t model
         ,
-          viewLoadModal theme model
+                    viewLoadModal theme t model
         ,
-          viewSaveModal theme model
+                    viewSaveModal theme t model
         ]
 
 
-viewInlineTransitionInput : Theme.Theme -> Model -> Html Msg
-viewInlineTransitionInput theme model =
+viewInlineTransitionInput : Theme.Theme -> Translations.Translations -> Model -> Html Msg
+viewInlineTransitionInput theme t model =
     case model.editingTransition of
         Just { x, y } ->
             let
@@ -1184,8 +1234,8 @@ viewInlineTransitionInput theme model =
                     , style "white-space" "nowrap"
                     ]
                     [ text (case model.editingTransitionOldSymbol of
-                        Just _ -> "Upravit symbol:"
-                        Nothing -> "Symbol(y): a,b,eps (prazdny=eps)")
+                        Just _ -> t.editorEditSymbolLabel
+                        Nothing -> t.editorSymbolsHint)
                     ]
                 , input
                     [ type_ "text"
@@ -1210,8 +1260,8 @@ viewInlineTransitionInput theme model =
             div [] []
 
 
-viewStateModal : Theme.Theme -> Model -> Html Msg
-viewStateModal theme model =
+viewStateModal : Theme.Theme -> Translations.Translations -> Model -> Html Msg
+viewStateModal theme t model =
     case model.editingStateId of
         Just stateId ->
             let
@@ -1241,11 +1291,11 @@ viewStateModal theme model =
                             , style "margin-bottom" "8px"
                             , style "color" theme.textPrimary
                             ]
-                            [ text "Upravit stav" ]
+                            [ text t.editorEditStateTitle ]
                         , input
                             [ type_ "text"
                             , Html.Attributes.id "state-modal-input"
-                            , placeholder "Nazov stavu"
+                            , placeholder t.editorStateNamePlaceholder
                             , value model.stateLabelInput
                             , onInput UpdateStateLabelInput
                             , onEnterKey ConfirmStateModal
@@ -1274,7 +1324,7 @@ viewStateModal theme model =
                                 ]
                                 []
                             , label [ Html.Attributes.for "modal-start-cb", style "font-size" "13px", style "cursor" "pointer", style "color" theme.textPrimary ]
-                                [ text "Pociatocny stav" ]
+                                [ text t.editorStartStateCheckbox ]
                             ]
                         , div
                             [ style "display" "flex"
@@ -1290,7 +1340,7 @@ viewStateModal theme model =
                                 ]
                                 []
                             , label [ Html.Attributes.for "modal-end-cb", style "font-size" "13px", style "cursor" "pointer", style "color" theme.textPrimary ]
-                                [ text "Koncovy stav" ]
+                                [ text t.editorEndStateCheckbox ]
                             ]
                         , div
                             [ style "display" "flex"
@@ -1308,7 +1358,7 @@ viewStateModal theme model =
                                 , style "font-size" "13px"
                                 , style "font-weight" "bold"
                                 ]
-                                [ text "OK" ]
+                                [ text t.ok ]
                             , button
                                 [ onClick DismissStateModal
                                 , style "flex" "1"
@@ -1320,7 +1370,7 @@ viewStateModal theme model =
                                 , style "cursor" "pointer"
                                 , style "font-size" "13px"
                                 ]
-                                [ text "Zrusit" ]
+                                [ text t.cancel ]
                             ]
                         ]
                 Nothing ->
@@ -1329,8 +1379,8 @@ viewStateModal theme model =
             div [] []
 
 
-viewLoadModal : Theme.Theme -> Model -> Html Msg
-viewLoadModal theme model =
+viewLoadModal : Theme.Theme -> Translations.Translations -> Model -> Html Msg
+viewLoadModal theme t model =
     if model.showLoadModal then
         div
             [ style "position" "fixed"
@@ -1356,7 +1406,7 @@ viewLoadModal theme model =
                 , style "overflow-y" "auto"
                 ]
                 ([ div [ style "font-weight" "bold", style "font-size" "16px", style "margin-bottom" "4px", style "color" theme.textPrimary ]
-                    [ text "Nacítat automat" ]
+                    [ text t.editorLoadAutomatonTitle ]
                 ]
                 ++ List.map
                     (\entry ->
@@ -1379,7 +1429,7 @@ viewLoadModal theme model =
                                 , style "cursor" "pointer"
                                 , style "font-size" "13px"
                                 ]
-                                [ text "Nacítat" ]
+                                [ text t.load ]
                             , button
                                 [ onClick (DeleteStoredAutomaton entry.name)
                                 , Html.Attributes.class "elm-btn"
@@ -1391,7 +1441,7 @@ viewLoadModal theme model =
                                 , style "cursor" "pointer"
                                 , style "font-size" "13px"
                                 ]
-                                [ text "Vymazat" ]
+                                [ text t.deleteStored ]
                             ]
                     )
                     model.storedAutomata
@@ -1407,7 +1457,7 @@ viewLoadModal theme model =
                         , style "font-size" "14px"
                         , style "margin-top" "8px"
                         ]
-                        [ text "Nacítat zo súboru .json" ]
+                            [ text t.editorLoadFromJson ]
                    , button
                         [ onClick DismissLoadModal
                         , Html.Attributes.class "elm-btn"
@@ -1419,7 +1469,7 @@ viewLoadModal theme model =
                         , style "cursor" "pointer"
                         , style "font-size" "13px"
                         ]
-                        [ text "Zrusit" ]
+                        [ text t.cancel ]
                    ]
                 )
             ]
@@ -1427,8 +1477,8 @@ viewLoadModal theme model =
         div [] []
 
 
-viewSaveModal : Theme.Theme -> Model -> Html Msg
-viewSaveModal theme model =
+viewSaveModal : Theme.Theme -> Translations.Translations -> Model -> Html Msg
+viewSaveModal theme t model =
     if model.showSaveModal then
         div
             [ style "position" "fixed"
@@ -1452,10 +1502,10 @@ viewSaveModal theme model =
                 , style "min-width" "260px"
                 ]
                 [ div [ style "font-weight" "bold", style "font-size" "16px", style "color" theme.textPrimary ]
-                    [ text "Ulozit automat" ]
+                    [ text t.editorSaveAutomatonTitle ]
                 , input
                     [ type_ "text"
-                    , placeholder "Nazov automatu"
+                    , placeholder t.editorAutomatonNamePlaceholder
                     , value model.saveNameInput
                     , onInput UpdateSaveNameInput
                     , autofocus True
@@ -1479,7 +1529,7 @@ viewSaveModal theme model =
                     , style "cursor" "pointer"
                     , style "font-size" "14px"
                     ]
-                    [ text "Ulozit" ]
+                    [ text t.save ]
                 , button
                     [ onClick DismissSaveModal
                     , Html.Attributes.class "elm-btn"
@@ -1491,7 +1541,7 @@ viewSaveModal theme model =
                     , style "cursor" "pointer"
                     , style "font-size" "13px"
                     ]
-                    [ text "Zrusit" ]
+                    [ text t.cancel ]
                 ]
             ]
     else

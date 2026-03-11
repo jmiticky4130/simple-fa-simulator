@@ -12,6 +12,7 @@ module Utils.ConversionHelpers exposing
 
 import Set
 import Shared exposing (State, Transition, AutomatonState)
+import Utils.Translations as Translations
 import Utils.AutomatonHelpers exposing (epsilonClosure, getStateLabel)
 
 
@@ -487,13 +488,13 @@ dfaSubsetStateToState ds =
 -- STEP EXPLANATION
 
 
-stepExplanation : List State -> List DfaSubsetState -> ConversionStep -> String
-stepExplanation nfaStates dfaStates step =
+stepExplanation : Translations.Translations -> List State -> List DfaSubsetState -> ConversionStep -> String
+stepExplanation t nfaStates dfaStates step =
     case step of
         StepInit info ->
-            "ε-uzáver počiatočného stavu = "
+            t.convInitPrefix
                 ++ info.startLabel
-                ++ ". Toto je počiatočný stav DFA."
+                ++ t.convInitSuffix
 
         StepProcessSymbol info ->
             let
@@ -507,14 +508,14 @@ stepExplanation nfaStates dfaStates step =
                     subsetLabel nfaStates info.epsClosed
             in
             if info.resultDfaId < 0 then
-                "Spracúvame " ++ srcLabel ++ " so symbolom '" ++ info.symbol ++ "'. move = ∅. Mŕtvy stav (∅), vynechané."
+                 t.convProcessingPrefix ++ srcLabel ++ " so symbolom '" ++ info.symbol ++ t.convDeadStateSuffix
             else
-                "Spracúvame " ++ srcLabel ++ " so symbolom '" ++ info.symbol
-                    ++ "'. move = " ++ moveStr ++ ", ε-uzáver = " ++ destStr
-                    ++ ". " ++ (if info.isNewState then "Nový stav vytvorený." else "Stav už existuje.")
+                 t.convProcessingPrefix ++ srcLabel ++ " so symbolom '" ++ info.symbol
+                    ++ t.convMovePrefix ++ moveStr ++ t.convClosurePrefix ++ destStr
+                    ++ (if info.isNewState then t.convNewStateCreated else t.convStateAlreadyExists)
 
         StepMarkProcessed info ->
-            "Stav " ++ getDfaLabel info.dfaStateId dfaStates ++ " je plne spracovaný."
+              t.convStateProcessedPrefix ++ getDfaLabel info.dfaStateId dfaStates ++ t.convStateProcessedSuffix
 
         StepDone ->
-            "Konštrukcia DFA je dokončená."
+              t.convConstructionDone

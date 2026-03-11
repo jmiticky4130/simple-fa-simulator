@@ -37,14 +37,23 @@
       : null;
 
     var dark = localStorage.getItem('darkMode') === 'true';
+    var lang = localStorage.getItem('language') || 'sk';
 
     var app = Elm.Main.init({
       node: document.getElementById('elm'),
-      flags: { urlData: hashData, darkMode: dark }
+      flags: { urlData: hashData, darkMode: dark, language: lang }
     });
 
     app.ports.saveDarkMode.subscribe(function(v) {
       localStorage.setItem('darkMode', String(v));
+    });
+
+    app.ports.saveLanguage.subscribe(function(v) {
+      localStorage.setItem('language', v);
+    });
+
+    app.ports.copyToClipboard.subscribe(function(text) {
+      navigator.clipboard.writeText(text).catch(function() {});
     });
 
     app.ports.setUrlHash.subscribe(function(json) {

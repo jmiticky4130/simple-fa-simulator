@@ -4,6 +4,7 @@ import Html exposing (Html, div, span, text, h3)
 import Html.Attributes exposing (style)
 import Shared exposing (State)
 import Utils.Theme as Theme
+import Utils.Translations as Translations exposing (Language)
 
 type alias Config =
     { inputString : String
@@ -11,10 +12,15 @@ type alias Config =
     , currentState : Maybe State
     , verdict : Maybe { text : String, isAccepted : Bool }
     , theme : Theme.Theme
+    , language : Language
     }
 
 view : Config -> Html msg
 view config =
+    let
+        t =
+            Translations.getTranslations config.language
+    in
     div
         [ style "padding" "10px"
         , style "border-bottom" ("1px solid " ++ config.theme.separatorColor)
@@ -24,7 +30,7 @@ view config =
         , style "color" config.theme.textPrimary
         ]
         [ div []
-            [ span [ style "font-weight" "bold" ] [ text "Aktuálny stav: " ]
+            [ span [ style "font-weight" "bold" ] [ text (t.currentState ++ ": ") ]
             , text (Maybe.map .label config.currentState |> Maybe.withDefault "-")
             ]
         , case config.verdict of

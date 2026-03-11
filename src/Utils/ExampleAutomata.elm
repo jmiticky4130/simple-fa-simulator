@@ -1,6 +1,7 @@
 module Utils.ExampleAutomata exposing (examples, ExampleDef)
 
 import Shared exposing (AutomatonState)
+import Utils.Translations as Translations exposing (Language(..))
 
 
 type alias ExampleDef =
@@ -10,16 +11,19 @@ type alias ExampleDef =
     }
 
 
-examples : List ExampleDef
-examples =
-    [ example1, example2, example3, example4, example5, example6 ]
+examples : Language -> List ExampleDef
+examples lang =
+    let
+        t = Translations.getTranslations lang
+    in
+    [ example1 t, example2 t, example3 t, example4 t, example5 t, example6 t ]
 
 
 -- 1: DFA – accepts strings over {a,b} ending with 'a'
-example1 : ExampleDef
-example1 =
-    { name = "DFA – končí na 'a'"
-    , description = "Prijíma reťazce nad {a,b} končiace symbolom 'a'. Príklad: a, ba, aba."
+example1 : Translations.Translations -> ExampleDef
+example1 t =
+    { name = t.example1Name
+    , description = t.example1Desc
     , automaton =
         { states =
             [ { id = 0, x = 200, y = 280, label = "q0", isStart = True, isEnd = False }
@@ -37,10 +41,10 @@ example1 =
 
 
 -- 2: DFA – accepts binary strings with even number of '0's
-example2 : ExampleDef
-example2 =
-    { name = "DFA – párny počet núl"
-    , description = "Prijíma binárne reťazce s párnym počtom symbolov '0' (vrátane žiadnej nuly). Príklad: ε, 00, 11, 1001."
+example2 : Translations.Translations -> ExampleDef
+example2 t =
+    { name = t.example2Name
+    , description = t.example2Desc
     , automaton =
         { states =
             [ { id = 0, x = 200, y = 280, label = "even", isStart = True, isEnd = True }
@@ -58,10 +62,10 @@ example2 =
 
 
 -- 3: NFA – accepts strings over {0,1} ending with "01"
-example3 : ExampleDef
-example3 =
-    { name = "NFA – končí na '01'"
-    , description = "Nedeterministický automat prijímajúci reťazce nad {0,1} končiace podreťazcom '01'. Príklad: 01, 101, 0101."
+example3 : Translations.Translations -> ExampleDef
+example3 t =
+    { name = t.example3Name
+    , description = t.example3Desc
     , automaton =
         { states =
             [ { id = 0, x = 150, y = 280, label = "q0", isStart = True, isEnd = False }
@@ -80,10 +84,10 @@ example3 =
 
 
 -- 4: NFA with ε-transitions – accepts "a" or "ab"
-example4 : ExampleDef
-example4 =
-    { name = "NFA s ε – prijíma 'a' alebo 'ab'"
-    , description = "NFA s epsilon prechodom: q1 →ε→ q2 (akceptuje 'a'), q1 →b→ q3 (akceptuje 'ab'). Ukážka ε-prechodov."
+example4 : Translations.Translations -> ExampleDef
+example4 t =
+    { name = t.example4Name
+    , description = t.example4Desc
     , automaton =
         { states =
             [ { id = 0, x = 150, y = 280, label = "q0", isStart = True, isEnd = False }
@@ -102,10 +106,10 @@ example4 =
 
 
 -- 5: NFA – second-to-last symbol is '1' over {0,1}
-example5 : ExampleDef
-example5 =
-    { name = "NFA – predposledný symbol je '1'"
-    , description = "Prijíma reťazce nad {0,1} dĺžky ≥ 2, kde predposledný symbol je '1'. Príklad: 10, 11, 010, 110."
+example5 : Translations.Translations -> ExampleDef
+example5 t =
+    { name = t.example5Name
+    , description = t.example5Desc
     , automaton =
         { states =
             [ { id = 0, x = 150, y = 280, label = "q0", isStart = True, isEnd = False }
@@ -125,10 +129,10 @@ example5 =
 
 
 -- 6: ε-NFA – accepts a^n b^m for n, m >= 0
-example6 : ExampleDef
-example6 =
-    { name = "ε-NFA – a*b*"
-    , description = "Prijíma reťazce tvaru a⁰⁺b⁰⁺: nula alebo viac 'a', za nimi nula alebo viac 'b'."
+example6 : Translations.Translations -> ExampleDef
+example6 t =
+    { name = t.example6Name
+    , description = t.example6Desc
     , automaton =
         { states =
             [ { id = 0, x = 200, y = 280, label = "q0", isStart = True, isEnd = True }

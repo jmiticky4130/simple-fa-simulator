@@ -4,6 +4,8 @@ import Dict exposing (Dict)
 import Html exposing (Html, div, button, text, input, table, tr, td, th, thead, tbody, img)
 import Html.Attributes exposing (style, type_, value, placeholder, autofocus, disabled, src)
 import Html.Events exposing (onClick, onInput)
+import Svg
+import Svg.Attributes as SA
 import Shared exposing (State, AutomatonState)
 import Components.ConversionCanvas as ConversionCanvas
 import Components.Console as Console
@@ -19,6 +21,7 @@ import Utils.ConversionHelpers exposing
     , getDfaLabel
     )
 import Utils.Theme as Theme
+import Utils.Translations as Translations exposing (Language)
 
 
 -- MODEL
@@ -26,6 +29,7 @@ import Utils.Theme as Theme
 
 type alias Model =
     { nfa : AutomatonState
+    , language : Language
     , snapshots : List StepSnapshot
     , currentStep : Int
     , highlightDfaStateId : Maybe Int
@@ -72,15 +76,17 @@ type Msg
     | ToggleConsole
     | ToggleSettings
     | ToggleDarkMode
+    | ToggleLanguage
 
 
 -- INIT
 
 
-init : AutomatonState -> Model
-init nfa =
+init : Language -> AutomatonState -> Model
+init language nfa =
     updateHighlight
         { nfa = nfa
+        , language = language
         , snapshots = buildSteps nfa
         , currentStep = 0
         , highlightDfaStateId = Nothing
@@ -97,7 +103,12 @@ init nfa =
         , draggingStateId = Nothing
         , dragOffsetX = 0
         , dragOffsetY = 0
-        , consoleMessages = [ { text = "Konverzia NFA -> DFA spustená.", msgType = Console.Info } ]
+        , consoleMessages =
+            let
+                t =
+                    Translations.getTranslations language
+            in
+            [ { text = t.convStarted, msgType = Console.Info } ]
         }
 
 
@@ -107,6 +118,9 @@ init nfa =
 update : Msg -> Model -> Model
 update msg model =
     let
+        t =
+            Translations.getTranslations model.language
+
         total =
             List.length model.snapshots
     in
@@ -117,7 +131,7 @@ update msg model =
                 isNowDone = newStep >= total - 1 && model.currentStep < total - 1
                 msgs =
                     if isNowDone then
-                        { text = "Konverzia dokončená.", msgType = Console.Info } :: model.consoleMessages
+                        { text = t.convFinished, msgType = Console.Info } :: model.consoleMessages
                     else
                         model.consoleMessages
             in
@@ -131,7 +145,7 @@ update msg model =
                 isNowDone = model.currentStep < total - 1
                 msgs =
                     if isNowDone then
-                        { text = "Konverzia dokončená.", msgType = Console.Info } :: model.consoleMessages
+                        { text = t.convFinished, msgType = Console.Info } :: model.consoleMessages
                     else
                         model.consoleMessages
             in
@@ -144,7 +158,7 @@ update msg model =
             model
 
         ReplaceAutomaton ->
-            { model | consoleMessages = { text = "Automat nahradený konvertovaným DFA.", msgType = Console.Info } :: model.consoleMessages }
+            { model | consoleMessages = { text = t.convAutomatonReplaced, msgType = Console.Info } :: model.consoleMessages }
 
         ShowSaveModal ->
             { model | showSaveModal = True, saveNameInput = "" }
@@ -153,7 +167,7 @@ update msg model =
             { model | saveNameInput = s }
 
         ConfirmSaveToStorage ->
-            { model | consoleMessages = { text = "DFA uložený: " ++ model.saveNameInput, msgType = Console.Info } :: model.consoleMessages }
+            { model | consoleMessages = { text = t.convDfaSavedPrefix ++ model.saveNameInput, msgType = Console.Info } :: model.consoleMessages }
 
         DismissSaveModal ->
             { model | showSaveModal = False, saveNameInput = "" }
@@ -243,6 +257,9 @@ update msg model =
         ToggleDarkMode ->
             model
 
+        ToggleLanguage ->
+            { model | language = if model.language == Translations.Slovak then Translations.English else Translations.Slovak }
+
 
 updateHighlight : Model -> Model
 updateHighlight model =
@@ -311,9 +328,12 @@ conversionResultToAutomaton model =
 -- VIEW
 
 
-view : Bool -> Bool -> Bool -> Model -> Html Msg
-view consoleOpen darkMode settingsOpen model =
+view : Bool -> Bool -> Bool -> Language -> Model -> Html Msg
+view consoleOpen darkMode settingsOpen language model =
     let
+        t =
+            Translations.getTranslations language
+
         theme = Theme.getTheme darkMode
 
         total =
@@ -335,7 +355,7 @@ view consoleOpen darkMode settingsOpen model =
         , style "overflow" "hidden"
         , style "font-family" "sans-serif"
         ]
-        [ viewTopBar theme settingsOpen darkMode (model.currentStep + 1) total isAtStart isAtEnd
+        [ viewTopBar theme settingsOpen darkMode language (model.currentStep + 1) total isAtStart isAtEnd
         , div
             [ style "display" "flex"
             , style "flex" "1"
@@ -350,16 +370,21 @@ view consoleOpen darkMode settingsOpen model =
             , onToggle = ToggleConsole
             , onLinkClick = Nothing
             , theme = theme
+            , language = language
             }
-        , viewSaveModal theme model
+        , viewSaveModal theme t model
         ]
 
 
 -- TOP BAR
 
 
-viewTopBar : Theme.Theme -> Bool -> Bool -> Int -> Int -> Bool -> Bool -> Html Msg
-viewTopBar theme settingsOpen darkMode stepNum total isAtStart isAtEnd =
+viewTopBar : Theme.Theme -> Bool -> Bool -> Language -> Int -> Int -> Bool -> Bool -> Html Msg
+viewTopBar theme settingsOpen darkMode language stepNum total isAtStart isAtEnd =
+    let
+        t =
+            Translations.getTranslations language
+    in
     div
         [ style "display" "flex"
         , style "flex-direction" "row"
@@ -375,7 +400,7 @@ viewTopBar theme settingsOpen darkMode stepNum total isAtStart isAtEnd =
         , navBtn theme ">" StepForward isAtEnd
         , navBtn theme ">>" JumpToEnd isAtEnd
         , div [ style "color" "white", style "font-size" "14px", style "padding" "0 8px" ]
-            [ text ("Krok " ++ String.fromInt stepNum ++ " / " ++ String.fromInt total) ]
+            [ text (t.stepLabel ++ " " ++ String.fromInt stepNum ++ " / " ++ String.fromInt total) ]
         , div
             [ style "width" "1px"
             , style "height" "28px"
@@ -383,8 +408,8 @@ viewTopBar theme settingsOpen darkMode stepNum total isAtStart isAtEnd =
             , style "margin" "0 4px"
             ]
             []
-        , actionBtn theme "Nahradiť automat" ReplaceAutomaton isAtEnd
-        , actionBtn theme "Uložiť DFA" ShowSaveModal isAtEnd
+        , iconActionBtn theme replaceIcon t.replaceAutomaton ReplaceAutomaton isAtEnd
+        , iconActionBtn theme saveIcon t.saveDfa ShowSaveModal isAtEnd
         , div [ style "flex" "1" ] []
         , div
             [ style "width" "300px"
@@ -392,15 +417,18 @@ viewTopBar theme settingsOpen darkMode stepNum total isAtStart isAtEnd =
             , style "justify-content" "flex-end"
             , style "gap" "8px"
             ]
-            [ guideColorBtn theme ShowGuide
-            , colorBtn theme "← Editor" theme.btnPrimary SwitchToEditor True
-            , settingsGearBtn theme settingsOpen darkMode
+            [ guideColorBtn theme t.guide ShowGuide
+            , colorBtn theme t.backToEditor theme.btnPrimary SwitchToEditor True
+            , settingsGearBtn theme settingsOpen darkMode language
             ]
         ]
 
 
-settingsGearBtn : Theme.Theme -> Bool -> Bool -> Html Msg
-settingsGearBtn theme settingsOpen darkMode =
+settingsGearBtn : Theme.Theme -> Bool -> Bool -> Language -> Html Msg
+settingsGearBtn theme settingsOpen darkMode language =
+    let
+        t = Translations.getTranslations language
+    in
     div
         [ style "position" "relative"
         , style "display" "flex"
@@ -440,8 +468,19 @@ settingsGearBtn theme settingsOpen darkMode =
                     , style "justify-content" "space-between"
                     , style "gap" "10px"
                     ]
-                    [ text "Tmavý režim"
+                    [ text t.darkMode
                     , pillToggle ToggleDarkMode darkMode
+                    ]
+                , div
+                    [ style "color" "white"
+                    , style "font-size" "13px"
+                    , style "display" "flex"
+                    , style "align-items" "center"
+                    , style "justify-content" "space-between"
+                    , style "gap" "10px"
+                    ]
+                    [ text t.language
+                    , languageToggleBtn t ToggleLanguage
                     ]
                 ]
           else
@@ -474,6 +513,60 @@ pillToggle toggleMsg isOn =
             ]
             []
         ]
+
+
+languageToggleBtn : Translations.Translations -> msg -> Html msg
+languageToggleBtn t onToggle =
+    button
+        [ onClick onToggle
+        , style "background" "#37474f"
+        , style "color" "white"
+        , style "border" "none"
+        , style "border-radius" "4px"
+        , style "padding" "2px 8px"
+        , style "font-size" "12px"
+        , style "cursor" "pointer"
+        ]
+        [ text t.languageName ]
+
+
+replaceIcon : Html msg
+replaceIcon =
+    Svg.svg
+        [ SA.width "16", SA.height "16", SA.viewBox "0 0 52 52", SA.fill "currentColor" ]
+        [ Svg.path [ SA.d "M20,37.5c0-0.8-0.7-1.5-1.5-1.5h-15C2.7,36,2,36.7,2,37.5v11C2,49.3,2.7,50,3.5,50h15c0.8,0,1.5-0.7,1.5-1.5V37.5z" ] []
+        , Svg.path [ SA.d "M8.1,22H3.2c-1,0-1.5,0.9-0.9,1.4l8,8.3c0.4,0.3,1,0.3,1.4,0l8-8.3c0.6-0.6,0.1-1.4-0.9-1.4h-4.7c0-5,4.9-10,9.9-10V6C15,6,8.1,13,8.1,22z" ] []
+        , Svg.path [ SA.d "M41.8,20.3c-0.4-0.3-1-0.3-1.4,0l-8,8.3c-0.6,0.6-0.1,1.4,0.9,1.4h4.8c0,6-4.1,10-10.1,10v6c9,0,16.1-7,16.1-16H49c1,0,1.5-0.9,0.9-1.4L41.8,20.3z" ] []
+        , Svg.path [ SA.d "M50,3.5C50,2.7,49.3,2,48.5,2h-15C32.7,2,32,2.7,32,3.5v11c0,0.8,0.7,1.5,1.5,1.5h15c0.8,0,1.5-0.7,1.5-1.5V3.5z" ] []
+        ]
+
+
+saveIcon : Html msg
+saveIcon =
+    Svg.svg
+        [ SA.width "16", SA.height "16", SA.viewBox "0 0 24 24", SA.fill "currentColor" ]
+        [ Svg.path [ SA.fillRule "evenodd", SA.clipRule "evenodd", SA.d "M18.1716 1C18.702 1 19.2107 1.21071 19.5858 1.58579L22.4142 4.41421C22.7893 4.78929 23 5.29799 23 5.82843V20C23 21.6569 21.6569 23 20 23H4C2.34315 23 1 21.6569 1 20V4C1 2.34315 2.34315 1 4 1H18.1716ZM4 3C3.44772 3 3 3.44772 3 4V20C3 20.5523 3.44772 21 4 21L5 21L5 15C5 13.3431 6.34315 12 8 12L16 12C17.6569 12 19 13.3431 19 15V21H20C20.5523 21 21 20.5523 21 20V6.82843C21 6.29799 20.7893 5.78929 20.4142 5.41421L18.5858 3.58579C18.2107 3.21071 17.702 3 17.1716 3H17V5C17 6.65685 15.6569 8 14 8H10C8.34315 8 7 6.65685 7 5V3H4ZM17 21V15C17 14.4477 16.5523 14 16 14L8 14C7.44772 14 7 14.4477 7 15L7 21L17 21ZM9 3H15V5C15 5.55228 14.5523 6 14 6H10C9.44772 6 9 5.55228 9 5V3Z" ] []
+        ]
+
+
+iconActionBtn : Theme.Theme -> Html Msg -> String -> Msg -> Bool -> Html Msg
+iconActionBtn theme icon label msg isEnabled =
+    button
+        [ onClick msg
+        , style "padding" "11px 18px"
+        , style "background-color" (if isEnabled then theme.btnPrimary else theme.btnDisabledBg)
+        , style "color" (if isEnabled then "white" else theme.btnDisabledText)
+        , style "border" "none"
+        , style "border-radius" "5px"
+        , style "cursor" (if isEnabled then "pointer" else "not-allowed")
+        , style "font-size" "14px"
+        , style "font-weight" "bold"
+        , style "display" "flex"
+        , style "align-items" "center"
+        , style "gap" "6px"
+        , disabled (not isEnabled)
+        ]
+        [ icon, text label ]
 
 
 navBtn : Theme.Theme -> String -> Msg -> Bool -> Html Msg
@@ -526,8 +619,8 @@ colorBtn theme label color msg isEnabled =
         [ text label ]
 
 
-guideColorBtn : Theme.Theme -> Msg -> Html Msg
-guideColorBtn theme msg =
+guideColorBtn : Theme.Theme -> String -> Msg -> Html Msg
+guideColorBtn theme label msg =
     button
         [ onClick msg
         , style "padding" "11px 18px"
@@ -543,13 +636,13 @@ guideColorBtn theme msg =
         , style "gap" "6px"
         ]
         [ img
-            [ src "guide_icon.png"
+            [ src "icons/guide_icon.png"
             , style "width" "20px"
             , style "height" "20px"
             , style "filter" "brightness(0) invert(1)"
             ]
             []
-        , text "Sprievodca"
+        , text label
         ]
 
 
@@ -597,6 +690,9 @@ viewCanvas theme model maybeSnap =
 viewRightPanel : Theme.Theme -> Model -> Maybe StepSnapshot -> Html Msg
 viewRightPanel theme model maybeSnap =
     let
+        t =
+            Translations.getTranslations model.language
+
         snap =
             Maybe.withDefault { states = [], transitions = [], step = StepDone, processedIds = [], worklist = [] } maybeSnap
 
@@ -617,7 +713,7 @@ viewRightPanel theme model maybeSnap =
         , style "flex-direction" "column"
         , style "overflow" "hidden"
         ]
-        [ panelHeader theme theme.convSectionHeaderBg "Popis kroku"
+        [ panelHeader theme theme.convSectionHeaderBg t.convStepDescription
         , div
             [ style "padding" "10px 12px"
             , style "font-size" "12px"
@@ -627,13 +723,13 @@ viewRightPanel theme model maybeSnap =
             , style "min-height" "54px"
             , style "color" theme.textPrimary
             ]
-            [ text (stepExplanation model.nfa.states snap.states snap.step) ]
-        , panelHeader theme theme.convSectionHeaderBg "Povodne NFA stavy"
+            [ text (stepExplanation t model.nfa.states snap.states snap.step) ]
+        , panelHeader theme theme.convSectionHeaderBg t.convOriginalNfaStates
         , div [ style "max-height" "120px", style "overflow-y" "auto", style "border-bottom" ("1px solid " ++ theme.separatorColor) ]
-            [ viewNfaTable theme model.nfa.states ]
-        , panelHeader theme theme.convSectionHeaderBg "Tabulka podmnozin"
+            [ viewNfaTable theme t model.nfa.states ]
+        , panelHeader theme theme.convSectionHeaderBg t.convSubsetTable
         , div [ style "flex" "1", style "overflow-y" "auto", style "overflow-x" "auto" ]
-            [ viewWorktable theme snap alph model.highlightDfaStateId currentSymbol ]
+            [ viewWorktable theme t snap alph model.highlightDfaStateId currentSymbol ]
         ]
 
 
@@ -653,14 +749,14 @@ panelHeader theme bgColor title =
 -- NFA TABLE
 
 
-viewNfaTable : Theme.Theme -> List State -> Html Msg
-viewNfaTable theme states =
+viewNfaTable : Theme.Theme -> Translations.Translations -> List State -> Html Msg
+viewNfaTable theme t states =
     table [ style "border-collapse" "collapse", style "font-size" "12px", style "width" "100%" ]
         [ thead []
             [ tr []
-                [ tableHeader theme "left" "Stav"
-                , tableHeader theme "center" "Poc."
-                , tableHeader theme "center" "Konc."
+                [ tableHeader theme "left" t.convStateColumn
+                , tableHeader theme "center" t.convStartColumn
+                , tableHeader theme "center" t.convEndColumn
                 ]
             ]
         , tbody [] (List.map (viewNfaRow theme) states)
@@ -691,8 +787,8 @@ tableHeader theme align label =
 -- WORKTABLE
 
 
-viewWorktable : Theme.Theme -> StepSnapshot -> List String -> Maybe Int -> Maybe String -> Html Msg
-viewWorktable theme snap alph highlightStateId highlightSymbol =
+viewWorktable : Theme.Theme -> Translations.Translations -> StepSnapshot -> List String -> Maybe Int -> Maybe String -> Html Msg
+viewWorktable theme t snap alph highlightStateId highlightSymbol =
     table [ style "border-collapse" "collapse", style "font-size" "11px", style "width" "100%" ]
         [ thead []
             [ tr []
@@ -705,7 +801,7 @@ viewWorktable theme snap alph highlightStateId highlightSymbol =
                     , style "top" "0"
                     , style "color" theme.textPrimary
                     ]
-                    [ text "Stav DFA" ]
+                          [ text t.convDfaStateColumn ]
                  ]
                     ++ List.map (worktableColHeader theme highlightSymbol) alph
                 )
@@ -794,8 +890,8 @@ worktableCell theme snap isRowHighlighted isProcessed rowBg highlightSymbol stat
 -- SAVE MODAL
 
 
-viewSaveModal : Theme.Theme -> Model -> Html Msg
-viewSaveModal theme model =
+viewSaveModal : Theme.Theme -> Translations.Translations -> Model -> Html Msg
+viewSaveModal theme t model =
     if not model.showSaveModal then
         div [] []
 
@@ -821,10 +917,10 @@ viewSaveModal theme model =
                 , style "gap" "12px"
                 , style "min-width" "260px"
                 ]
-                [ div [ style "font-weight" "bold", style "font-size" "16px", style "color" theme.textPrimary ] [ text "Ulozit DFA" ]
+                [ div [ style "font-weight" "bold", style "font-size" "16px", style "color" theme.textPrimary ] [ text t.saveDfa ]
                 , input
                     [ type_ "text"
-                    , placeholder "Nazov automatu"
+                    , placeholder t.editorAutomatonNamePlaceholder
                     , value model.saveNameInput
                     , onInput UpdateSaveNameInput
                     , autofocus True
@@ -846,7 +942,7 @@ viewSaveModal theme model =
                     , style "cursor" "pointer"
                     , style "font-size" "14px"
                     ]
-                    [ text "Ulozit" ]
+                    [ text t.save ]
                 , button
                     [ onClick DismissSaveModal
                     , style "padding" "8px"
@@ -857,6 +953,6 @@ viewSaveModal theme model =
                     , style "cursor" "pointer"
                     , style "font-size" "13px"
                     ]
-                    [ text "Zrusit" ]
+                    [ text t.cancel ]
                 ]
             ]
