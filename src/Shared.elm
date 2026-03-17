@@ -7,6 +7,7 @@ type alias State =
     , label : String
     , isStart : Bool
     , isEnd : Bool
+    , isCompact : Bool
     }
 
 

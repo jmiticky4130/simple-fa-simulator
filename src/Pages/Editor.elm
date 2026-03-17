@@ -69,6 +69,7 @@ type alias Model =
     , stateLabelInput : String
     , stateModalIsStart : Bool
     , stateModalIsEnd : Bool
+    , stateModalIsCompact : Bool
     , showLoadModal : Bool
     , showSaveModal : Bool
     , saveNameInput : String
@@ -108,6 +109,7 @@ type Msg
     | DismissStateModal
     | SetStateModalIsStart Bool
     | SetStateModalIsEnd Bool
+    | SetStateModalIsCompact Bool
     | ResetAutomaton
     | Undo
     | Redo
@@ -170,6 +172,7 @@ init language =
     , stateLabelInput = ""
     , stateModalIsStart = False
     , stateModalIsEnd = False
+    , stateModalIsCompact = False
     , showLoadModal = False
     , showSaveModal = False
     , saveNameInput = ""
@@ -404,6 +407,7 @@ update msg model =
                             , label = "q" ++ String.fromInt currentAutomaton.nextStateId
                             , isStart = False
                             , isEnd = False
+                            , isCompact = False
                             }
                         message = t.editorStateAddedPrefix ++ newState.label
                         newAutomaton =
@@ -459,6 +463,7 @@ update msg model =
                                 , stateLabelInput = state.label
                                 , stateModalIsStart = state.isStart
                                 , stateModalIsEnd = state.isEnd
+                                , stateModalIsCompact = state.isCompact
                                 , isDragging = False
                               }
                             , Task.attempt (\_ -> NoOp) (Browser.Dom.focus "state-modal-input")
@@ -692,7 +697,9 @@ update msg model =
                                         List.map (\s -> if s.id == stateId then { s | isStart = False } else s) statesWithLabel
                                 statesWithEnd =
                                     List.map (\s -> if s.id == stateId then { s | isEnd = model.stateModalIsEnd } else s) statesWithStart
-                                newAutomaton = { currentAutomaton | states = statesWithEnd }
+                                statesWithCompact =
+                                    List.map (\s -> if s.id == stateId then { s | isCompact = model.stateModalIsCompact } else s) statesWithEnd
+                                newAutomaton = { currentAutomaton | states = statesWithCompact }
                                 message = t.editorStateUpdatedPrefix ++ newLabel
                             in
                             ( { model
@@ -701,6 +708,7 @@ update msg model =
                                 , stateLabelInput = ""
                                 , stateModalIsStart = False
                                 , stateModalIsEnd = False
+                                , stateModalIsCompact = False
                                 , consoleMessages = { text = message, msgType = Console.Info } :: model.consoleMessages
                               }
                             , Cmd.none
@@ -715,6 +723,7 @@ update msg model =
                 , stateLabelInput = ""
                 , stateModalIsStart = False
                 , stateModalIsEnd = False
+                , stateModalIsCompact = False
               }
             , Cmd.none
             )
@@ -724,6 +733,9 @@ update msg model =
 
         SetStateModalIsEnd val ->
             ( { model | stateModalIsEnd = val }, Cmd.none )
+
+        SetStateModalIsCompact val ->
+            ( { model | stateModalIsCompact = val }, Cmd.none )
 
         ResetAutomaton ->
             let
@@ -760,51 +772,116 @@ update msg model =
             )
 
         UpdateTransitionInput inputVal ->
-            ( { model | transitionInput = inputVal }, Cmd.none )
+            let
+                allSegmentsValid =
+                    String.split "," inputVal
+                        |> List.map String.trim
+                        |> List.filter (not << String.isEmpty)
+                        |> List.all (\seg -> String.length seg <= 1)
+            in
+            if allSegmentsValid then
+                ( { model | transitionInput = inputVal }, Cmd.none )
+            else
+                ( model, Cmd.none )
 
         ConfirmTransitionSymbol ->
             case model.editingTransition of
                 Just { from, to } ->
                     case model.editingTransitionOldSymbol of
                         Just oldSymbol ->
-                            -- Edit mode: replace old transition(s) with new
+                            -- Edit mode: remove old transition, add new (comma-separated)
                             let
                                 newInput = String.trim model.transitionInput
-                                newSymbol = if String.isEmpty newInput then "ε" else newInput
                                 -- Remove old transition
                                 filteredTransitions =
                                     List.filter (\transition -> not (transition.from == from && transition.to == to && transition.symbol == oldSymbol)) currentAutomaton.transitions
-                                -- Check duplicate
-                                isDuplicate = List.any (\transition -> transition.from == from && transition.to == to && transition.symbol == newSymbol) filteredTransitions
                             in
-                            if from == to && newSymbol == "ε" then
-                                ( { model | consoleMessages = { text = t.editorLoopCannotBeEpsilon, msgType = Console.Error } :: model.consoleMessages }
-                                , Cmd.none
-                                )
-                            else if symbolHasSpaces newSymbol && newSymbol /= "ε" then
-                                ( { model | consoleMessages = { text = t.editorSymbolSpaces, msgType = Console.Error } :: model.consoleMessages }
-                                , Cmd.none
-                                )
-                            else if isDuplicate then
-                                ( { model | consoleMessages = { text = t.editorTransitionExistsPrefix ++ newSymbol ++ t.editorTransitionExistsSuffix, msgType = Console.Error } :: model.consoleMessages }
-                                , Cmd.none
-                                )
+                            if String.isEmpty newInput then
+                                -- Empty → ε transition
+                                if from == to then
+                                    ( { model | consoleMessages = { text = t.editorLoopCannotBeEpsilon, msgType = Console.Error } :: model.consoleMessages }
+                                    , Cmd.none
+                                    )
+                                else if List.any (\tr -> tr.from == from && tr.to == to && tr.symbol == "ε") filteredTransitions then
+                                    ( { model | consoleMessages = { text = t.editorEpsilonTransitionExists, msgType = Console.Error } :: model.consoleMessages }
+                                    , Cmd.none
+                                    )
+                                else
+                                    let
+                                        newAutomaton = { currentAutomaton | transitions = filteredTransitions ++ [ { from = from, to = to, symbol = "ε" } ] }
+                                    in
+                                    ( { model
+                                        | automaton = UndoList.new newAutomaton model.automaton
+                                        , editingTransition = Nothing
+                                        , editingTransitionOldSymbol = Nothing
+                                        , transitionInput = ""
+                                        , transitionFrom = Nothing
+                                        , consoleMessages = { text = t.editorTransitionAddedPrefix ++ "ε", msgType = Console.Info } :: model.consoleMessages
+                                      }
+                                    , Cmd.none
+                                    )
                             else
+                                -- Parse comma-separated symbols
                                 let
-                                    newTransitions = filteredTransitions ++ [ { from = from, to = to, symbol = newSymbol } ]
-                                    newAutomaton = { currentAutomaton | transitions = newTransitions }
-                                    message = t.editorTransitionAddedPrefix ++ newSymbol
+                                    rawSymbols =
+                                        String.split "," newInput
+                                            |> List.map String.trim
+                                            |> List.filter (not << String.isEmpty)
+
+                                    symbolsWithSpaces =
+                                        List.filter symbolHasSpaces rawSymbols
+
+                                    symbols =
+                                        Set.fromList rawSymbols
+                                            |> Set.toList
+                                            |> List.sort
+
+                                    duplicates =
+                                        List.filter (\sym -> transitionExists from to sym filteredTransitions) symbols
+
+                                    uniqueSymbols =
+                                        List.filter (\sym -> not (transitionExists from to sym filteredTransitions)) symbols
                                 in
-                                ( { model
-                                    | automaton = UndoList.new newAutomaton model.automaton
-                                    , editingTransition = Nothing
-                                    , editingTransitionOldSymbol = Nothing
-                                    , transitionInput = ""
-                                    , transitionFrom = Nothing
-                                    , consoleMessages = { text = message, msgType = Console.Info } :: model.consoleMessages
-                                  }
-                                , Cmd.none
-                                )
+                                if not (List.isEmpty symbolsWithSpaces) then
+                                    ( { model | consoleMessages = { text = t.editorSymbolSpaces ++ ": " ++ String.join ", " symbolsWithSpaces, msgType = Console.Error } :: model.consoleMessages }
+                                    , Cmd.none
+                                    )
+                                else if from == to && List.member "ε" symbols then
+                                    ( { model | consoleMessages = { text = t.editorLoopCannotBeEpsilon, msgType = Console.Error } :: model.consoleMessages }
+                                    , Cmd.none
+                                    )
+                                else if not (List.isEmpty duplicates) then
+                                    ( { model | consoleMessages = { text = t.editorTransitionsExistPrefix ++ String.join ", " duplicates, msgType = Console.Error } :: model.consoleMessages }
+                                    , Cmd.none
+                                    )
+                                else
+                                    let
+                                        newTransitions =
+                                            List.foldl
+                                                (\symbol acc -> acc ++ [ { from = from, to = to, symbol = symbol } ])
+                                                filteredTransitions
+                                                uniqueSymbols
+
+                                        addedCount = List.length newTransitions - List.length filteredTransitions
+
+                                        message =
+                                            if addedCount == 1 then
+                                                t.editorTransitionAddedPrefix ++ String.join ", " uniqueSymbols
+                                            else
+                                                t.editorTransitionsAddedPrefix ++ String.fromInt addedCount ++ t.editorTransitionsAddedSuffix
+
+                                        newAutomaton = { currentAutomaton | transitions = newTransitions }
+                                    in
+                                    ( { model
+                                        | automaton = UndoList.new newAutomaton model.automaton
+                                        , editingTransition = Nothing
+                                        , editingTransitionOldSymbol = Nothing
+                                        , transitionInput = ""
+                                        , transitionFrom = Nothing
+                                        , consoleMessages = { text = message, msgType = Console.Info } :: model.consoleMessages
+                                      }
+                                    , Cmd.none
+                                    )
 
                         Nothing ->
                             -- Create mode: existing behavior
@@ -1342,6 +1419,25 @@ viewStateModal theme t model =
                             , label [ Html.Attributes.for "modal-end-cb", style "font-size" "13px", style "cursor" "pointer", style "color" theme.textPrimary ]
                                 [ text t.editorEndStateCheckbox ]
                             ]
+                        , if String.length model.stateLabelInput * 8 > 60 then
+                            div
+                                [ style "display" "flex"
+                                , style "align-items" "center"
+                                , style "gap" "6px"
+                                , style "margin-bottom" "10px"
+                                ]
+                                [ input
+                                    [ type_ "checkbox"
+                                    , Html.Attributes.id "modal-compact-cb"
+                                    , checked model.stateModalIsCompact
+                                    , onCheck SetStateModalIsCompact
+                                    ]
+                                    []
+                                , label [ Html.Attributes.for "modal-compact-cb", style "font-size" "13px", style "cursor" "pointer", style "color" theme.textPrimary ]
+                                    [ text t.editorCompactStateCheckbox ]
+                                ]
+                          else
+                            div [] []
                         , div
                             [ style "display" "flex"
                             , style "gap" "8px"

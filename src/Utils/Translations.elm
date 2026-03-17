@@ -166,6 +166,7 @@ type alias Translations =
     , editorStateNamePlaceholder : String
     , editorStartStateCheckbox : String
     , editorEndStateCheckbox : String
+    , editorCompactStateCheckbox : String
     , editorLoadAutomatonTitle : String
     , editorLoadFromJson : String
     , editorSaveAutomatonTitle : String
@@ -331,6 +332,7 @@ skTranslations =
     , editorStateNamePlaceholder = "Názov stavu"
     , editorStartStateCheckbox = "Počiatočný stav"
     , editorEndStateCheckbox = "Koncový stav"
+    , editorCompactStateCheckbox = "Kompaktný stav"
     , editorLoadAutomatonTitle = "Načítať automat"
     , editorLoadFromJson = "Načítať zo súboru .json"
     , editorSaveAutomatonTitle = "Uložiť automat"
@@ -496,6 +498,7 @@ enTranslations =
     , editorStateNamePlaceholder = "State name"
     , editorStartStateCheckbox = "Start state"
     , editorEndStateCheckbox = "End state"
+    , editorCompactStateCheckbox = "Compact state"
     , editorLoadAutomatonTitle = "Load automaton"
     , editorLoadFromJson = "Load from .json file"
     , editorSaveAutomatonTitle = "Save automaton"

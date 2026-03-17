@@ -157,7 +157,7 @@ svgState config state =
             if isSelected then
                 "#80cbc4"
             else if isTransitionStart || isTransitionEnd then
-                "#fff59d"
+                config.theme.stateTransitionHighlight
             else if isActive then
                 case config.activeStateVerdict of
                     Nothing ->
@@ -172,7 +172,7 @@ svgState config state =
                         if h.isAccepted then "#a5d6a7" else "#ef9a9a"
 
                     Nothing ->
-                        "#eceff1"
+                        config.theme.stateFill
 
         borderColor =
             if isSelected then
@@ -191,7 +191,7 @@ svgState config state =
                         if h.isAccepted then "#2e7d32" else "#b71c1c"
 
                     Nothing ->
-                        "#455a64"
+                        config.theme.stateBorder
 
         borderWidth = 2
 
@@ -253,26 +253,28 @@ svgState config state =
             , SA.y (String.fromFloat (state.y + 4))
             , SA.textAnchor "middle"
             , SA.fontSize "14"
-            , SA.fill "#000"
+            , SA.fill config.theme.stateText
             , SA.fontWeight "bold"
             , SA.style "user-select: none; pointer-events: none;"
             ]
-            [ Svg.text state.label ]
+            [ Svg.text (if state.isCompact then String.left 4 state.label ++ "..." else state.label) ]
         ]
             ++ (if state.isStart then
                     let
-                        lineX1 = state.x - toFloat r - 40
-                        lineY = state.y
-                        lineX2 = state.x - toFloat r
-
-                        tipX = lineX2
-                        tipY = lineY
-                        baseX = tipX - 10
-                        baseY = tipY
-                        leftX = baseX
-                        leftY = baseY - 5
-                        rightX = baseX
-                        rightY = baseY + 5
+                        labelOverflows = String.length state.label * 8 > 60
+                        contactAngle = if labelOverflows then degrees 150 else degrees 180
+                        tipX = state.x + toFloat r * cos contactAngle
+                        tipY = state.y + toFloat r * sin contactAngle
+                        lineX1 = state.x + (toFloat r + 40) * cos contactAngle
+                        lineY1 = state.y + (toFloat r + 40) * sin contactAngle
+                        baseX = tipX + 10 * cos contactAngle
+                        baseY = tipY + 10 * sin contactAngle
+                        perpX = -(sin contactAngle)
+                        perpY = cos contactAngle
+                        leftX = baseX + 5 * perpX
+                        leftY = baseY + 5 * perpY
+                        rightX = baseX - 5 * perpX
+                        rightY = baseY - 5 * perpY
                         pts =
                             String.join " "
                                 [ String.fromFloat tipX ++ "," ++ String.fromFloat tipY
@@ -280,7 +282,7 @@ svgState config state =
                                 , String.fromFloat rightX ++ "," ++ String.fromFloat rightY
                                 ]
                     in
-                    [ Svg.line [ SA.x1 (String.fromFloat lineX1), SA.y1 (String.fromFloat lineY), SA.x2 (String.fromFloat lineX2), SA.y2 (String.fromFloat lineY), SA.stroke config.theme.edgeColor, SA.strokeWidth "2" ] []
+                    [ Svg.line [ SA.x1 (String.fromFloat lineX1), SA.y1 (String.fromFloat lineY1), SA.x2 (String.fromFloat tipX), SA.y2 (String.fromFloat tipY), SA.stroke config.theme.edgeColor, SA.strokeWidth "2" ] []
                     , Svg.polygon [ SA.points pts, SA.fill config.theme.edgeColor ] []
                     ]
                else

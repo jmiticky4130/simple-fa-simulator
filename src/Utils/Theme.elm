@@ -69,6 +69,10 @@ type alias Theme =
     , convTableColHighlight : String
     , convTableColHeaderHighlight : String
     , copyBtnBg : String
+    , stateFill : String
+    , stateBorder : String
+    , stateText : String
+    , stateTransitionHighlight : String
     }
 
 
@@ -141,6 +145,10 @@ lightTheme =
     , convTableColHighlight = "#e3f2fd"
     , convTableColHeaderHighlight = "#90caf9"
     , copyBtnBg = "#7aa8c7"
+    , stateFill = "#eceff1"
+    , stateBorder = "#455a64"
+    , stateText = "#000000"
+    , stateTransitionHighlight = "#fff59d"
     }
 
 
@@ -213,6 +221,10 @@ darkTheme =
     , convTableColHighlight = "#0d2a4a"
     , convTableColHeaderHighlight = "#1a3a6a"
     , copyBtnBg = "#4a6a82"
+    , stateFill = "#2a3545"
+    , stateBorder = "#cfd8dc"
+    , stateText = "#ecf0f1"
+    , stateTransitionHighlight = "#7a6000"
     }
 
 

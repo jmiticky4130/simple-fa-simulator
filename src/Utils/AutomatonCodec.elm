@@ -28,6 +28,7 @@ encodeState s =
         , ( "label", E.string s.label )
         , ( "isStart", E.bool s.isStart )
         , ( "isEnd", E.bool s.isEnd )
+        , ( "isCompact", E.bool s.isCompact )
         ]
 
 
@@ -50,13 +51,14 @@ decoder =
 
 stateDecoder : Decoder State
 stateDecoder =
-    D.map6 State
+    D.map7 State
         (D.field "id" D.int)
         (D.field "x" D.float)
         (D.field "y" D.float)
         (D.field "label" D.string)
         (D.field "isStart" D.bool)
         (D.field "isEnd" D.bool)
+        (D.oneOf [ D.field "isCompact" D.bool, D.succeed False ])
 
 
 transitionDecoder : Decoder Transition

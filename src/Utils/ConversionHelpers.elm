@@ -482,7 +482,7 @@ lastSnapshotToAutomaton snapshots =
 
 dfaSubsetStateToState : DfaSubsetState -> Shared.State
 dfaSubsetStateToState ds =
-    { id = ds.id, x = ds.x, y = ds.y, label = ds.label, isStart = ds.isStart, isEnd = ds.isEnd }
+    { id = ds.id, x = ds.x, y = ds.y, label = ds.label, isStart = ds.isStart, isEnd = ds.isEnd, isCompact = False }
 
 
 -- STEP EXPLANATION

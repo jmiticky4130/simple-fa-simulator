@@ -534,10 +534,10 @@ viewDfaState theme onStateMouseDown highlightId newlyCreatedId processedIds stat
             else if List.member state.id processedIds then
                 "#cfd8dc"
             else
-                "#ffffff"
+                theme.stateFill
 
         borderColor =
-            if isHighlighted then "#f57f17" else "#455a64"
+            if isHighlighted then "#f57f17" else theme.stateBorder
 
         borderWidth =
             if isHighlighted then "3" else "2"
@@ -589,7 +589,7 @@ viewDfaState theme onStateMouseDown highlightId newlyCreatedId processedIds stat
                     , SA.y (String.fromFloat (state.y + 4))
                     , SA.textAnchor "middle"
                     , SA.fontSize "11"
-                    , SA.fill "#000"
+                    , SA.fill theme.stateText
                     , SA.fontWeight "bold"
                     , SA.style "user-select: none; pointer-events: none;"
                     ]
@@ -606,27 +606,32 @@ startArrow theme state r =
 
     else
         let
-            lineX1 =
-                state.x - toFloat r - 40
-
-            lineY =
-                state.y
-
-            lineX2 =
-                state.x - toFloat r
-
+            labelOverflows = String.length state.label * 7 > 60
+            contactAngle = if labelOverflows then degrees 150 else degrees 180
+            tipX = state.x + toFloat r * cos contactAngle
+            tipY = state.y + toFloat r * sin contactAngle
+            lineX1 = state.x + (toFloat r + 40) * cos contactAngle
+            lineY1 = state.y + (toFloat r + 40) * sin contactAngle
+            baseX = tipX + 10 * cos contactAngle
+            baseY = tipY + 10 * sin contactAngle
+            perpX = -(sin contactAngle)
+            perpY = cos contactAngle
+            leftX = baseX + 5 * perpX
+            leftY = baseY + 5 * perpY
+            rightX = baseX - 5 * perpX
+            rightY = baseY - 5 * perpY
             pts =
                 String.join " "
-                    [ String.fromFloat lineX2 ++ "," ++ String.fromFloat lineY
-                    , String.fromFloat (lineX2 - 10) ++ "," ++ String.fromFloat (lineY - 5)
-                    , String.fromFloat (lineX2 - 10) ++ "," ++ String.fromFloat (lineY + 5)
+                    [ String.fromFloat tipX ++ "," ++ String.fromFloat tipY
+                    , String.fromFloat leftX ++ "," ++ String.fromFloat leftY
+                    , String.fromFloat rightX ++ "," ++ String.fromFloat rightY
                     ]
         in
         [ Svg.line
             [ SA.x1 (String.fromFloat lineX1)
-            , SA.y1 (String.fromFloat lineY)
-            , SA.x2 (String.fromFloat lineX2)
-            , SA.y2 (String.fromFloat lineY)
+            , SA.y1 (String.fromFloat lineY1)
+            , SA.x2 (String.fromFloat tipX)
+            , SA.y2 (String.fromFloat tipY)
             , SA.stroke theme.edgeColor
             , SA.strokeWidth "2"
             ]

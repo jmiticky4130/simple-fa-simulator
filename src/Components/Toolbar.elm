@@ -315,7 +315,7 @@ iconTextBtn theme icon label onClickMsg isDisabled tipText =
         , HA.disabled isDisabled
         , HA.title tipText
         ]
-        [ icon, text label ]
+        [ icon, Html.span [ HA.class "toolbar-btn-label" ] [ text label ] ]
 
 
 exportIcon : Html msg
