@@ -10437,8 +10437,8 @@ var $author$project$Main$ConversionMsg = function (a) {
 	return {$: 'ConversionMsg', a: a};
 };
 var $elm$html$Html$div = _VirtualDom_node('div');
-var $author$project$Utils$Theme$darkTheme = {automatonDefBorder: '#1976d2', automatonDefTitle: '#90caf9', automatonTypeDfa: '#4fc3f7', automatonTypeNfa: '#ffa726', btnAutoRunActive: '#00897b', btnBuildActive: '#1976d2', btnConvert: '#7b1fa2', btnDelete: '#d32f2f', btnDisabledBg: '#455a64', btnDisabledText: '#607d8b', btnGuide: '#00897b', btnPrimary: '#0288d1', btnSecondaryBg: '#37474f', canvasBg: '#1a1f24', consoleBg: '#0a0a0a', consoleHeaderBg: '#0d1a27', consoleText: '#d4d4d4', convSectionHeaderBg: '#1a1d35', convStepDescBg: '#2a2500', convTableCellHighlight: '#5a5000', convTableColHeaderHighlight: '#1a3a6a', convTableColHighlight: '#0d2a4a', convTableHeaderBg: '#37474f', convTableRowHighlight: '#4a4300', copyBtnBg: '#c5d3de', dividerColor: '#37474f', edgeColor: '#cfd8dc', edgeLabelColor: '#ecf0f1', exampleCardBg: '#252d36', exampleCardBorder: '#2e3a47', inputBg: '#252d36', inputBorder: '#455a64', inputText: '#ecf0f1', modalBg: '#1e2530', modalBorder: '#2e3a47', modalCodeBg: '#2a3340', modalCodeText: '#ef9a9a', modalErrorBg: '#2a1515', modalNoteBg: '#1b3a20', modalNoteText: '#a5d6a7', modalSectionTitle: '#4fc3f7', modalTabActiveBg: '#1e3040', modalTabActiveBorder: '#29b6f6', modalTabBg: '#161f28', modalText: '#b0bec5', overlayBorder: '#1565c0', overlayHint: '#78909c', readingHeadConsumedBg: '#2a3340', readingHeadConsumedText: '#546e7a', resultAcceptBg: '#1b3a20', resultAcceptText: '#a5d6a7', resultRejectBg: '#2a1515', resultRejectText: '#ef9a9a', rightPanelBg: '#1e2530', rightPanelBorder: '#2a3845', separatorColor: '#37474f', settingsBg: '#0d1a27', settingsBorder: '#1a2530', tabActiveBg: '#2a3845', tabText: '#ecf0f1', textMuted: '#78909c', textOnDark: 'white', textPrimary: '#ecf0f1', textSecondary: '#b0bec5', toolbarBg: '#0d1a27', toolbarBorderColor: '#1a2530', toolbarDeleteBg: '#2a0d0d'};
-var $author$project$Utils$Theme$lightTheme = {automatonDefBorder: '#359ee4', automatonDefTitle: '#273646', automatonTypeDfa: '#358cc7', automatonTypeNfa: '#ec7c1a', btnAutoRunActive: '#00897b', btnBuildActive: '#1565c0', btnConvert: '#6a1b9a', btnDelete: '#c62828', btnDisabledBg: '#78909c', btnDisabledText: '#b0bec5', btnGuide: '#00796b', btnPrimary: '#0277bd', btnSecondaryBg: '#546e7a', canvasBg: '#ecf0f1', consoleBg: '#000000', consoleHeaderBg: '#1a2f4a', consoleText: '#d4d4d4', convSectionHeaderBg: '#e8eaf6', convStepDescBg: '#fffde7', convTableCellHighlight: '#fff176', convTableColHeaderHighlight: '#90caf9', convTableColHighlight: '#e3f2fd', convTableHeaderBg: '#ccc', convTableRowHighlight: '#fff9c4', copyBtnBg: '#dce8f3', dividerColor: '#b0bec5', edgeColor: '#222', edgeLabelColor: 'black', exampleCardBg: '#fafafa', exampleCardBorder: '#cfd8dc', inputBg: 'white', inputBorder: '#bdc3c7', inputText: '#212121', modalBg: 'white', modalBorder: '#cfd8dc', modalCodeBg: '#f5f5f5', modalCodeText: '#c62828', modalErrorBg: '#fff8f8', modalNoteBg: '#e8f5e9', modalNoteText: '#1b5e20', modalSectionTitle: '#1a2f4a', modalTabActiveBg: '#37474f', modalTabActiveBorder: '#4fc3f7', modalTabBg: '#263238', modalText: '#424242', overlayBorder: '#3498db', overlayHint: '#666', readingHeadConsumedBg: '#eceff1', readingHeadConsumedText: '#b0bec5', resultAcceptBg: '#e8f5e9', resultAcceptText: '#2e7d32', resultRejectBg: '#ffebee', resultRejectText: '#c62828', rightPanelBg: '#f8f9fa', rightPanelBorder: '#34495e', separatorColor: '#ccc', settingsBg: '#1e3a50', settingsBorder: '#263238', tabActiveBg: '#546e7a', tabText: 'white', textMuted: '#546e7a', textOnDark: 'white', textPrimary: '#212121', textSecondary: '#424242', toolbarBg: '#1a2f4a', toolbarBorderColor: '#263238', toolbarDeleteBg: '#4a1a1a'};
+var $author$project$Utils$Theme$darkTheme = {automatonDefBorder: '#1976d2', automatonDefTitle: '#90caf9', automatonTypeDfa: '#4fc3f7', automatonTypeNfa: '#ffa726', btnAutoRunActive: '#00897b', btnBuildActive: '#1976d2', btnConvert: '#7b1fa2', btnDelete: '#d32f2f', btnDisabledBg: '#455a64', btnDisabledText: '#607d8b', btnGuide: '#00897b', btnPrimary: '#0288d1', btnSecondaryBg: '#37474f', canvasBg: '#1a1f24', consoleBg: '#0a0a0a', consoleHeaderBg: '#0d1a27', consoleText: '#d4d4d4', convSectionHeaderBg: '#1a1d35', convStepDescBg: '#2a2500', convTableCellHighlight: '#5a5000', convTableColHeaderHighlight: '#1a3a6a', convTableColHighlight: '#0d2a4a', convTableHeaderBg: '#37474f', convTableRowHighlight: '#4a4300', copyBtnBg: '#4a6a82', dividerColor: '#37474f', edgeColor: '#cfd8dc', edgeLabelColor: '#ecf0f1', exampleCardBg: '#252d36', exampleCardBorder: '#2e3a47', inputBg: '#252d36', inputBorder: '#455a64', inputText: '#ecf0f1', modalBg: '#1e2530', modalBorder: '#2e3a47', modalCodeBg: '#2a3340', modalCodeText: '#ef9a9a', modalErrorBg: '#2a1515', modalNoteBg: '#1b3a20', modalNoteText: '#a5d6a7', modalSectionTitle: '#4fc3f7', modalTabActiveBg: '#1e3040', modalTabActiveBorder: '#29b6f6', modalTabBg: '#161f28', modalText: '#b0bec5', overlayBorder: '#1565c0', overlayHint: '#78909c', readingHeadConsumedBg: '#2a3340', readingHeadConsumedText: '#546e7a', resultAcceptBg: '#1b3a20', resultAcceptText: '#a5d6a7', resultRejectBg: '#2a1515', resultRejectText: '#ef9a9a', rightPanelBg: '#1e2530', rightPanelBorder: '#2a3845', separatorColor: '#37474f', settingsBg: '#0d1a27', settingsBorder: '#1a2530', tabActiveBg: '#2a3845', tabText: '#ecf0f1', textMuted: '#78909c', textOnDark: 'white', textPrimary: '#ecf0f1', textSecondary: '#b0bec5', toolbarBg: '#0d1a27', toolbarBorderColor: '#1a2530', toolbarDeleteBg: '#2a0d0d'};
+var $author$project$Utils$Theme$lightTheme = {automatonDefBorder: '#359ee4', automatonDefTitle: '#273646', automatonTypeDfa: '#358cc7', automatonTypeNfa: '#ec7c1a', btnAutoRunActive: '#00897b', btnBuildActive: '#1565c0', btnConvert: '#6a1b9a', btnDelete: '#c62828', btnDisabledBg: '#78909c', btnDisabledText: '#b0bec5', btnGuide: '#00796b', btnPrimary: '#0277bd', btnSecondaryBg: '#546e7a', canvasBg: '#ecf0f1', consoleBg: '#000000', consoleHeaderBg: '#1a2f4a', consoleText: '#d4d4d4', convSectionHeaderBg: '#e8eaf6', convStepDescBg: '#fffde7', convTableCellHighlight: '#fff176', convTableColHeaderHighlight: '#90caf9', convTableColHighlight: '#e3f2fd', convTableHeaderBg: '#ccc', convTableRowHighlight: '#fff9c4', copyBtnBg: '#7aa8c7', dividerColor: '#b0bec5', edgeColor: '#222', edgeLabelColor: 'black', exampleCardBg: '#fafafa', exampleCardBorder: '#cfd8dc', inputBg: 'white', inputBorder: '#bdc3c7', inputText: '#212121', modalBg: 'white', modalBorder: '#cfd8dc', modalCodeBg: '#f5f5f5', modalCodeText: '#c62828', modalErrorBg: '#fff8f8', modalNoteBg: '#e8f5e9', modalNoteText: '#1b5e20', modalSectionTitle: '#1a2f4a', modalTabActiveBg: '#37474f', modalTabActiveBorder: '#4fc3f7', modalTabBg: '#263238', modalText: '#424242', overlayBorder: '#3498db', overlayHint: '#666', readingHeadConsumedBg: '#eceff1', readingHeadConsumedText: '#b0bec5', resultAcceptBg: '#e8f5e9', resultAcceptText: '#2e7d32', resultRejectBg: '#ffebee', resultRejectText: '#c62828', rightPanelBg: '#f8f9fa', rightPanelBorder: '#34495e', separatorColor: '#ccc', settingsBg: '#1e3a50', settingsBorder: '#263238', tabActiveBg: '#546e7a', tabText: 'white', textMuted: '#546e7a', textOnDark: 'white', textPrimary: '#212121', textSecondary: '#424242', toolbarBg: '#1a2f4a', toolbarBorderColor: '#263238', toolbarDeleteBg: '#4a1a1a'};
 var $author$project$Utils$Theme$getTheme = function (isDark) {
 	return isDark ? $author$project$Utils$Theme$darkTheme : $author$project$Utils$Theme$lightTheme;
 };
@@ -10466,17 +10466,20 @@ var $elm$html$Html$Attributes$style = $elm$virtual_dom$VirtualDom$style;
 var $elm$virtual_dom$VirtualDom$text = _VirtualDom_text;
 var $elm$html$Html$text = $elm$virtual_dom$VirtualDom$text;
 var $author$project$Pages$Conversion$ToggleConsole = {$: 'ToggleConsole'};
-var $elm$svg$Svg$Attributes$d = _VirtualDom_attribute('d');
-var $elm$svg$Svg$Attributes$fill = _VirtualDom_attribute('fill');
-var $elm$svg$Svg$trustedNode = _VirtualDom_nodeNS('http://www.w3.org/2000/svg');
-var $elm$svg$Svg$g = $elm$svg$Svg$trustedNode('g');
-var $elm$svg$Svg$Attributes$height = _VirtualDom_attribute('height');
-var $elm$svg$Svg$path = $elm$svg$Svg$trustedNode('path');
-var $elm$svg$Svg$Attributes$stroke = _VirtualDom_attribute('stroke');
-var $elm$svg$Svg$Attributes$strokeWidth = _VirtualDom_attribute('stroke-width');
-var $elm$svg$Svg$svg = $elm$svg$Svg$trustedNode('svg');
-var $elm$svg$Svg$Attributes$transform = _VirtualDom_attribute('transform');
-var $elm$svg$Svg$Attributes$viewBox = _VirtualDom_attribute('viewBox');
+var $elm$html$Html$img = _VirtualDom_node('img');
+var $elm$html$Html$Attributes$stringProperty = F2(
+	function (key, string) {
+		return A2(
+			_VirtualDom_property,
+			key,
+			$elm$json$Json$Encode$string(string));
+	});
+var $elm$html$Html$Attributes$src = function (url) {
+	return A2(
+		$elm$html$Html$Attributes$stringProperty,
+		'src',
+		_VirtualDom_noJavaScriptOrHtmlUri(url));
+};
 var $elm$html$Html$p = _VirtualDom_node('p');
 var $elm$html$Html$span = _VirtualDom_node('span');
 var $author$project$Components$Console$viewMessage = F2(
@@ -10551,7 +10554,6 @@ var $author$project$Components$Console$viewMessage = F2(
 					]));
 		}
 	});
-var $elm$svg$Svg$Attributes$width = _VirtualDom_attribute('width');
 var $author$project$Components$Console$view = function (config) {
 	var t = $author$project$Utils$Translations$getTranslations(config.language);
 	return A2(
@@ -10602,15 +10604,12 @@ var $author$project$Components$Console$view = function (config) {
 						_List_fromArray(
 							[
 								A2(
-								$elm$svg$Svg$svg,
+								$elm$html$Html$img,
 								_List_fromArray(
 									[
-										$elm$svg$Svg$Attributes$width('14'),
-										$elm$svg$Svg$Attributes$height('14'),
-										$elm$svg$Svg$Attributes$viewBox('0 0 24 24'),
-										$elm$svg$Svg$Attributes$fill('#ffffff'),
-										$elm$svg$Svg$Attributes$stroke('#ffffff'),
-										$elm$svg$Svg$Attributes$strokeWidth('0.096'),
+										$elm$html$Html$Attributes$src('icons/double_arrow_svg.svg'),
+										A2($elm$html$Html$Attributes$style, 'width', '14px'),
+										A2($elm$html$Html$Attributes$style, 'height', '14px'),
 										A2($elm$html$Html$Attributes$style, 'opacity', '0.8'),
 										A2(
 										$elm$html$Html$Attributes$style,
@@ -10618,25 +10617,7 @@ var $author$project$Components$Console$view = function (config) {
 										config.isOpen ? 'rotate(0deg)' : 'rotate(180deg)'),
 										A2($elm$html$Html$Attributes$style, 'transition', 'transform 0.2s')
 									]),
-								_List_fromArray(
-									[
-										A2(
-										$elm$svg$Svg$g,
-										_List_fromArray(
-											[
-												$elm$svg$Svg$Attributes$transform('rotate(90, 12, 12)')
-											]),
-										_List_fromArray(
-											[
-												A2(
-												$elm$svg$Svg$path,
-												_List_fromArray(
-													[
-														$elm$svg$Svg$Attributes$d('M11,11.81a.91.91,0,0,1,0,.38,1.39,1.39,0,0,1-.06.19s0,.07,0,.11l-5,9A1,1,0,0,1,5,22a1,1,0,0,1-.49-.13,1,1,0,0,1-.38-1.36L8.86,12,4.13,3.49a1,1,0,1,1,1.74-1l5,9s0,.07,0,.11A1.39,1.39,0,0,1,11,11.81Zm9,0a1.39,1.39,0,0,0-.06-.19s0-.07,0-.11l-5-9a1,1,0,1,0-1.74,1L17.86,12l-4.73,8.51a1,1,0,0,0,.38,1.36A1,1,0,0,0,14,22a1,1,0,0,0,.87-.51l5-9s0-.07,0-.11a1.06,1.06,0,0,0,.06-.19.91.91,0,0,0,0-.38Z')
-													]),
-												_List_Nil)
-											]))
-									]))
+								_List_Nil)
 							]))
 					])),
 				config.isOpen ? A2(
@@ -10696,6 +10677,8 @@ var $author$project$Pages$Conversion$resolvePositions = F2(
 			states);
 	});
 var $elm$core$String$fromFloat = _String_fromNumber;
+var $elm$svg$Svg$trustedNode = _VirtualDom_nodeNS('http://www.w3.org/2000/svg');
+var $elm$svg$Svg$g = $elm$svg$Svg$trustedNode('g');
 var $author$project$Components$ConversionCanvas$groupDfaTransitions = function (transitions) {
 	return A3(
 		$elm$core$List$foldl,
@@ -10739,9 +10722,12 @@ var $author$project$Components$ConversionCanvas$groupDfaTransitions = function (
 		_List_Nil,
 		transitions);
 };
+var $elm$svg$Svg$Attributes$height = _VirtualDom_attribute('height');
 var $author$project$Components$ConversionCanvas$offsetX = A2($elm$json$Json$Decode$field, 'offsetX', $elm$json$Json$Decode$float);
 var $author$project$Components$ConversionCanvas$offsetY = A2($elm$json$Json$Decode$field, 'offsetY', $elm$json$Json$Decode$float);
 var $elm$svg$Svg$Events$on = $elm$html$Html$Events$on;
+var $elm$svg$Svg$svg = $elm$svg$Svg$trustedNode('svg');
+var $elm$svg$Svg$Attributes$transform = _VirtualDom_attribute('transform');
 var $elm$core$Basics$atan2 = _Basics_atan2;
 var $author$project$Utils$AutomatonHelpers$calculateArrowHead = F4(
 	function (tipX, tipY, ux, uy) {
@@ -10765,12 +10751,17 @@ var $author$project$Utils$AutomatonHelpers$calculateArrowHead = F4(
 					$elm$core$String$fromFloat(rightX) + (',' + $elm$core$String$fromFloat(rightY))
 				]));
 	});
+var $elm$svg$Svg$Attributes$d = _VirtualDom_attribute('d');
+var $elm$svg$Svg$Attributes$fill = _VirtualDom_attribute('fill');
 var $elm$svg$Svg$Attributes$fontSize = _VirtualDom_attribute('font-size');
 var $elm$svg$Svg$Attributes$fontWeight = _VirtualDom_attribute('font-weight');
+var $elm$svg$Svg$path = $elm$svg$Svg$trustedNode('path');
 var $elm$core$Basics$pi = _Basics_pi;
 var $elm$svg$Svg$Attributes$points = _VirtualDom_attribute('points');
 var $elm$svg$Svg$polygon = $elm$svg$Svg$trustedNode('polygon');
 var $elm$core$Basics$pow = _Basics_pow;
+var $elm$svg$Svg$Attributes$stroke = _VirtualDom_attribute('stroke');
+var $elm$svg$Svg$Attributes$strokeWidth = _VirtualDom_attribute('stroke-width');
 var $elm$svg$Svg$Attributes$style = _VirtualDom_attribute('style');
 var $elm$svg$Svg$text = $elm$virtual_dom$VirtualDom$text;
 var $elm$svg$Svg$Attributes$textAnchor = _VirtualDom_attribute('text-anchor');
@@ -11244,6 +11235,7 @@ var $author$project$Components$ConversionCanvas$viewDfaState = F6(
 						A3($author$project$Components$ConversionCanvas$startArrow, theme, state, r)))));
 	});
 var $author$project$Components$ConversionCanvas$wheelDeltaY = A2($elm$json$Json$Decode$field, 'deltaY', $elm$json$Json$Decode$float);
+var $elm$svg$Svg$Attributes$width = _VirtualDom_attribute('width');
 var $elm$html$Html$button = _VirtualDom_node('button');
 var $author$project$Components$ConversionCanvas$zoomBtn = F3(
 	function (theme, label, msg) {
@@ -11837,13 +11829,6 @@ var $elm$html$Html$Events$onInput = function (tagger) {
 			$elm$html$Html$Events$alwaysStop,
 			A2($elm$json$Json$Decode$map, tagger, $elm$html$Html$Events$targetValue)));
 };
-var $elm$html$Html$Attributes$stringProperty = F2(
-	function (key, string) {
-		return A2(
-			_VirtualDom_property,
-			key,
-			$elm$json$Json$Encode$string(string));
-	});
 var $elm$html$Html$Attributes$placeholder = $elm$html$Html$Attributes$stringProperty('placeholder');
 var $elm$html$Html$Attributes$type_ = $elm$html$Html$Attributes$stringProperty('type');
 var $elm$html$Html$Attributes$value = $elm$html$Html$Attributes$stringProperty('value');
@@ -11986,13 +11971,6 @@ var $author$project$Pages$Conversion$colorBtn = F5(
 					$elm$html$Html$text(label)
 				]));
 	});
-var $elm$html$Html$img = _VirtualDom_node('img');
-var $elm$html$Html$Attributes$src = function (url) {
-	return A2(
-		$elm$html$Html$Attributes$stringProperty,
-		'src',
-		_VirtualDom_noJavaScriptOrHtmlUri(url));
-};
 var $author$project$Pages$Conversion$guideColorBtn = F3(
 	function (theme, label, msg) {
 		return A2(
@@ -12018,7 +11996,7 @@ var $author$project$Pages$Conversion$guideColorBtn = F3(
 					$elm$html$Html$img,
 					_List_fromArray(
 						[
-							$elm$html$Html$Attributes$src('icons/guide_icon.png'),
+							$elm$html$Html$Attributes$src('icons/guide_icon.svg'),
 							A2($elm$html$Html$Attributes$style, 'width', '20px'),
 							A2($elm$html$Html$Attributes$style, 'height', '20px'),
 							A2($elm$html$Html$Attributes$style, 'filter', 'brightness(0) invert(1)')
@@ -12093,68 +12071,23 @@ var $author$project$Pages$Conversion$navBtn = F4(
 				]));
 	});
 var $author$project$Pages$Conversion$replaceIcon = A2(
-	$elm$svg$Svg$svg,
+	$elm$html$Html$img,
 	_List_fromArray(
 		[
-			$elm$svg$Svg$Attributes$width('16'),
-			$elm$svg$Svg$Attributes$height('16'),
-			$elm$svg$Svg$Attributes$viewBox('0 0 52 52'),
-			$elm$svg$Svg$Attributes$fill('currentColor')
+			$elm$html$Html$Attributes$src('icons/replace_svg.svg'),
+			A2($elm$html$Html$Attributes$style, 'width', '16px'),
+			A2($elm$html$Html$Attributes$style, 'height', '16px')
 		]),
-	_List_fromArray(
-		[
-			A2(
-			$elm$svg$Svg$path,
-			_List_fromArray(
-				[
-					$elm$svg$Svg$Attributes$d('M20,37.5c0-0.8-0.7-1.5-1.5-1.5h-15C2.7,36,2,36.7,2,37.5v11C2,49.3,2.7,50,3.5,50h15c0.8,0,1.5-0.7,1.5-1.5V37.5z')
-				]),
-			_List_Nil),
-			A2(
-			$elm$svg$Svg$path,
-			_List_fromArray(
-				[
-					$elm$svg$Svg$Attributes$d('M8.1,22H3.2c-1,0-1.5,0.9-0.9,1.4l8,8.3c0.4,0.3,1,0.3,1.4,0l8-8.3c0.6-0.6,0.1-1.4-0.9-1.4h-4.7c0-5,4.9-10,9.9-10V6C15,6,8.1,13,8.1,22z')
-				]),
-			_List_Nil),
-			A2(
-			$elm$svg$Svg$path,
-			_List_fromArray(
-				[
-					$elm$svg$Svg$Attributes$d('M41.8,20.3c-0.4-0.3-1-0.3-1.4,0l-8,8.3c-0.6,0.6-0.1,1.4,0.9,1.4h4.8c0,6-4.1,10-10.1,10v6c9,0,16.1-7,16.1-16H49c1,0,1.5-0.9,0.9-1.4L41.8,20.3z')
-				]),
-			_List_Nil),
-			A2(
-			$elm$svg$Svg$path,
-			_List_fromArray(
-				[
-					$elm$svg$Svg$Attributes$d('M50,3.5C50,2.7,49.3,2,48.5,2h-15C32.7,2,32,2.7,32,3.5v11c0,0.8,0.7,1.5,1.5,1.5h15c0.8,0,1.5-0.7,1.5-1.5V3.5z')
-				]),
-			_List_Nil)
-		]));
-var $elm$svg$Svg$Attributes$clipRule = _VirtualDom_attribute('clip-rule');
-var $elm$svg$Svg$Attributes$fillRule = _VirtualDom_attribute('fill-rule');
+	_List_Nil);
 var $author$project$Pages$Conversion$saveIcon = A2(
-	$elm$svg$Svg$svg,
+	$elm$html$Html$img,
 	_List_fromArray(
 		[
-			$elm$svg$Svg$Attributes$width('16'),
-			$elm$svg$Svg$Attributes$height('16'),
-			$elm$svg$Svg$Attributes$viewBox('0 0 24 24'),
-			$elm$svg$Svg$Attributes$fill('currentColor')
+			$elm$html$Html$Attributes$src('icons/save_svg.svg'),
+			A2($elm$html$Html$Attributes$style, 'width', '16px'),
+			A2($elm$html$Html$Attributes$style, 'height', '16px')
 		]),
-	_List_fromArray(
-		[
-			A2(
-			$elm$svg$Svg$path,
-			_List_fromArray(
-				[
-					$elm$svg$Svg$Attributes$fillRule('evenodd'),
-					$elm$svg$Svg$Attributes$clipRule('evenodd'),
-					$elm$svg$Svg$Attributes$d('M18.1716 1C18.702 1 19.2107 1.21071 19.5858 1.58579L22.4142 4.41421C22.7893 4.78929 23 5.29799 23 5.82843V20C23 21.6569 21.6569 23 20 23H4C2.34315 23 1 21.6569 1 20V4C1 2.34315 2.34315 1 4 1H18.1716ZM4 3C3.44772 3 3 3.44772 3 4V20C3 20.5523 3.44772 21 4 21L5 21L5 15C5 13.3431 6.34315 12 8 12L16 12C17.6569 12 19 13.3431 19 15V21H20C20.5523 21 21 20.5523 21 20V6.82843C21 6.29799 20.7893 5.78929 20.4142 5.41421L18.5858 3.58579C18.2107 3.21071 17.702 3 17.1716 3H17V5C17 6.65685 15.6569 8 14 8H10C8.34315 8 7 6.65685 7 5V3H4ZM17 21V15C17 14.4477 16.5523 14 16 14L8 14C7.44772 14 7 14.4477 7 15L7 21L17 21ZM9 3H15V5C15 5.55228 14.5523 6 14 6H10C9.44772 6 9 5.55228 9 5V3Z')
-				]),
-			_List_Nil)
-		]));
+	_List_Nil);
 var $author$project$Pages$Conversion$ToggleDarkMode = {$: 'ToggleDarkMode'};
 var $author$project$Pages$Conversion$ToggleLanguage = {$: 'ToggleLanguage'};
 var $author$project$Pages$Conversion$ToggleSettings = {$: 'ToggleSettings'};
@@ -12246,7 +12179,15 @@ var $author$project$Pages$Conversion$settingsGearBtn = F4(
 						]),
 					_List_fromArray(
 						[
-							$elm$html$Html$text('⚙')
+							A2(
+							$elm$html$Html$img,
+							_List_fromArray(
+								[
+									$elm$html$Html$Attributes$src('icons/settings_svg.svg'),
+									A2($elm$html$Html$Attributes$style, 'width', '20px'),
+									A2($elm$html$Html$Attributes$style, 'height', '20px')
+								]),
+							_List_Nil)
 						])),
 					settingsOpen ? A2(
 					$elm$html$Html$div,
@@ -12283,6 +12224,14 @@ var $author$project$Pages$Conversion$settingsGearBtn = F4(
 									$elm$html$Html$text(t.darkMode),
 									A2($author$project$Pages$Conversion$pillToggle, $author$project$Pages$Conversion$ToggleDarkMode, darkMode)
 								])),
+							A2(
+							$elm$html$Html$div,
+							_List_fromArray(
+								[
+									A2($elm$html$Html$Attributes$style, 'height', '1px'),
+									A2($elm$html$Html$Attributes$style, 'background-color', theme.settingsBorder)
+								]),
+							_List_Nil),
 							A2(
 							$elm$html$Html$div,
 							_List_fromArray(
@@ -12755,7 +12704,7 @@ var $author$project$Components$AutomatonDisplay$view = function (config) {
 										_List_fromArray(
 											[
 												$elm$html$Html$Attributes$src(
-												config.copySuccess ? 'icons/copy-success-svgrepo-com.svg' : 'icons/copy-svgrepo-com.svg'),
+												config.copySuccess ? 'icons/copy_success.svg' : 'icons/copy_svg.svg'),
 												A2($elm$html$Html$Attributes$style, 'width', '18px'),
 												A2($elm$html$Html$Attributes$style, 'height', '18px'),
 												A2($elm$html$Html$Attributes$style, 'display', 'block')
@@ -13618,40 +13567,27 @@ var $author$project$Components$Toolbar$btnGroup = function (children) {
 			]),
 		children);
 };
-var $elm$svg$Svg$Attributes$strokeLinejoin = _VirtualDom_attribute('stroke-linejoin');
+var $elm$html$Html$Attributes$height = function (n) {
+	return A2(
+		_VirtualDom_attribute,
+		'height',
+		$elm$core$String$fromInt(n));
+};
+var $elm$html$Html$Attributes$width = function (n) {
+	return A2(
+		_VirtualDom_attribute,
+		'width',
+		$elm$core$String$fromInt(n));
+};
 var $author$project$Components$Toolbar$exportIcon = A2(
-	$elm$svg$Svg$svg,
+	$elm$html$Html$img,
 	_List_fromArray(
 		[
-			$elm$svg$Svg$Attributes$width('16'),
-			$elm$svg$Svg$Attributes$height('16'),
-			$elm$svg$Svg$Attributes$viewBox('0 0 24 24'),
-			$elm$svg$Svg$Attributes$fill('none')
+			$elm$html$Html$Attributes$src('icons/export_svg.svg'),
+			$elm$html$Html$Attributes$width(16),
+			$elm$html$Html$Attributes$height(16)
 		]),
-	_List_fromArray(
-		[
-			A2(
-			$elm$svg$Svg$path,
-			_List_fromArray(
-				[
-					$elm$svg$Svg$Attributes$d('M12 20C7.58172 20 4 16.4183 4 12M20 12C20 14.5264 18.8289 16.7792 17 18.2454'),
-					$elm$svg$Svg$Attributes$stroke('currentColor'),
-					$elm$svg$Svg$Attributes$strokeWidth('1.5'),
-					$elm$svg$Svg$Attributes$strokeLinecap('round')
-				]),
-			_List_Nil),
-			A2(
-			$elm$svg$Svg$path,
-			_List_fromArray(
-				[
-					$elm$svg$Svg$Attributes$d('M12 14L12 4M12 4L15 7M12 4L9 7'),
-					$elm$svg$Svg$Attributes$stroke('currentColor'),
-					$elm$svg$Svg$Attributes$strokeWidth('1.5'),
-					$elm$svg$Svg$Attributes$strokeLinecap('round'),
-					$elm$svg$Svg$Attributes$strokeLinejoin('round')
-				]),
-			_List_Nil)
-		]));
+	_List_Nil);
 var $author$project$Components$Toolbar$guideButton = F3(
 	function (theme, label, onClickMsg) {
 		return A2(
@@ -13678,7 +13614,7 @@ var $author$project$Components$Toolbar$guideButton = F3(
 					$elm$html$Html$img,
 					_List_fromArray(
 						[
-							$elm$html$Html$Attributes$src('icons/guide_icon.png'),
+							$elm$html$Html$Attributes$src('icons/guide_icon.svg'),
 							A2($elm$html$Html$Attributes$style, 'width', '20px'),
 							A2($elm$html$Html$Attributes$style, 'height', '20px'),
 							A2($elm$html$Html$Attributes$style, 'filter', 'brightness(0) invert(1)')
@@ -13755,99 +13691,41 @@ var $author$project$Components$Toolbar$iconTextBtn = F6(
 				]));
 	});
 var $author$project$Components$Toolbar$loadIcon = A2(
-	$elm$svg$Svg$svg,
+	$elm$html$Html$img,
 	_List_fromArray(
 		[
-			$elm$svg$Svg$Attributes$width('16'),
-			$elm$svg$Svg$Attributes$height('16'),
-			$elm$svg$Svg$Attributes$viewBox('0 0 24 24'),
-			$elm$svg$Svg$Attributes$fill('none')
+			$elm$html$Html$Attributes$src('icons/load_svg.svg'),
+			$elm$html$Html$Attributes$width(16),
+			$elm$html$Html$Attributes$height(16)
 		]),
-	_List_fromArray(
-		[
-			A2(
-			$elm$svg$Svg$path,
-			_List_fromArray(
-				[
-					$elm$svg$Svg$Attributes$d('M12 3V16M12 16L16 11.625M12 16L8 11.625'),
-					$elm$svg$Svg$Attributes$stroke('currentColor'),
-					$elm$svg$Svg$Attributes$strokeWidth('1.5'),
-					$elm$svg$Svg$Attributes$strokeLinecap('round'),
-					$elm$svg$Svg$Attributes$strokeLinejoin('round')
-				]),
-			_List_Nil),
-			A2(
-			$elm$svg$Svg$path,
-			_List_fromArray(
-				[
-					$elm$svg$Svg$Attributes$d('M15 21H9C6.17157 21 4.75736 21 3.87868 20.1213C3 19.2426 3 17.8284 3 15M21 15C21 17.8284 21 19.2426 20.1213 20.1213C19.8215 20.4211 19.4594 20.6186 19 20.7487'),
-					$elm$svg$Svg$Attributes$stroke('currentColor'),
-					$elm$svg$Svg$Attributes$strokeWidth('1.5'),
-					$elm$svg$Svg$Attributes$strokeLinecap('round'),
-					$elm$svg$Svg$Attributes$strokeLinejoin('round')
-				]),
-			_List_Nil)
-		]));
+	_List_Nil);
 var $author$project$Components$Toolbar$redoIcon = A2(
-	$elm$svg$Svg$svg,
+	$elm$html$Html$img,
 	_List_fromArray(
 		[
-			$elm$svg$Svg$Attributes$width('16'),
-			$elm$svg$Svg$Attributes$height('16'),
-			$elm$svg$Svg$Attributes$viewBox('0 0 24 24'),
-			$elm$svg$Svg$Attributes$fill('currentColor')
+			$elm$html$Html$Attributes$src('icons/redo_svg.svg'),
+			$elm$html$Html$Attributes$width(16),
+			$elm$html$Html$Attributes$height(16)
 		]),
-	_List_fromArray(
-		[
-			A2(
-			$elm$svg$Svg$path,
-			_List_fromArray(
-				[
-					$elm$svg$Svg$Attributes$d('M18.4 10.6C16.55 8.99 14.15 8 11.5 8c-4.65 0-8.58 3.03-9.96 7.22L3.9 16c1.05-3.19 4.05-5.5 7.6-5.5 1.95 0 3.73.72 5.12 1.88L13 16h9V7l-3.6 3.6z')
-				]),
-			_List_Nil)
-		]));
+	_List_Nil);
 var $author$project$Components$Toolbar$resetIcon = A2(
-	$elm$svg$Svg$svg,
+	$elm$html$Html$img,
 	_List_fromArray(
 		[
-			$elm$svg$Svg$Attributes$width('16'),
-			$elm$svg$Svg$Attributes$height('16'),
-			$elm$svg$Svg$Attributes$viewBox('0 0 1920 1920'),
-			$elm$svg$Svg$Attributes$fill('currentColor')
+			$elm$html$Html$Attributes$src('icons/reset_svg.svg'),
+			$elm$html$Html$Attributes$width(16),
+			$elm$html$Html$Attributes$height(16)
 		]),
-	_List_fromArray(
-		[
-			A2(
-			$elm$svg$Svg$path,
-			_List_fromArray(
-				[
-					$elm$svg$Svg$Attributes$fillRule('evenodd'),
-					$elm$svg$Svg$Attributes$d('M960 0v112.941c467.125 0 847.059 379.934 847.059 847.059 0 467.125-379.934 847.059-847.059 847.059-467.125 0-847.059-379.934-847.059-847.059 0-267.106 126.607-515.915 338.824-675.727v393.374h112.94V112.941H0v112.941h342.89C127.058 407.38 0 674.711 0 960c0 529.355 430.645 960 960 960s960-430.645 960-960S1489.355 0 960 0')
-				]),
-			_List_Nil)
-		]));
+	_List_Nil);
 var $author$project$Components$Toolbar$saveIcon = A2(
-	$elm$svg$Svg$svg,
+	$elm$html$Html$img,
 	_List_fromArray(
 		[
-			$elm$svg$Svg$Attributes$width('16'),
-			$elm$svg$Svg$Attributes$height('16'),
-			$elm$svg$Svg$Attributes$viewBox('0 0 24 24'),
-			$elm$svg$Svg$Attributes$fill('currentColor')
+			$elm$html$Html$Attributes$src('icons/save_svg.svg'),
+			$elm$html$Html$Attributes$width(16),
+			$elm$html$Html$Attributes$height(16)
 		]),
-	_List_fromArray(
-		[
-			A2(
-			$elm$svg$Svg$path,
-			_List_fromArray(
-				[
-					$elm$svg$Svg$Attributes$fillRule('evenodd'),
-					$elm$svg$Svg$Attributes$clipRule('evenodd'),
-					$elm$svg$Svg$Attributes$d('M18.1716 1C18.702 1 19.2107 1.21071 19.5858 1.58579L22.4142 4.41421C22.7893 4.78929 23 5.29799 23 5.82843V20C23 21.6569 21.6569 23 20 23H4C2.34315 23 1 21.6569 1 20V4C1 2.34315 2.34315 1 4 1H18.1716ZM4 3C3.44772 3 3 3.44772 3 4V20C3 20.5523 3.44772 21 4 21L5 21L5 15C5 13.3431 6.34315 12 8 12L16 12C17.6569 12 19 13.3431 19 15V21H20C20.5523 21 21 20.5523 21 20V6.82843C21 6.29799 20.7893 5.78929 20.4142 5.41421L18.5858 3.58579C18.2107 3.21071 17.702 3 17.1716 3H17V5C17 6.65685 15.6569 8 14 8H10C8.34315 8 7 6.65685 7 5V3H4ZM17 21V15C17 14.4477 16.5523 14 16 14L8 14C7.44772 14 7 14.4477 7 15L7 21L17 21ZM9 3H15V5C15 5.55228 14.5523 6 14 6H10C9.44772 6 9 5.55228 9 5V3Z')
-				]),
-			_List_Nil)
-		]));
+	_List_Nil);
 var $author$project$Components$Toolbar$languageToggleBtn = F2(
 	function (t, onToggle) {
 		return A2(
@@ -13936,7 +13814,15 @@ var $author$project$Components$Toolbar$settingsGearBtn = function (config) {
 					]),
 				_List_fromArray(
 					[
-						$elm$html$Html$text('\u2699')
+						A2(
+						$elm$html$Html$img,
+						_List_fromArray(
+							[
+								$elm$html$Html$Attributes$src('icons/settings_svg.svg'),
+								$elm$html$Html$Attributes$width(20),
+								$elm$html$Html$Attributes$height(20)
+							]),
+						_List_Nil)
 					])),
 				config.settingsOpen ? A2(
 				$elm$html$Html$div,
@@ -13997,6 +13883,15 @@ var $author$project$Components$Toolbar$settingsGearBtn = function (config) {
 						$elm$html$Html$div,
 						_List_fromArray(
 							[
+								A2($elm$html$Html$Attributes$style, 'height', '1px'),
+								A2($elm$html$Html$Attributes$style, 'background-color', config.theme.settingsBorder),
+								A2($elm$html$Html$Attributes$style, 'margin', '8px 0')
+							]),
+						_List_Nil),
+						A2(
+						$elm$html$Html$div,
+						_List_fromArray(
+							[
 								A2($elm$html$Html$Attributes$style, 'display', 'flex'),
 								A2($elm$html$Html$Attributes$style, 'align-items', 'center'),
 								A2($elm$html$Html$Attributes$style, 'justify-content', 'space-between'),
@@ -14021,26 +13916,14 @@ var $author$project$Components$Toolbar$settingsGearBtn = function (config) {
 			]));
 };
 var $author$project$Components$Toolbar$shareIcon = A2(
-	$elm$svg$Svg$svg,
+	$elm$html$Html$img,
 	_List_fromArray(
 		[
-			$elm$svg$Svg$Attributes$width('16'),
-			$elm$svg$Svg$Attributes$height('16'),
-			$elm$svg$Svg$Attributes$viewBox('0 0 24 24'),
-			$elm$svg$Svg$Attributes$fill('none')
+			$elm$html$Html$Attributes$src('icons/share_svg.svg'),
+			$elm$html$Html$Attributes$width(16),
+			$elm$html$Html$Attributes$height(16)
 		]),
-	_List_fromArray(
-		[
-			A2(
-			$elm$svg$Svg$path,
-			_List_fromArray(
-				[
-					$elm$svg$Svg$Attributes$d('M8.68445 10.6578L13 8.50003M15.3157 16.6578L11 14.5M21 6C21 7.65685 19.6569 9 18 9C16.3431 9 15 7.65685 15 6C15 4.34315 16.3431 3 18 3C19.6569 3 21 4.34315 21 6ZM9 12C9 13.6569 7.65685 15 6 15C4.34315 15 3 13.6569 3 12C3 10.3431 4.34315 9 6 9C7.65685 9 9 10.3431 9 12ZM21 18C21 19.6569 19.6569 21 18 21C16.3431 21 15 19.6569 15 18C15 16.3431 16.3431 15 18 15C19.6569 15 21 16.3431 21 18Z'),
-					$elm$svg$Svg$Attributes$stroke('currentColor'),
-					$elm$svg$Svg$Attributes$strokeWidth('1.5')
-				]),
-			_List_Nil)
-		]));
+	_List_Nil);
 var $author$project$Components$Toolbar$toolBtn = F6(
 	function (theme, label, onClickMsg, isActive, shortcut, activeColor) {
 		var displayLabel = isActive ? (label + ('  [' + (shortcut + ']'))) : label;
@@ -14083,24 +13966,14 @@ var $author$project$Components$Toolbar$toolbarBg = F2(
 		}
 	});
 var $author$project$Components$Toolbar$undoIcon = A2(
-	$elm$svg$Svg$svg,
+	$elm$html$Html$img,
 	_List_fromArray(
 		[
-			$elm$svg$Svg$Attributes$width('16'),
-			$elm$svg$Svg$Attributes$height('16'),
-			$elm$svg$Svg$Attributes$viewBox('0 0 24 24'),
-			$elm$svg$Svg$Attributes$fill('currentColor')
+			$elm$html$Html$Attributes$src('icons/undo_svg.svg'),
+			$elm$html$Html$Attributes$width(16),
+			$elm$html$Html$Attributes$height(16)
 		]),
-	_List_fromArray(
-		[
-			A2(
-			$elm$svg$Svg$path,
-			_List_fromArray(
-				[
-					$elm$svg$Svg$Attributes$d('M12.5 8c-2.65 0-5.05.99-6.9 2.6L2 7v9h9l-3.62-3.62c1.39-1.16 3.16-1.88 5.12-1.88 3.54 0 6.55 2.31 7.6 5.5l2.37-.78C21.08 11.03 17.15 8 12.5 8z')
-				]),
-			_List_Nil)
-		]));
+	_List_Nil);
 var $author$project$Components$Toolbar$view = function (config) {
 	var t = $author$project$Utils$Translations$getTranslations(config.language);
 	return A2(
@@ -15467,7 +15340,7 @@ var $author$project$Components$SimulateToolbar$guideButton = F3(
 					$elm$html$Html$img,
 					_List_fromArray(
 						[
-							$elm$html$Html$Attributes$src('icons/guide_icon.png'),
+							$elm$html$Html$Attributes$src('icons/guide_icon.svg'),
 							A2($elm$html$Html$Attributes$style, 'width', '20px'),
 							A2($elm$html$Html$Attributes$style, 'height', '20px'),
 							A2($elm$html$Html$Attributes$style, 'filter', 'brightness(0) invert(1)')
@@ -15518,25 +15391,14 @@ var $author$project$Components$SimulateToolbar$iconToolButton = F6(
 var $elm$html$Html$Attributes$max = $elm$html$Html$Attributes$stringProperty('max');
 var $elm$html$Html$Attributes$min = $elm$html$Html$Attributes$stringProperty('min');
 var $author$project$Components$SimulateToolbar$resetIcon = A2(
-	$elm$svg$Svg$svg,
+	$elm$html$Html$img,
 	_List_fromArray(
 		[
-			$elm$svg$Svg$Attributes$width('16'),
-			$elm$svg$Svg$Attributes$height('16'),
-			$elm$svg$Svg$Attributes$viewBox('0 0 1920 1920'),
-			$elm$svg$Svg$Attributes$fill('currentColor')
+			$elm$html$Html$Attributes$src('icons/reset_svg.svg'),
+			$elm$html$Html$Attributes$width(16),
+			$elm$html$Html$Attributes$height(16)
 		]),
-	_List_fromArray(
-		[
-			A2(
-			$elm$svg$Svg$path,
-			_List_fromArray(
-				[
-					$elm$svg$Svg$Attributes$fillRule('evenodd'),
-					$elm$svg$Svg$Attributes$d('M960 0v112.941c467.125 0 847.059 379.934 847.059 847.059 0 467.125-379.934 847.059-847.059 847.059-467.125 0-847.059-379.934-847.059-847.059 0-267.106 126.607-515.915 338.824-675.727v393.374h112.94V112.941H0v112.941h342.89C127.058 407.38 0 674.711 0 960c0 529.355 430.645 960 960 960s960-430.645 960-960S1489.355 0 960 0')
-				]),
-			_List_Nil)
-		]));
+	_List_Nil);
 var $elm$core$Basics$round = _Basics_round;
 var $author$project$Components$SimulateToolbar$languageToggleBtn = F2(
 	function (t, onToggle) {
@@ -15626,7 +15488,15 @@ var $author$project$Components$SimulateToolbar$settingsGearBtn = function (confi
 					]),
 				_List_fromArray(
 					[
-						$elm$html$Html$text('\u2699')
+						A2(
+						$elm$html$Html$img,
+						_List_fromArray(
+							[
+								$elm$html$Html$Attributes$src('icons/settings_svg.svg'),
+								$elm$html$Html$Attributes$width(20),
+								$elm$html$Html$Attributes$height(20)
+							]),
+						_List_Nil)
 					])),
 				config.settingsOpen ? A2(
 				$elm$html$Html$div,
@@ -15683,6 +15553,15 @@ var $author$project$Components$SimulateToolbar$settingsGearBtn = function (confi
 									])),
 								A2($author$project$Components$SimulateToolbar$pillToggle, config.onToggleDarkMode, config.darkMode)
 							])),
+						A2(
+						$elm$html$Html$div,
+						_List_fromArray(
+							[
+								A2($elm$html$Html$Attributes$style, 'height', '1px'),
+								A2($elm$html$Html$Attributes$style, 'background-color', config.theme.settingsBorder),
+								A2($elm$html$Html$Attributes$style, 'margin', '8px 0')
+							]),
+						_List_Nil),
 						A2(
 						$elm$html$Html$div,
 						_List_fromArray(
@@ -16063,6 +15942,7 @@ var $elm$svg$Svg$rect = $elm$svg$Svg$trustedNode('rect');
 var $author$project$Components$NfaTreeView$rightAreaW = 70;
 var $elm$svg$Svg$Attributes$rx = _VirtualDom_attribute('rx');
 var $elm$svg$Svg$Attributes$strokeDasharray = _VirtualDom_attribute('stroke-dasharray');
+var $elm$svg$Svg$Attributes$viewBox = _VirtualDom_attribute('viewBox');
 var $author$project$Components$NfaTreeView$view = function (config) {
 	var stateLabel = function (maybeStateId) {
 		if (maybeStateId.$ === 'Nothing') {

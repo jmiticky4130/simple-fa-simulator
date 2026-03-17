@@ -4,8 +4,6 @@ import Html exposing (Html, div, button, text, input, img)
 import Html.Attributes exposing (style, type_, value, step, disabled, src)
 import Html.Attributes as HA
 import Html.Events exposing (onClick, onInput)
-import Svg
-import Svg.Attributes as SA
 import Utils.Theme as Theme
 import Utils.Translations as Translations exposing (Language)
 
@@ -130,7 +128,7 @@ settingsGearBtn config =
             , style "font-size" "14px"
             , style "font-weight" "bold"
             ]
-            [ text "\u{2699}" ]
+            [ Html.img [ HA.src "icons/settings_svg.svg", HA.width 20, HA.height 20 ] [] ]
         , if config.settingsOpen then
             div
                 [ style "position" "absolute"
@@ -162,6 +160,12 @@ settingsGearBtn config =
                         [ text t.darkMode ]
                     , pillToggle config.onToggleDarkMode config.darkMode
                     ]
+                , div
+                    [ style "height" "1px"
+                    , style "background-color" config.theme.settingsBorder
+                    , style "margin" "8px 0"
+                    ]
+                    []
                 , div
                     [ style "display" "flex"
                     , style "align-items" "center"
@@ -222,9 +226,7 @@ languageToggleBtn t onToggle =
 
 resetIcon : Html msg
 resetIcon =
-    Svg.svg
-        [ SA.width "16", SA.height "16", SA.viewBox "0 0 1920 1920", SA.fill "currentColor" ]
-        [ Svg.path [ SA.fillRule "evenodd", SA.d "M960 0v112.941c467.125 0 847.059 379.934 847.059 847.059 0 467.125-379.934 847.059-847.059 847.059-467.125 0-847.059-379.934-847.059-847.059 0-267.106 126.607-515.915 338.824-675.727v393.374h112.94V112.941H0v112.941h342.89C127.058 407.38 0 674.711 0 960c0 529.355 430.645 960 960 960s960-430.645 960-960S1489.355 0 960 0" ] [] ]
+    Html.img [ HA.src "icons/reset_svg.svg", HA.width 16, HA.height 16 ] []
 
 
 iconToolButton : Theme.Theme -> Html msg -> String -> msg -> Bool -> Bool -> Html msg
@@ -317,7 +319,7 @@ guideButton theme label onClickMsg =
         , style "gap" "6px"
         ]
         [ img
-            [ src "icons/guide_icon.png"
+            [ src "icons/guide_icon.svg"
             , style "width" "20px"
             , style "height" "20px"
             , style "filter" "brightness(0) invert(1)"

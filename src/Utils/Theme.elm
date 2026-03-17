@@ -140,7 +140,7 @@ lightTheme =
     , convTableCellHighlight = "#fff176"
     , convTableColHighlight = "#e3f2fd"
     , convTableColHeaderHighlight = "#90caf9"
-    , copyBtnBg = "#dce8f3"
+    , copyBtnBg = "#7aa8c7"
     }
 
 
@@ -212,7 +212,7 @@ darkTheme =
     , convTableCellHighlight = "#5a5000"
     , convTableColHighlight = "#0d2a4a"
     , convTableColHeaderHighlight = "#1a3a6a"
-    , copyBtnBg = "#c5d3de"
+    , copyBtnBg = "#4a6a82"
     }
 
 

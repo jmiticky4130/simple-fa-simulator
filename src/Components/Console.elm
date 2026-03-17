@@ -3,8 +3,6 @@ module Components.Console exposing (view, Message, MessageType(..))
 import Html exposing (Html, div, text, p, span)
 import Html.Attributes exposing (style)
 import Html.Events exposing (onClick)
-import Svg exposing (svg, path, g)
-import Svg.Attributes as SA
 import Utils.Theme as Theme
 import Utils.Translations as Translations exposing (Language)
 
@@ -60,20 +58,15 @@ view config =
                 , style "cursor" "pointer"
                 , onClick config.onToggle
                 ]
-                [ svg
-                    [ SA.width "14"
-                    , SA.height "14"
-                    , SA.viewBox "0 0 24 24"
-                    , SA.fill "#ffffff"
-                    , SA.stroke "#ffffff"
-                    , SA.strokeWidth "0.096"
+                [ Html.img
+                    [ Html.Attributes.src "icons/double_arrow_svg.svg"
+                    , style "width" "14px"
+                    , style "height" "14px"
                     , style "opacity" "0.8"
                     , style "transform" (if config.isOpen then "rotate(0deg)" else "rotate(180deg)")
                     , style "transition" "transform 0.2s"
                     ]
-                    [ g [ SA.transform "rotate(90, 12, 12)" ]
-                        [ path [ SA.d "M11,11.81a.91.91,0,0,1,0,.38,1.39,1.39,0,0,1-.06.19s0,.07,0,.11l-5,9A1,1,0,0,1,5,22a1,1,0,0,1-.49-.13,1,1,0,0,1-.38-1.36L8.86,12,4.13,3.49a1,1,0,1,1,1.74-1l5,9s0,.07,0,.11A1.39,1.39,0,0,1,11,11.81Zm9,0a1.39,1.39,0,0,0-.06-.19s0-.07,0-.11l-5-9a1,1,0,1,0-1.74,1L17.86,12l-4.73,8.51a1,1,0,0,0,.38,1.36A1,1,0,0,0,14,22a1,1,0,0,0,.87-.51l5-9s0-.07,0-.11a1.06,1.06,0,0,0,.06-.19.91.91,0,0,0,0-.38Z" ] [] ]
-                    ]
+                    []
                 ]
             ]
         , if config.isOpen then

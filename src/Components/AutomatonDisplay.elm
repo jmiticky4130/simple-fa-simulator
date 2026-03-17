@@ -86,7 +86,7 @@ view config =
                     , style "justify-content" "center"
                     ]
                     [ img
-                        [ src (if config.copySuccess then "icons/copy-success-svgrepo-com.svg" else "icons/copy-svgrepo-com.svg")
+                        [ src (if config.copySuccess then "icons/copy_success.svg" else "icons/copy_svg.svg")
                         , style "width" "18px"
                         , style "height" "18px"
                         , style "display" "block"

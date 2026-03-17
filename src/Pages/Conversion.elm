@@ -4,8 +4,6 @@ import Dict exposing (Dict)
 import Html exposing (Html, div, button, text, input, table, tr, td, th, thead, tbody, img)
 import Html.Attributes exposing (style, type_, value, placeholder, autofocus, disabled, src)
 import Html.Events exposing (onClick, onInput)
-import Svg
-import Svg.Attributes as SA
 import Shared exposing (State, AutomatonState)
 import Components.ConversionCanvas as ConversionCanvas
 import Components.Console as Console
@@ -444,7 +442,7 @@ settingsGearBtn theme settingsOpen darkMode language =
             , style "font-size" "14px"
             , style "font-weight" "bold"
             ]
-            [ text "⚙" ]
+            [ img [ src "icons/settings_svg.svg", style "width" "20px", style "height" "20px" ] [] ]
         , if settingsOpen then
             div
                 [ style "position" "absolute"
@@ -471,6 +469,11 @@ settingsGearBtn theme settingsOpen darkMode language =
                     [ text t.darkMode
                     , pillToggle ToggleDarkMode darkMode
                     ]
+                , div
+                    [ style "height" "1px"
+                    , style "background-color" theme.settingsBorder
+                    ]
+                    []
                 , div
                     [ style "color" "white"
                     , style "font-size" "13px"
@@ -532,21 +535,12 @@ languageToggleBtn t onToggle =
 
 replaceIcon : Html msg
 replaceIcon =
-    Svg.svg
-        [ SA.width "16", SA.height "16", SA.viewBox "0 0 52 52", SA.fill "currentColor" ]
-        [ Svg.path [ SA.d "M20,37.5c0-0.8-0.7-1.5-1.5-1.5h-15C2.7,36,2,36.7,2,37.5v11C2,49.3,2.7,50,3.5,50h15c0.8,0,1.5-0.7,1.5-1.5V37.5z" ] []
-        , Svg.path [ SA.d "M8.1,22H3.2c-1,0-1.5,0.9-0.9,1.4l8,8.3c0.4,0.3,1,0.3,1.4,0l8-8.3c0.6-0.6,0.1-1.4-0.9-1.4h-4.7c0-5,4.9-10,9.9-10V6C15,6,8.1,13,8.1,22z" ] []
-        , Svg.path [ SA.d "M41.8,20.3c-0.4-0.3-1-0.3-1.4,0l-8,8.3c-0.6,0.6-0.1,1.4,0.9,1.4h4.8c0,6-4.1,10-10.1,10v6c9,0,16.1-7,16.1-16H49c1,0,1.5-0.9,0.9-1.4L41.8,20.3z" ] []
-        , Svg.path [ SA.d "M50,3.5C50,2.7,49.3,2,48.5,2h-15C32.7,2,32,2.7,32,3.5v11c0,0.8,0.7,1.5,1.5,1.5h15c0.8,0,1.5-0.7,1.5-1.5V3.5z" ] []
-        ]
+    img [ src "icons/replace_svg.svg", style "width" "16px", style "height" "16px" ] []
 
 
 saveIcon : Html msg
 saveIcon =
-    Svg.svg
-        [ SA.width "16", SA.height "16", SA.viewBox "0 0 24 24", SA.fill "currentColor" ]
-        [ Svg.path [ SA.fillRule "evenodd", SA.clipRule "evenodd", SA.d "M18.1716 1C18.702 1 19.2107 1.21071 19.5858 1.58579L22.4142 4.41421C22.7893 4.78929 23 5.29799 23 5.82843V20C23 21.6569 21.6569 23 20 23H4C2.34315 23 1 21.6569 1 20V4C1 2.34315 2.34315 1 4 1H18.1716ZM4 3C3.44772 3 3 3.44772 3 4V20C3 20.5523 3.44772 21 4 21L5 21L5 15C5 13.3431 6.34315 12 8 12L16 12C17.6569 12 19 13.3431 19 15V21H20C20.5523 21 21 20.5523 21 20V6.82843C21 6.29799 20.7893 5.78929 20.4142 5.41421L18.5858 3.58579C18.2107 3.21071 17.702 3 17.1716 3H17V5C17 6.65685 15.6569 8 14 8H10C8.34315 8 7 6.65685 7 5V3H4ZM17 21V15C17 14.4477 16.5523 14 16 14L8 14C7.44772 14 7 14.4477 7 15L7 21L17 21ZM9 3H15V5C15 5.55228 14.5523 6 14 6H10C9.44772 6 9 5.55228 9 5V3Z" ] []
-        ]
+    img [ src "icons/save_svg.svg", style "width" "16px", style "height" "16px" ] []
 
 
 iconActionBtn : Theme.Theme -> Html Msg -> String -> Msg -> Bool -> Html Msg
@@ -636,7 +630,7 @@ guideColorBtn theme label msg =
         , style "gap" "6px"
         ]
         [ img
-            [ src "icons/guide_icon.png"
+            [ src "icons/guide_icon.svg"
             , style "width" "20px"
             , style "height" "20px"
             , style "filter" "brightness(0) invert(1)"
