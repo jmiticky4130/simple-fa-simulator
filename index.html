@@ -62,6 +62,13 @@
       navigator.clipboard.writeText(text).catch(function() {});
     });
 
+    app.ports.scrollToBottom.subscribe(function(elementId) {
+      requestAnimationFrame(function() {
+        var el = document.getElementById(elementId);
+        if (el) { el.scrollTop = el.scrollHeight; }
+      });
+    });
+
     app.ports.setUrlHash.subscribe(function(json) {
       window.location.hash = 'data=' + encodeURIComponent(json);
       navigator.clipboard.writeText(window.location.href).catch(function() {});

@@ -34,6 +34,8 @@ port saveLanguage : String -> Cmd msg
 
 port copyToClipboard : String -> Cmd msg
 
+port scrollToBottom : String -> Cmd msg
+
 
 type Page
     = EditorPage
@@ -330,9 +332,21 @@ update msg model =
                     let
                         newSimulatorModel =
                             Simulator.update simulatorMsg model.simulatorModel
+
+                        shouldScrollTree =
+                            newSimulatorModel.showTree
+                                && newSimulatorModel.mode == Simulator.NfaMode
+                                && (case simulatorMsg of
+                                        Simulator.StepForward -> True
+                                        Simulator.AutoStep _ -> True
+                                        _ -> False
+                                   )
                     in
                     ( { model | simulatorModel = newSimulatorModel }
-                    , Cmd.none
+                    , if shouldScrollTree then
+                        scrollToBottom "nfa-tree-scroll"
+                      else
+                        Cmd.none
                     )
 
         ConversionMsg convMsg ->

@@ -1,4 +1,4 @@
-module Pages.Simulator exposing (Model, Msg(..), init, update, view, subscriptions)
+module Pages.Simulator exposing (Model, Msg(..), SimulationMode(..), init, update, view, subscriptions)
 
 import Html exposing (Html, div, text, input, span)
 import Html.Attributes exposing (style, placeholder, value, disabled, type_)
@@ -1289,6 +1289,7 @@ view consoleOpen darkMode settingsOpen language model =
                                 , onCanvasDoubleClick = \_ _ -> CanvasClick 0 0
                                 , onStateClick = StateClick
                                 , onStateDoubleClick = \_ -> CanvasClick 0 0
+                                , onStateRightClick = \_ -> CanvasClick 0 0
                                 , onTransitionClick = TransitionClick
                                 , onTransitionDoubleClick = \_ _ _ -> CanvasClick 0 0
                                 , onStartDrag = StartDrag

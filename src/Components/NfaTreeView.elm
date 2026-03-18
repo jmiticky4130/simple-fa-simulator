@@ -1,7 +1,7 @@
 module Components.NfaTreeView exposing (Config, view)
 
 import Html exposing (Html, div, button, text)
-import Html.Attributes exposing (style)
+import Html.Attributes exposing (style, id)
 import Html.Events exposing (onClick)
 import Svg exposing (Svg)
 import Svg.Attributes as SA
@@ -514,7 +514,8 @@ view config =
         , style "overflow" "hidden"
         ]
         [ div
-            [ style "width" "100%"
+            [ id "nfa-tree-scroll"
+            , style "width" "100%"
             , style "height" "100%"
             , style "overflow" "auto"
             , style "background-color" config.theme.canvasBg
