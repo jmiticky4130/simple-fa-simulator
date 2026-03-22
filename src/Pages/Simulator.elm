@@ -1410,6 +1410,7 @@ view consoleOpen darkMode settingsOpen language tutorialInputHighlight tutorialB
                                 , onStateRightClick = \_ -> CanvasClick 0 0
                                 , onTransitionClick = TransitionClick
                                 , onTransitionDoubleClick = \_ _ _ -> CanvasClick 0 0
+                                , onArrowClick = \_ _ -> CanvasClick 0 0
                                 , onStartDrag = StartDrag
                                 , onDragMove = DragMove
                                 , onEndDrag = EndDrag
@@ -1427,6 +1428,7 @@ view consoleOpen darkMode settingsOpen language tutorialInputHighlight tutorialB
                                 , highlightedTransitions = []
                                 , editingStateId = Nothing
                                 , theme = theme
+                                , gridMode = False
                                 }
                             , button
                                 ([ style "position" "absolute"

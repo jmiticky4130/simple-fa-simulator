@@ -84,6 +84,7 @@ type alias Model =
     , panLastY : Float
     , hasPanned : Bool
     , copyDefSuccess : Bool
+    , gridMode : Bool
     }
 
 
@@ -101,6 +102,7 @@ type Msg
     | EndDrag
     | DeleteState Int
     | DeleteTransition Int Int String
+    | DeleteAllTransitionsBetween Int Int
     | SetStateLabel Int String
     | SetTransitionSymbol Int Int String String
     | UpdateTransitionInput String
@@ -140,6 +142,7 @@ type Msg
     | DismissLoadModal
     | DismissStorageSelectModal
     | SwitchToConversion
+    | AddDeadState
     | ShowGuide
     | ShowAboutGuide
     | ShowError String
@@ -149,6 +152,7 @@ type Msg
     | ToggleLanguage
     | CopyDefinition
     | CopyDefReset
+    | ToggleGridMode
 
 
 init : Language -> Model
@@ -189,6 +193,7 @@ init language =
     , panLastY = 0
     , hasPanned = False
     , copyDefSuccess = False
+    , gridMode = False
     }
 
 
@@ -226,6 +231,54 @@ update msg model =
 
         SwitchToConversion ->
             ( model, Cmd.none )
+
+        AddDeadState ->
+            let
+                { states, transitions } = currentAutomaton
+                alphabet =
+                    transitions
+                        |> List.filterMap (\tr -> if tr.symbol == "\u{03B5}" then Nothing else Just tr.symbol)
+                        |> Set.fromList
+                        |> Set.toList
+                missingPairs =
+                    states
+                        |> List.concatMap (\state ->
+                            alphabet
+                                |> List.filter (\sym ->
+                                    not (List.any (\tr -> tr.from == state.id && tr.symbol == sym) transitions)
+                                )
+                                |> List.map (\sym -> ( state.id, sym ))
+                        )
+                minY = List.map .y states |> List.minimum |> Maybe.withDefault 200
+                avgX =
+                    if List.isEmpty states then 300
+                    else (List.map .x states |> List.sum) / toFloat (List.length states)
+                existingIds = List.map .id states
+                newDeadId = List.range 0 (List.length existingIds) |> List.filter (\i -> not (List.member i existingIds)) |> List.head |> Maybe.withDefault (List.length existingIds)
+                deadState =
+                    { id = newDeadId
+                    , x = avgX
+                    , y = minY - 150
+                    , label = "dead state"
+                    , isStart = False
+                    , isEnd = False
+                    , isCompact = False
+                    }
+                deadTransitions =
+                    List.map (\( fromId, sym ) -> { from = fromId, to = newDeadId, symbol = sym }) missingPairs
+                        ++ List.map (\sym -> { from = newDeadId, to = newDeadId, symbol = sym }) alphabet
+                newAutomaton =
+                    { states = states ++ [ deadState ]
+                    , transitions = transitions ++ deadTransitions
+                    , nextStateId = newDeadId + 1
+                    }
+            in
+            ( { model
+                | automaton = UndoList.new newAutomaton model.automaton
+                , consoleMessages = { text = t.editorDeadStateAdded, msgType = Console.Info } :: model.consoleMessages
+              }
+            , Cmd.none
+            )
 
         ToggleConsole ->
             ( model, Cmd.none )
@@ -281,6 +334,9 @@ update msg model =
 
         CopyDefReset ->
             ( { model | copyDefSuccess = False }, Cmd.none )
+
+        ToggleGridMode ->
+            ( model, Cmd.none )
 
         SaveRequested ->
             ( { model | showSaveModal = True, saveNameInput = "" }, Cmd.none )
@@ -401,13 +457,17 @@ update msg model =
             case model.currentTool of
                 BuildTool ->
                     let
-                        worldX = (x - model.panX) / model.zoom
-                        worldY = (y - model.panY) / model.zoom
+                        rawWorldX = (x - model.panX) / model.zoom
+                        rawWorldY = (y - model.panY) / model.zoom
+                        worldX = if model.gridMode then snapToGrid 60.0 rawWorldX else rawWorldX
+                        worldY = if model.gridMode then snapToGrid 60.0 rawWorldY else rawWorldY
+                        existingIds = List.map .id currentAutomaton.states
+                        newId = List.range 0 (List.length existingIds) |> List.filter (\i -> not (List.member i existingIds)) |> List.head |> Maybe.withDefault (List.length existingIds)
                         newState =
-                            { id = currentAutomaton.nextStateId
+                            { id = newId
                             , x = worldX
                             , y = worldY
-                            , label = "q" ++ String.fromInt currentAutomaton.nextStateId
+                            , label = "q" ++ String.fromInt newId
                             , isStart = False
                             , isEnd = False
                             , isCompact = False
@@ -416,11 +476,12 @@ update msg model =
                         newAutomaton =
                             { currentAutomaton
                             | states = currentAutomaton.states ++ [ newState ]
-                            , nextStateId = currentAutomaton.nextStateId + 1
+                            , nextStateId = newId + 1
                             }
                     in
                     ( { model
                         | automaton = UndoList.new newAutomaton model.automaton
+                        , transitionFrom = Nothing
                         , consoleMessages = { text = message, msgType = Console.Info } :: model.consoleMessages
                       }
                     , Cmd.none
@@ -435,6 +496,7 @@ update msg model =
             else
                 ( { model
                     | selectedState = Nothing
+                    , transitionFrom = Nothing
                     , editingStateId = Nothing
                     , stateLabelInput = ""
                     , stateModalIsStart = False
@@ -563,10 +625,12 @@ update msg model =
                 case model.draggedState of
                     Just stateId ->
                         let
-                            worldX = (x - model.panX) / model.zoom
-                            worldY = (y - model.panY) / model.zoom
-                            dx = worldX - model.dragStartX
-                            dy = worldY - model.dragStartY
+                            rawWorldX = (x - model.panX) / model.zoom
+                            rawWorldY = (y - model.panY) / model.zoom
+                            worldX = if model.gridMode then snapToGrid 60.0 rawWorldX else rawWorldX
+                            worldY = if model.gridMode then snapToGrid 60.0 rawWorldY else rawWorldY
+                            dx = rawWorldX - model.dragStartX
+                            dy = rawWorldY - model.dragStartY
                             dist = sqrt (dx * dx + dy * dy)
                         in
                         if not model.isDragging && dist > 5 then
@@ -631,6 +695,20 @@ update msg model =
             ( { model
                 | automaton = UndoList.new newAutomaton model.automaton
                 , consoleMessages = { text = message, msgType = Console.Info } :: model.consoleMessages
+              }
+            , Cmd.none
+            )
+
+        DeleteAllTransitionsBetween from to ->
+            let
+                newAutomaton =
+                    { currentAutomaton
+                    | transitions = List.filter (\transition -> not (transition.from == from && transition.to == to)) currentAutomaton.transitions
+                    }
+            in
+            ( { model
+                | automaton = UndoList.new newAutomaton model.automaton
+                , consoleMessages = { text = t.editorTransitionDeletedPrefix ++ "all", msgType = Console.Info } :: model.consoleMessages
               }
             , Cmd.none
             )
@@ -1137,6 +1215,11 @@ handleStateClick stateId model =
                         )
 
 
+snapToGrid : Float -> Float -> Float
+snapToGrid gridSize val =
+    toFloat (round (val / gridSize)) * gridSize
+
+
 getToolMessage : Translations.Translations -> Tool -> String
 getToolMessage t tool =
     case tool of
@@ -1157,8 +1240,8 @@ toolToString tool =
             "DeleteTool"
 
 
-view : Bool -> Bool -> Bool -> Language -> Int -> Int -> Bool -> Model -> Html Msg
-view consoleOpen darkMode settingsOpen language windowWidth windowHeight tutorialHighlightSimulate model =
+view : Bool -> Bool -> Bool -> Language -> Int -> Int -> Maybe String -> Model -> Html Msg
+view consoleOpen darkMode settingsOpen language windowWidth windowHeight tutorialHighlightGroup model =
     let
         t =
             Translations.getTranslations language
@@ -1243,6 +1326,9 @@ view consoleOpen darkMode settingsOpen language windowWidth windowHeight tutoria
                 , isConvertEnabled = isConvertEnabled
                 , convertDisabledReason = convertDisabledReason
                 , onConvertDisabledClick = ShowError (Maybe.withDefault "" convertDisabledReason)
+                , isAddDeadStateEnabled = autoType == IncompleteDFA
+                , onAddDeadState = AddDeadState
+                , addDeadStateInfoTooltip = t.editorAddDeadStateInfo
                 , onShowGuide = ShowGuide
                 , theme = theme
                 , settingsOpen = settingsOpen
@@ -1251,7 +1337,9 @@ view consoleOpen darkMode settingsOpen language windowWidth windowHeight tutoria
                 , darkMode = darkMode
                 , language = language
                 , onToggleLanguage = ToggleLanguage
-                , tutorialHighlightSimulate = tutorialHighlightSimulate
+                , gridMode = model.gridMode
+                , onToggleGridMode = ToggleGridMode
+                , tutorialHighlightGroup = tutorialHighlightGroup
                 }
             ]
         ,
@@ -1304,6 +1392,7 @@ view consoleOpen darkMode settingsOpen language windowWidth windowHeight tutoria
                     , onStateRightClick = StateRightClick
                     , onTransitionClick = TransitionClick
                     , onTransitionDoubleClick = TransitionDoubleClick
+                    , onArrowClick = DeleteAllTransitionsBetween
                     , onStartDrag = StartDrag
                     , onDragMove = DragMove
                     , onEndDrag = EndDrag
@@ -1321,6 +1410,7 @@ view consoleOpen darkMode settingsOpen language windowWidth windowHeight tutoria
                     , highlightedTransitions = problematicTransitions
                     , editingStateId = model.editingStateId
                     , theme = theme
+                    , gridMode = model.gridMode
                     }
                 , button
                     ([ style "position" "absolute"

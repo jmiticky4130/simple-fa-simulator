@@ -237,6 +237,7 @@ type alias Translations =
     , tutSkipTutorial : String
     , tutFinish : String
     , tutSkip : String
+    , tutTipEscape : String
     , tutStep1 : String
     , tutStep2 : String
     , tutStep3 : String
@@ -245,12 +246,21 @@ type alias Translations =
     , tutStep6 : String
     , tutStep7 : String
     , tutStep8 : String
+    , tutStepUndoRedo : String
+    , tutStepTools : String
+    , tutStepFiles : String
+    , tutStepConvert : String
+    , tutUnderstand : String
     , tutRelaunch : String
     , simWhyNfaTitle : String
     , simWhyNfaIncomplete : String
     , simWhyNfaNondet : String
     , simWhyNfaEpsilon : String
     , editorConvertRequirementIncomplete : String
+    , editorAddDeadState : String
+    , editorAddDeadStateInfo : String
+    , editorDeadStateAdded : String
+    , gridMode : String
     }
 
 
@@ -425,6 +435,7 @@ skTranslations =
     , tutSkipTutorial = "Preskočiť tutoriál"
     , tutFinish = "Dokončiť"
     , tutSkip = "Preskočiť"
+    , tutTipEscape = "zruší aktuálnu akciu"
     , tutStep1 = "Dvojkliknite na plátno a vytvorte prvý stav."
     , tutStep2 = "Vytvorte druhý stav dvojklikom na iné miesto plátna."
     , tutStep3 = "Pravým klikom na stav otvorte modál a zaškrtnite Počiatočný stav."
@@ -433,12 +444,21 @@ skTranslations =
     , tutStep6 = "Automat je pripravený! Kliknite na tlačidlo Simulovať."
     , tutStep7 = "Zadajte vstupné slovo do textového poľa (napr. a)."
     , tutStep8 = "Kliknite na Krok dopredu alebo spustite automatický beh."
+    , tutStepUndoRedo = "Reset vymaže celý automat. Späť/Vpred vráti alebo zopakuje posledný krok (Ctrl+Z / Ctrl+Y)."
+    , tutStepTools = "Nástroj Stavať (Shift+B) slúži na vytváranie stavov a prechodov. Nástroj Mazať (Shift+D) odstraňuje stavy a prechody kliknutím."
+    , tutStepFiles = "Export uloží automat ako JSON súbor. Uložiť/Načítať pracuje s lokálnym úložiskom prehliadača. Zdieľať vytvorí URL odkaz."
+    , tutStepConvert = "NFA->DFA spustí podmnožinovú konštrukciu (aktívne len ak je automat NFA). Doplniť mŕtvy stav doplní chýbajúce prechody."
+    , tutUnderstand = "Rozumiem"
     , tutRelaunch = "Spustiť tutoriál"
     , simWhyNfaTitle = "Prečo NFA?"
-    , simWhyNfaIncomplete = "Automat je neúplný — niektorým stavom chýbajú prechody pre symboly abecedy."
+    , simWhyNfaIncomplete = "Automat je neúplný — niektorým stavom chýbajú prechody pre symboly abecedy. Použite tlačidlo 'Doplniť mŕtvy stav' na doplnenie formálne správneho DFA."
     , simWhyNfaNondet = "Viacero prechodov z rovnakého stavu s rovnakým symbolom."
     , simWhyNfaEpsilon = "Obsahuje ε-prechody."
     , editorConvertRequirementIncomplete = "Neúplný DFA — nie je nedeterministický automat"
+    , editorAddDeadState = "Doplniť mŕtvy stav"
+    , editorAddDeadStateInfo = "Automat je neúplný DFA — niektorým stavom chýbajú prechody pre niektoré symboly abecedy. Kliknutím pridáte mŕtvy stav, ktorý zachytí všetky chýbajúce prechody. Automat tak bude formálne úplný DFA."
+    , editorDeadStateAdded = "Mŕtvy stav bol pridaný. Automat je teraz úplný DFA."
+    , gridMode = "Mriežka"
     }
 
 
@@ -613,6 +633,7 @@ enTranslations =
     , tutSkipTutorial = "Skip Tutorial"
     , tutFinish = "Finish"
     , tutSkip = "Skip"
+    , tutTipEscape = "cancels the current action"
     , tutStep1 = "Double-click on the canvas to create your first state."
     , tutStep2 = "Create a second state by double-clicking elsewhere on the canvas."
     , tutStep3 = "Right-click a state to open the modal and check Start state."
@@ -621,12 +642,21 @@ enTranslations =
     , tutStep6 = "Your automaton is ready! Click the Simulate button."
     , tutStep7 = "Type an input word into the text field (e.g. a)."
     , tutStep8 = "Click Step Forward or start Auto-run."
+    , tutStepUndoRedo = "Reset clears the entire automaton. Undo/Redo reverts or repeats the last action (Ctrl+Z / Ctrl+Y)."
+    , tutStepTools = "Build tool (Shift+B) creates states and transitions. Delete tool (Shift+D) removes states and transitions by clicking."
+    , tutStepFiles = "Export saves the automaton as a JSON file. Save/Load works with browser local storage. Share creates a URL link."
+    , tutStepConvert = "NFA->DFA runs subset construction (active only for NFA). Add dead state fills in missing transitions."
+    , tutUnderstand = "Understand"
     , tutRelaunch = "Relaunch Tutorial"
     , simWhyNfaTitle = "Why NFA?"
     , simWhyNfaNondet = "Non-deterministic — multiple transitions from same state with same symbol."
-    , simWhyNfaIncomplete = "Automaton is incomplete — some states are missing transitions for alphabet symbols."
+    , simWhyNfaIncomplete = "Automaton is incomplete — some states are missing transitions for alphabet symbols. Use 'Add dead state' to complete the automaton as a formally correct DFA."
     , simWhyNfaEpsilon = "Contains ε-transitions."
     , editorConvertRequirementIncomplete = "Incomplete DFA — not a non-deterministic automaton"
+    , editorAddDeadState = "Add dead state"
+    , editorAddDeadStateInfo = "The automaton is an incomplete DFA — some states are missing transitions for certain alphabet symbols. Clicking this adds a dead (trap) state that catches all missing transitions, making the automaton a formally complete DFA."
+    , editorDeadStateAdded = "Dead state added. The automaton is now a complete DFA."
+    , gridMode = "Grid"
     }
 
 

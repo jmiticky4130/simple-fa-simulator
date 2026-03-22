@@ -32,6 +32,8 @@ port saveDarkMode : Bool -> Cmd msg
 
 port saveLanguage : String -> Cmd msg
 
+port saveGridMode : Bool -> Cmd msg
+
 port saveTutorialSeen : () -> Cmd msg
 
 port copyToClipboard : String -> Cmd msg
@@ -52,6 +54,10 @@ type TutorialStep
     | TutSetStart
     | TutSetEnd
     | TutCreateTransition
+    | TutToolbarUndoRedo
+    | TutToolbarTools
+    | TutToolbarFiles
+    | TutToolbarConvert
     | TutSimulateButton
     | TutEnterInput
     | TutRunSimulation
@@ -79,6 +85,7 @@ type alias Model =
     , windowWidth : Int
     , windowHeight : Int
     , tutorialStep : Maybe TutorialStep
+    , gridMode : Bool
     }
 
 
@@ -89,18 +96,20 @@ type alias Flags =
     , windowWidth : Int
     , windowHeight : Int
     , hasSeenTutorial : Bool
+    , gridMode : Bool
     }
 
 
 flagsDecoder : Decode.Decoder Flags
 flagsDecoder =
-    Decode.map6 Flags
+    Decode.map7 Flags
         (Decode.maybe (Decode.field "urlData" Decode.string))
         (Decode.field "darkMode" Decode.bool)
         (Decode.field "language" Decode.string)
         (Decode.field "windowWidth" Decode.int)
         (Decode.field "windowHeight" Decode.int)
         (Decode.field "hasSeenTutorial" Decode.bool)
+        (Decode.field "gridMode" Decode.bool)
 
 
 init : Decode.Value -> ( Model, Cmd Msg )
@@ -109,7 +118,7 @@ init flagsValue =
         flags =
             case Decode.decodeValue flagsDecoder flagsValue of
                 Ok f -> f
-                Err _ -> { urlData = Nothing, darkMode = False, language = "sk", windowWidth = 1200, windowHeight = 800, hasSeenTutorial = False }
+                Err _ -> { urlData = Nothing, darkMode = False, language = "sk", windowWidth = 1200, windowHeight = 800, hasSeenTutorial = False, gridMode = False }
 
         lang =
             if flags.language == "en" then English else Slovak
@@ -118,8 +127,11 @@ init flagsValue =
             flags.urlData
                 |> Maybe.andThen (Decode.decodeString Utils.AutomatonCodec.decoder >> Result.toMaybe)
 
-        editorInit =
+        editorInitBase =
             Editor.initWith lang loadedAutomaton
+
+        editorInit =
+            { editorInitBase | gridMode = flags.gridMode }
 
         simulatorInit =
             Simulator.init lang { states = [], transitions = [], nextStateId = 0 }
@@ -140,6 +152,7 @@ init flagsValue =
       , windowWidth = flags.windowWidth
       , windowHeight = flags.windowHeight
       , tutorialStep = if not flags.hasSeenTutorial then Just TutWelcome else Nothing
+      , gridMode = flags.gridMode
       }
     , Cmd.none
     )
@@ -190,7 +203,9 @@ type Msg
     | WindowResize Int Int
     | StartTutorial
     | TutorialSkip
+    | TutorialNext
     | TutorialWelcomeContinue
+    | ToggleGridMode
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
@@ -302,6 +317,16 @@ update msg model =
                     in
                     ( setLanguageForAllPages newLang model
                     , saveLanguage langStr
+                    )
+
+                Editor.ToggleGridMode ->
+                    let
+                        newGrid = not model.gridMode
+                        currentEditorModel = model.editorModel
+                        newEditorModel = { currentEditorModel | gridMode = newGrid }
+                    in
+                    ( { model | gridMode = newGrid, editorModel = newEditorModel }
+                    , saveGridMode newGrid
                     )
 
                 Editor.CopyDefinition ->
@@ -506,11 +531,33 @@ update msg model =
         WindowResize w h ->
             ( { model | windowWidth = w, windowHeight = h }, Cmd.none )
 
+        ToggleGridMode ->
+            let
+                newGrid = not model.gridMode
+                currentEditorModel = model.editorModel
+                newEditorModel = { currentEditorModel | gridMode = newGrid }
+            in
+            ( { model | gridMode = newGrid, editorModel = newEditorModel }
+            , saveGridMode newGrid
+            )
+
         TutorialWelcomeContinue ->
-            ( { model | tutorialStep = Just TutCreateState1 }, Cmd.none )
+            ( { model | tutorialStep = Just TutToolbarUndoRedo }, Cmd.none )
 
         TutorialSkip ->
             ( { model | tutorialStep = Nothing }, saveTutorialSeen () )
+
+        TutorialNext ->
+            let
+                nextStep =
+                    case model.tutorialStep of
+                        Just TutToolbarUndoRedo -> Just TutToolbarTools
+                        Just TutToolbarTools -> Just TutToolbarFiles
+                        Just TutToolbarFiles -> Just TutToolbarConvert
+                        Just TutToolbarConvert -> Just TutCreateState1
+                        other -> other
+            in
+            ( { model | tutorialStep = nextStep }, Cmd.none )
 
         StartTutorial ->
             let
@@ -518,7 +565,7 @@ update msg model =
                 emptyAutomaton = { states = [], transitions = [], nextStateId = 0 }
             in
             ( { model
-                | tutorialStep = Just TutCreateState1
+                | tutorialStep = Just TutToolbarUndoRedo
                 , showGuide = False
                 , currentPage = EditorPage
                 , editorModel = { em | automaton = UndoList.fresh emptyAutomaton }
@@ -557,7 +604,7 @@ keyDecoder model =
             isTyping = tagName == "INPUT" || tagName == "TEXTAREA"
         in
         if key == "Escape" then
-            if model.tutorialStep /= Nothing then TutorialSkip
+            if model.tutorialStep /= Nothing then EditorMsg Editor.CancelAction
             else if model.showGuide then CloseGuide
             else if model.settingsOpen then CloseSettings
             else if model.editorModel.showSaveModal then EditorMsg Editor.DismissSaveModal
@@ -598,7 +645,7 @@ view model =
             text ""
         , case model.currentPage of
             EditorPage ->
-                Html.map EditorMsg (Editor.view model.consoleOpen model.darkMode model.settingsOpen model.language model.windowWidth model.windowHeight (model.tutorialStep == Just TutSimulateButton) model.editorModel)
+                Html.map EditorMsg (Editor.view model.consoleOpen model.darkMode model.settingsOpen model.language model.windowWidth model.windowHeight (tutorialHighlightForEditor model.tutorialStep) model.editorModel)
 
             SimulatorPage ->
                 div
@@ -627,6 +674,17 @@ view model =
 
 
 -- TUTORIAL HELPERS
+
+
+tutorialHighlightForEditor : Maybe TutorialStep -> Maybe String
+tutorialHighlightForEditor step =
+    case step of
+        Just TutToolbarUndoRedo -> Just "undoRedo"
+        Just TutToolbarTools -> Just "tools"
+        Just TutToolbarFiles -> Just "files"
+        Just TutToolbarConvert -> Just "convert"
+        Just TutSimulateButton -> Just "simulate"
+        _ -> Nothing
 
 
 advanceTutorialEditor : Maybe TutorialStep -> Editor.Model -> Maybe TutorialStep
@@ -678,14 +736,18 @@ tutorialStepIndex : TutorialStep -> Int
 tutorialStepIndex step =
     case step of
         TutWelcome -> 0
-        TutCreateState1 -> 1
-        TutCreateState2 -> 2
-        TutSetStart -> 3
-        TutSetEnd -> 4
-        TutCreateTransition -> 5
-        TutSimulateButton -> 6
-        TutEnterInput -> 7
-        TutRunSimulation -> 8
+        TutToolbarUndoRedo -> 1
+        TutToolbarTools -> 2
+        TutToolbarFiles -> 3
+        TutToolbarConvert -> 4
+        TutCreateState1 -> 5
+        TutCreateState2 -> 6
+        TutSetStart -> 7
+        TutSetEnd -> 8
+        TutCreateTransition -> 9
+        TutSimulateButton -> 10
+        TutEnterInput -> 11
+        TutRunSimulation -> 12
 
 
 tutorialStepText : Translations.Translations -> TutorialStep -> String
@@ -697,6 +759,10 @@ tutorialStepText t step =
         TutSetStart -> t.tutStep3
         TutSetEnd -> t.tutStep4
         TutCreateTransition -> t.tutStep5
+        TutToolbarUndoRedo -> t.tutStepUndoRedo
+        TutToolbarTools -> t.tutStepTools
+        TutToolbarFiles -> t.tutStepFiles
+        TutToolbarConvert -> t.tutStepConvert
         TutSimulateButton -> t.tutStep6
         TutEnterInput -> t.tutStep7
         TutRunSimulation -> t.tutStep8
@@ -756,7 +822,7 @@ viewTutorialWelcome theme t model =
                 [ style "display" "flex"
                 , style "align-items" "center"
                 , style "justify-content" "space-between"
-                , style "margin-bottom" "28px"
+                , style "margin-bottom" "12px"
                 ]
                 [ div [ style "color" theme.textSecondary, style "font-size" "14px" ]
                     [ text t.language ]
@@ -771,6 +837,16 @@ viewTutorialWelcome theme t model =
                     , style "cursor" "pointer"
                     ]
                     [ text t.languageName ]
+                ]
+            , div
+                [ style "display" "flex"
+                , style "align-items" "center"
+                , style "justify-content" "space-between"
+                , style "margin-bottom" "28px"
+                ]
+                [ div [ style "color" theme.textSecondary, style "font-size" "14px" ]
+                    [ text t.gridMode ]
+                , tutorialPillToggle ToggleGridMode model.gridMode
                 ]
             , button
                 [ onClick TutorialWelcomeContinue
@@ -870,6 +946,30 @@ viewTutorialVeils theme step currentPage =
                 TutSetEnd -> canvasPhaseVeils
                 TutCreateTransition -> canvasPhaseVeils
 
+                TutToolbarUndoRedo ->
+                    div []
+                        [ veilLeft "80px" "0" "calc(100% - 302px)" "calc(100vh - 80px)"
+                        , veilRight "80px" "0" "302px" "calc(100vh - 80px)"
+                        ]
+
+                TutToolbarTools ->
+                    div []
+                        [ veilLeft "80px" "0" "calc(100% - 302px)" "calc(100vh - 80px)"
+                        , veilRight "80px" "0" "302px" "calc(100vh - 80px)"
+                        ]
+
+                TutToolbarFiles ->
+                    div []
+                        [ veilLeft "80px" "0" "calc(100% - 302px)" "calc(100vh - 80px)"
+                        , veilRight "80px" "0" "302px" "calc(100vh - 80px)"
+                        ]
+
+                TutToolbarConvert ->
+                    div []
+                        [ veilLeft "80px" "0" "calc(100% - 302px)" "calc(100vh - 80px)"
+                        , veilRight "80px" "0" "302px" "calc(100vh - 80px)"
+                        ]
+
                 TutSimulateButton ->
                     div []
                         [ veilLeft "80px" "0" "calc(100% - 302px)" "calc(100vh - 80px)"
@@ -887,9 +987,10 @@ viewTutorialTooltip : Theme.Theme -> Translations.Translations -> TutorialStep -
 viewTutorialTooltip theme t step =
     let
         idx = tutorialStepIndex step
-        total = 8
+        total = 12
         instructionText = tutorialStepText t step
         showSkipOnly = step == TutSimulateButton
+        isToolbarExplainStep = List.member step [ TutToolbarUndoRedo, TutToolbarTools, TutToolbarFiles, TutToolbarConvert ]
     in
     div
         [ style "position" "fixed"
@@ -924,7 +1025,32 @@ viewTutorialTooltip theme t step =
             , style "font-size" "14px"
             , style "line-height" "1.5"
             ]
-            [ text instructionText ]
+            [ text instructionText
+            , if List.member step [ TutCreateState1, TutCreateState2, TutSetStart, TutSetEnd, TutCreateTransition ] then
+                div
+                    [ style "margin-top" "8px"
+                    , style "font-size" "12px"
+                    , style "opacity" "0.75"
+                    , style "display" "flex"
+                    , style "align-items" "center"
+                    , style "gap" "4px"
+                    ]
+                    [ span
+                        [ style "background-color" "rgba(255,255,255,0.2)"
+                        , style "border" "1px solid rgba(255,255,255,0.5)"
+                        , style "border-radius" "4px"
+                        , style "padding" "1px 6px"
+                        , style "font-family" "monospace"
+                        , style "font-size" "11px"
+                        , style "font-weight" "bold"
+                        , style "letter-spacing" "0.5px"
+                        ]
+                        [ text "ESC" ]
+                    , text t.tutTipEscape
+                    ]
+              else
+                text ""
+            ]
         , div
             [ style "display" "flex"
             , style "gap" "8px"
@@ -941,7 +1067,20 @@ viewTutorialTooltip theme t step =
                 , style "cursor" "pointer"
                 ]
                 [ text t.tutSkip ]
-            , if showSkipOnly then
+            , if isToolbarExplainStep then
+                button
+                    [ onClick TutorialNext
+                    , style "background-color" theme.btnPrimary
+                    , style "color" "white"
+                    , style "border" "none"
+                    , style "border-radius" "6px"
+                    , style "padding" "6px 14px"
+                    , style "font-size" "13px"
+                    , style "font-weight" "bold"
+                    , style "cursor" "pointer"
+                    ]
+                    [ text t.tutUnderstand ]
+              else if showSkipOnly then
                 text ""
               else if step == TutRunSimulation then
                 button

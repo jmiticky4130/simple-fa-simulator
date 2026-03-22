@@ -153,7 +153,7 @@ lightTheme =
     , stateText = "#000000"
     , stateTransitionHighlight = "#fff59d"
     , tutorialVeilBg = "rgba(0,0,0,0.45)"
-    , tutorialTooltipBg = "#1a237e"
+    , tutorialTooltipBg = "#1e293b"
     , tutorialTooltipText = "#ffffff"
     }
 

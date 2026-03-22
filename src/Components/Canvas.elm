@@ -7,6 +7,7 @@ import Html.Events exposing (custom, onClick)
 import Json.Decode as Decode
 import Svg exposing (Svg)
 import Svg.Attributes as SA
+import Html.Attributes exposing (attribute)
 import Svg.Events as SE
 import Shared exposing (State, Transition)
 import Utils.Theme as Theme
@@ -28,6 +29,7 @@ type alias Config msg =
     , onStateRightClick : Int -> msg
     , onTransitionClick : Int -> Int -> String -> msg
     , onTransitionDoubleClick : Int -> Int -> String -> msg
+    , onArrowClick : Int -> Int -> msg
     , onStartDrag : Int -> Float -> Float -> msg
     , onDragMove : Float -> Float -> msg
     , onEndDrag : msg
@@ -45,6 +47,7 @@ type alias Config msg =
     , highlightedTransitions : List { from : Int, to : Int }
     , editingStateId : Maybe Int
     , theme : Theme.Theme
+    , gridMode : Bool
     }
 
 
@@ -67,21 +70,23 @@ view config =
             , SE.on "mousedown" (Decode.map2 config.onCanvasMouseDown offsetX offsetY)
             , SE.on "wheel" (Decode.map3 config.onWheel wheelDeltaY offsetX offsetY)
             ]
-            [ Svg.g
-                [ SA.transform
-                    ( "translate("
-                    ++ String.fromFloat config.panX
-                    ++ ","
-                    ++ String.fromFloat config.panY
-                    ++ ") scale("
-                    ++ String.fromFloat config.zoom
-                    ++ ")"
+            ( ( if config.gridMode then [ svgGrid config ] else [] )
+              ++ [ Svg.g
+                    [ SA.transform
+                        ( "translate("
+                        ++ String.fromFloat config.panX
+                        ++ ","
+                        ++ String.fromFloat config.panY
+                        ++ ") scale("
+                        ++ String.fromFloat config.zoom
+                        ++ ")"
+                        )
+                    ]
+                    ( List.map (viewGroupedTransition config) (groupTransitions config.transitions)
+                        ++ List.map (svgState config) config.states
                     )
-                ]
-                ( List.map (viewGroupedTransition config) (groupTransitions config.transitions)
-                    ++ List.map (svgState config) config.states
-                )
-            ]
+                 ]
+            )
         , div
             [ style "position" "absolute"
             , style "bottom" "16px"
@@ -119,6 +124,62 @@ view config =
                 ]
                 [ text "-" ]
             ]
+        ]
+
+
+svgGrid : Config msg -> Svg msg
+svgGrid config =
+    let
+        gridSize =
+            60.0
+
+        cellPx =
+            gridSize * config.zoom
+
+        modFloat a b =
+            a - (toFloat (floor (a / b))) * b
+
+        patX =
+            modFloat config.panX cellPx
+
+        patY =
+            modFloat config.panY cellPx
+
+        cellStr =
+            String.fromFloat cellPx
+
+        strokeColor =
+            "rgba(120,120,120,0.22)"
+    in
+    Svg.g []
+        [ Svg.defs []
+            [ Svg.node "pattern"
+                [ SA.id "grid-bg"
+                , SA.x (String.fromFloat patX)
+                , SA.y (String.fromFloat patY)
+                , SA.width cellStr
+                , SA.height cellStr
+                , attribute "patternUnits" "userSpaceOnUse"
+                ]
+                [ Svg.line
+                    [ SA.x1 "0", SA.y1 "0"
+                    , SA.x2 cellStr, SA.y2 "0"
+                    , SA.stroke strokeColor
+                    , SA.strokeWidth "1"
+                    ] []
+                , Svg.line
+                    [ SA.x1 "0", SA.y1 "0"
+                    , SA.x2 "0", SA.y2 cellStr
+                    , SA.stroke strokeColor
+                    , SA.strokeWidth "1"
+                    ] []
+                ]
+            ]
+        , Svg.rect
+            [ SA.width "100%"
+            , SA.height "100%"
+            , SA.fill "url(#grid-bg)"
+            ] []
         ]
 
 
@@ -418,19 +479,12 @@ svgSelfLoop config state symbols isActive isHighlighted =
                 n = List.length symbols
                 spacing = 16
                 labelY = state.y - r - loopHeight + 5
-                startX = state.x - (toFloat (n - 1) * toFloat spacing) / 2
                 symbolStyle = if config.isSimulateMode then "user-select: none; pointer-events: none;" else "user-select: none;"
-            in
-            List.indexedMap
-                (\i sym ->
-                    Svg.text_
-                        [ SA.x (String.fromFloat (startX + toFloat i * toFloat spacing))
-                        , SA.y (String.fromFloat labelY)
-                        , SA.textAnchor "middle"
-                        , SA.fontSize "16"
-                        , SA.fill config.theme.edgeLabelColor
-                        , SA.fontWeight "bold"
-                        , SE.custom "click"
+                symClickAttrs sym =
+                    if config.isSimulateMode then
+                        []
+                    else
+                        [ SE.custom "click"
                             (Decode.succeed
                                 { message = config.onTransitionClick state.id state.id sym
                                 , stopPropagation = True
@@ -444,18 +498,59 @@ svgSelfLoop config state symbols isActive isHighlighted =
                                 , preventDefault = False
                                 }
                             )
-                        , SA.style symbolStyle
                         ]
-                        [ Svg.text sym ]
+                startX = state.x - (toFloat (n - 1) * toFloat spacing) / 2
+            in
+            List.indexedMap
+                (\i sym ->
+                    let
+                        cx = startX + toFloat i * toFloat spacing
+                    in
+                    Svg.g (symClickAttrs sym)
+                        [ Svg.rect
+                            [ SA.x (String.fromFloat (cx - 12))
+                            , SA.y (String.fromFloat (labelY - 14))
+                            , SA.width "24"
+                            , SA.height "20"
+                            , SA.fill "transparent"
+                            , SA.style "cursor: pointer;"
+                            ]
+                            []
+                        , Svg.text_
+                            [ SA.x (String.fromFloat cx)
+                            , SA.y (String.fromFloat labelY)
+                            , SA.textAnchor "middle"
+                            , SA.fontSize "16"
+                            , SA.fill config.theme.edgeLabelColor
+                            , SA.fontWeight "bold"
+                            , SA.style symbolStyle
+                            ]
+                            [ Svg.text sym ]
+                        ]
                 )
                 symbols
 
         strokeWidth = if isActive then "4" else "2"
         strokeColor = if isActive then "#e74c3c" else if isHighlighted then "#f9a825" else config.theme.edgeColor
+
+        arrowClickAttrs =
+            if config.isSimulateMode then
+                []
+            else
+                [ SE.custom "click"
+                    (Decode.succeed
+                        { message = config.onArrowClick state.id state.id
+                        , stopPropagation = True
+                        , preventDefault = False
+                        }
+                    )
+                ]
     in
     Svg.g []
         ([ Svg.path [ SA.d d, SA.fill "none", SA.stroke strokeColor, SA.strokeWidth strokeWidth, SA.strokeLinecap "round" ] []
+         , Svg.path ([ SA.d d, SA.fill "none", SA.stroke "transparent", SA.strokeWidth "12", SA.strokeLinecap "round", SA.style "cursor: pointer;" ] ++ arrowClickAttrs) []
          , Svg.polygon [ SA.points arrowPts, SA.fill strokeColor ] []
+         , Svg.polygon ([ SA.points arrowPts, SA.fill "transparent", SA.strokeWidth "10", SA.stroke "transparent", SA.style "cursor: pointer;" ] ++ arrowClickAttrs) []
          ]
             ++ labels
         )
@@ -491,7 +586,25 @@ svgEdge config a b symbols isActive isHighlighted =
         angleDeg = angleRad * 180 / pi
         rotationAngle = if ux < 0 then angleDeg + 180 else angleDeg
 
-        symbolStyle = if config.isSimulateMode then "user-select: none; pointer-events: none;" else "user-select: none;"
+        symClickAttrs sym =
+            if config.isSimulateMode then
+                []
+            else
+                [ SE.custom "click"
+                    (Decode.succeed
+                        { message = config.onTransitionClick a.id b.id sym
+                        , stopPropagation = True
+                        , preventDefault = False
+                        }
+                    )
+                , SE.custom "dblclick"
+                    (Decode.succeed
+                        { message = config.onTransitionDoubleClick a.id b.id sym
+                        , stopPropagation = True
+                        , preventDefault = False
+                        }
+                    )
+                ]
 
         labels =
             [ Svg.g
@@ -501,30 +614,30 @@ svgEdge config a b symbols isActive isHighlighted =
                 ]
                 (List.indexedMap
                     (\i sym ->
-                        Svg.text_
-                            [ SA.x (String.fromFloat ((toFloat i - toFloat (n - 1) / 2.0) * toFloat spacing))
-                            , SA.y "-6"
-                            , SA.textAnchor "middle"
-                            , SA.fontSize "16"
-                            , SA.fill config.theme.edgeLabelColor
-                            , SA.fontWeight "bold"
-                            , SE.custom "click"
-                                (Decode.succeed
-                                    { message = config.onTransitionClick a.id b.id sym
-                                    , stopPropagation = True
-                                    , preventDefault = False
-                                    }
-                                )
-                            , SE.custom "dblclick"
-                                (Decode.succeed
-                                    { message = config.onTransitionDoubleClick a.id b.id sym
-                                    , stopPropagation = True
-                                    , preventDefault = False
-                                    }
-                                )
-                            , SA.style symbolStyle
+                        let
+                            sx2 = (toFloat i - toFloat (n - 1) / 2.0) * toFloat spacing
+                        in
+                        Svg.g (symClickAttrs sym)
+                            [ Svg.rect
+                                [ SA.x (String.fromFloat (sx2 - 12))
+                                , SA.y "-20"
+                                , SA.width "24"
+                                , SA.height "20"
+                                , SA.fill "transparent"
+                                , SA.style "cursor: pointer;"
+                                ]
+                                []
+                            , Svg.text_
+                                [ SA.x (String.fromFloat sx2)
+                                , SA.y "-6"
+                                , SA.textAnchor "middle"
+                                , SA.fontSize "16"
+                                , SA.fill config.theme.edgeLabelColor
+                                , SA.fontWeight "bold"
+                                , SA.style "user-select: none;"
+                                ]
+                                [ Svg.text sym ]
                             ]
-                            [ Svg.text sym ]
                     )
                     symbols
                 )
@@ -532,10 +645,25 @@ svgEdge config a b symbols isActive isHighlighted =
 
         strokeWidth = if isActive then "4" else "2"
         strokeColor = if isActive then "#e74c3c" else if isHighlighted then "#f9a825" else config.theme.edgeColor
+
+        arrowClickAttrs =
+            if config.isSimulateMode then
+                []
+            else
+                [ SE.custom "click"
+                    (Decode.succeed
+                        { message = config.onArrowClick a.id b.id
+                        , stopPropagation = True
+                        , preventDefault = False
+                        }
+                    )
+                ]
     in
     Svg.g []
         ([ Svg.path [ SA.d d, SA.fill "none", SA.stroke strokeColor, SA.strokeWidth strokeWidth ] []
+         , Svg.path ([ SA.d d, SA.fill "none", SA.stroke "transparent", SA.strokeWidth "12", SA.style "cursor: pointer;" ] ++ arrowClickAttrs) []
          , Svg.polygon [ SA.points arrowPts, SA.fill strokeColor ] []
+         , Svg.polygon ([ SA.points arrowPts, SA.fill "transparent", SA.strokeWidth "10", SA.stroke "transparent", SA.style "cursor: pointer;" ] ++ arrowClickAttrs) []
          ]
             ++ labels
         )
@@ -601,7 +729,25 @@ svgCurvedEdge config a b symbols isActive isHighlighted =
         angleDeg = angleRad * 180 / pi
         rotationAngle = if ux < 0 then angleDeg + 180 else angleDeg
 
-        symbolStyle = if config.isSimulateMode then "user-select: none; pointer-events: none;" else "user-select: none;"
+        symClickAttrs sym =
+            if config.isSimulateMode then
+                []
+            else
+                [ SE.custom "click"
+                    (Decode.succeed
+                        { message = config.onTransitionClick a.id b.id sym
+                        , stopPropagation = True
+                        , preventDefault = False
+                        }
+                    )
+                , SE.custom "dblclick"
+                    (Decode.succeed
+                        { message = config.onTransitionDoubleClick a.id b.id sym
+                        , stopPropagation = True
+                        , preventDefault = False
+                        }
+                    )
+                ]
 
         labels =
             [ Svg.g
@@ -611,30 +757,30 @@ svgCurvedEdge config a b symbols isActive isHighlighted =
                 ]
                 (List.indexedMap
                     (\i sym ->
-                        Svg.text_
-                            [ SA.x (String.fromFloat ((toFloat i - toFloat (n - 1) / 2.0) * toFloat spacing))
-                            , SA.y "-6"
-                            , SA.textAnchor "middle"
-                            , SA.fontSize "16"
-                            , SA.fill config.theme.edgeLabelColor
-                            , SA.fontWeight "bold"
-                            , SE.custom "click"
-                                (Decode.succeed
-                                    { message = config.onTransitionClick a.id b.id sym
-                                    , stopPropagation = True
-                                    , preventDefault = False
-                                    }
-                                )
-                            , SE.custom "dblclick"
-                                (Decode.succeed
-                                    { message = config.onTransitionDoubleClick a.id b.id sym
-                                    , stopPropagation = True
-                                    , preventDefault = False
-                                    }
-                                )
-                            , SA.style symbolStyle
+                        let
+                            sx2 = (toFloat i - toFloat (n - 1) / 2.0) * toFloat spacing
+                        in
+                        Svg.g (symClickAttrs sym)
+                            [ Svg.rect
+                                [ SA.x (String.fromFloat (sx2 - 12))
+                                , SA.y "-20"
+                                , SA.width "24"
+                                , SA.height "20"
+                                , SA.fill "transparent"
+                                , SA.style "cursor: pointer;"
+                                ]
+                                []
+                            , Svg.text_
+                                [ SA.x (String.fromFloat sx2)
+                                , SA.y "-6"
+                                , SA.textAnchor "middle"
+                                , SA.fontSize "16"
+                                , SA.fill config.theme.edgeLabelColor
+                                , SA.fontWeight "bold"
+                                , SA.style "user-select: none;"
+                                ]
+                                [ Svg.text sym ]
                             ]
-                            [ Svg.text sym ]
                     )
                     symbols
                 )
@@ -642,10 +788,25 @@ svgCurvedEdge config a b symbols isActive isHighlighted =
 
         strokeWidth = if isActive then "4" else "2"
         strokeColor = if isActive then "#e74c3c" else if isHighlighted then "#f9a825" else config.theme.edgeColor
+
+        arrowClickAttrs =
+            if config.isSimulateMode then
+                []
+            else
+                [ SE.custom "click"
+                    (Decode.succeed
+                        { message = config.onArrowClick a.id b.id
+                        , stopPropagation = True
+                        , preventDefault = False
+                        }
+                    )
+                ]
     in
     Svg.g []
-        ([ Svg.path [ SA.d d, SA.fill "none", SA.stroke strokeColor, SA.strokeWidth strokeWidth, SA.fill "none" ] []
+        ([ Svg.path [ SA.d d, SA.fill "none", SA.stroke strokeColor, SA.strokeWidth strokeWidth ] []
+         , Svg.path ([ SA.d d, SA.fill "none", SA.stroke "transparent", SA.strokeWidth "12", SA.style "cursor: pointer;" ] ++ arrowClickAttrs) []
          , Svg.polygon [ SA.points arrowPts, SA.fill strokeColor ] []
+         , Svg.polygon ([ SA.points arrowPts, SA.fill "transparent", SA.strokeWidth "10", SA.stroke "transparent", SA.style "cursor: pointer;" ] ++ arrowClickAttrs) []
          ]
             ++ labels
         )

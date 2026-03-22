@@ -45,10 +45,11 @@
     var dark = localStorage.getItem('darkMode') === 'true';
     var lang = localStorage.getItem('language') || 'sk';
     var hasSeenTutorial = localStorage.getItem('hasSeenTutorial') === 'true';
+    var gridMode = localStorage.getItem('gridMode') === 'true';
 
     var app = Elm.Main.init({
       node: document.getElementById('elm'),
-      flags: { urlData: hashData, darkMode: dark, language: lang, windowWidth: window.innerWidth, windowHeight: window.innerHeight, hasSeenTutorial: hasSeenTutorial }
+      flags: { urlData: hashData, darkMode: dark, language: lang, windowWidth: window.innerWidth, windowHeight: window.innerHeight, hasSeenTutorial: hasSeenTutorial, gridMode: gridMode }
     });
 
     app.ports.saveTutorialSeen.subscribe(function() {
@@ -61,6 +62,10 @@
 
     app.ports.saveLanguage.subscribe(function(v) {
       localStorage.setItem('language', v);
+    });
+
+    app.ports.saveGridMode.subscribe(function(v) {
+      localStorage.setItem('gridMode', String(v));
     });
 
     app.ports.copyToClipboard.subscribe(function(text) {

@@ -28,6 +28,9 @@ type alias Config msg =
     , isConvertEnabled : Bool
     , convertDisabledReason : Maybe String
     , onConvertDisabledClick : msg
+    , isAddDeadStateEnabled : Bool
+    , onAddDeadState : msg
+    , addDeadStateInfoTooltip : String
     , onShowGuide : msg
     , theme : Theme.Theme
     , settingsOpen : Bool
@@ -36,7 +39,9 @@ type alias Config msg =
     , darkMode : Bool
     , language : Language
     , onToggleLanguage : msg
-    , tutorialHighlightSimulate : Bool
+    , gridMode : Bool
+    , onToggleGridMode : msg
+    , tutorialHighlightGroup : Maybe String
     }
 
 
@@ -69,21 +74,21 @@ view config =
         , style "align-items" "center"
         , style "transition" "background-color 0.25s"
         ]
-        [ btnGroup
+        [ highlightWrap (config.tutorialHighlightGroup == Just "undoRedo") (btnGroup
             [ iconTextBtn config.theme resetIcon t.reset config.onResetTool False t.reset
             , iconBtn config.theme undoIcon config.onUndo (not config.canUndo) "Ctrl+Z"
             , iconBtn config.theme redoIcon config.onRedo (not config.canRedo) "Ctrl+Y"
-            ]
-        , btnGroup
+            ])
+        , highlightWrap (config.tutorialHighlightGroup == Just "tools") (btnGroup
             [ toolBtn config.theme t.build config.onBuildTool (config.currentTool == "BuildTool") "Shift+B" config.theme.btnBuildActive
             , toolBtn config.theme t.delete config.onDeleteTool (config.currentTool == "DeleteTool") "Shift+D" config.theme.btnDelete
-            ]
-        , btnGroup
+            ])
+        , highlightWrap (config.tutorialHighlightGroup == Just "files") (btnGroup
             [ iconTextBtn config.theme exportIcon t.export config.onExport False t.exportTooltip
             , iconTextBtn config.theme saveIcon t.save config.onSave False t.saveTooltip
             , iconTextBtn config.theme loadIcon t.load config.onLoad False t.loadTooltip
             , iconTextBtn config.theme shareIcon t.shareViaUrl config.onShare False t.shareViaUrlTooltip
-            ]
+            ])
         , div
             [ style "width" "1px"
             , style "height" "24px"
@@ -91,7 +96,10 @@ view config =
             , style "margin" "0 4px"
             ]
             []
-        , actionButton config.theme "NFA->DFA" config.onSwitchToConversion config.isConvertEnabled config.convertDisabledReason (Just config.onConvertDisabledClick) config.theme.btnConvert False
+        , highlightWrap (config.tutorialHighlightGroup == Just "convert") (div [ style "display" "flex", style "gap" "8px", style "align-items" "center" ]
+            [ actionButton config.theme "NFA->DFA" config.onSwitchToConversion config.isConvertEnabled config.convertDisabledReason (Just config.onConvertDisabledClick) config.theme.btnConvert False
+            , deadStateButtonGroup config t
+            ])
         , div [ style "flex" "1" ] []
         , div
             [ style "width" "300px"
@@ -100,9 +108,46 @@ view config =
             , style "gap" "8px"
             ]
             [ guideButton config.theme t.guide config.onShowGuide
-            , actionButton config.theme t.simulate config.onSwitchToSimulator config.isSimulateEnabled config.simulateDisabledReason (Just config.onSimulateDisabledClick) config.theme.btnPrimary config.tutorialHighlightSimulate
+            , actionButton config.theme t.simulate config.onSwitchToSimulator config.isSimulateEnabled config.simulateDisabledReason (Just config.onSimulateDisabledClick) config.theme.btnPrimary (config.tutorialHighlightGroup == Just "simulate")
             , settingsGearBtn config
             ]
+        ]
+
+
+deadStateButtonGroup : Config msg -> Translations.Translations -> Html msg
+deadStateButtonGroup config t =
+    button
+        ([ HA.class "elm-btn"
+         , style "padding" "11px 18px"
+         , style "background-color" (if config.isAddDeadStateEnabled then config.theme.btnConvert else config.theme.btnDisabledBg)
+         , style "color" (if config.isAddDeadStateEnabled then "white" else config.theme.btnDisabledText)
+         , style "border" "none"
+         , style "border-radius" "5px"
+         , style "cursor" (if config.isAddDeadStateEnabled then "pointer" else "not-allowed")
+         , style "font-size" "14px"
+         , style "font-weight" "bold"
+         , style "display" "flex"
+         , style "align-items" "center"
+         , style "gap" "6px"
+         , HA.disabled (not config.isAddDeadStateEnabled)
+         , HA.title (if config.isAddDeadStateEnabled then config.addDeadStateInfoTooltip else "")
+         ]
+         ++ (if config.isAddDeadStateEnabled then [ Html.Events.onClick config.onAddDeadState ] else [])
+        )
+        [ text t.editorAddDeadState
+        , div
+            [ style "width" "16px"
+            , style "height" "16px"
+            , style "border-radius" "50%"
+            , style "background-color" "rgba(255,255,255,0.25)"
+            , style "font-size" "11px"
+            , style "font-weight" "bold"
+            , style "display" "flex"
+            , style "align-items" "center"
+            , style "justify-content" "center"
+            , style "flex-shrink" "0"
+            ]
+            [ text "?" ]
         ]
 
 
@@ -175,6 +220,22 @@ settingsGearBtn config =
                         [ text t.language ]
                     , languageToggleBtn t config.onToggleLanguage
                     ]
+                , div
+                    [ style "height" "1px"
+                    , style "background-color" config.theme.settingsBorder
+                    , style "margin" "8px 0"
+                    ]
+                    []
+                , div
+                    [ style "display" "flex"
+                    , style "align-items" "center"
+                    , style "justify-content" "space-between"
+                    , style "gap" "12px"
+                    ]
+                    [ div [ style "color" "#cfd8dc", style "font-size" "13px" ]
+                        [ text t.gridMode ]
+                    , pillToggle config.onToggleGridMode config.gridMode
+                    ]
                 ]
           else
             text ""
@@ -221,6 +282,20 @@ languageToggleBtn t onToggle =
         , style "cursor" "pointer"
         ]
         [ text t.languageName ]
+
+
+highlightWrap : Bool -> Html msg -> Html msg
+highlightWrap isHighlighted inner =
+    if isHighlighted then
+        div
+            [ style "position" "relative"
+            , style "z-index" "501"
+            , style "box-shadow" "0 0 0 3px #ffeb3b, 0 0 18px rgba(255,235,59,0.7)"
+            , style "border-radius" "6px"
+            ]
+            [ inner ]
+    else
+        inner
 
 
 btnGroup : List (Html msg) -> Html msg
