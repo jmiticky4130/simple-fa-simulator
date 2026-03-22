@@ -122,7 +122,14 @@ offsetY =
 
 wheelDeltaY : Decode.Decoder Float
 wheelDeltaY =
-    Decode.field "deltaY" Decode.float
+    Decode.field "ctrlKey" Decode.bool
+        |> Decode.andThen
+            (\ctrlKey ->
+                if ctrlKey then
+                    Decode.fail "pinch zoom"
+                else
+                    Decode.field "deltaY" Decode.float
+            )
 
 
 -- TRANSITION GROUPING

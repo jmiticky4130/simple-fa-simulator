@@ -92,6 +92,7 @@ type Msg
     | CanvasDoubleClick Float Float
     | StateClick Int
     | StateDoubleClick Int
+    | StateRightClick Int
     | TransitionClick Int Int String
     | TransitionDoubleClick Int Int String
     | StartDrag Int Float Float
@@ -119,6 +120,7 @@ type Msg
     | CanvasMouseDown Float Float
     | ZoomIn
     | ZoomOut
+    | RecenterCanvas Float Float
     | Wheel Float Float Float
     | ExportJson
     | ImportJsonRequested
@@ -450,6 +452,29 @@ update msg model =
             case model.currentTool of
                 BuildTool ->
                     let
+                        fromState = getStateById stateId currentAutomaton.states
+                        ( inputX, inputY ) =
+                            case fromState of
+                                Just fs -> ( fs.x, fs.y - 80 )
+                                Nothing -> ( 400, 300 )
+                    in
+                    ( { model
+                        | editingTransition = Just { from = stateId, to = stateId, x = inputX, y = inputY }
+                        , editingTransitionOldSymbol = Nothing
+                        , transitionInput = ""
+                        , transitionFrom = Nothing
+                        , consoleMessages = { text = t.editorEnterTransitionSymbols, msgType = Console.Info } :: model.consoleMessages
+                      }
+                    , Task.attempt (\_ -> NoOp) (Browser.Dom.focus "transition-input")
+                    )
+
+                DeleteTool ->
+                    ( model, Cmd.none )
+
+        StateRightClick stateId ->
+            case model.currentTool of
+                BuildTool ->
+                    let
                         maybeState = getStateById stateId currentAutomaton.states
                     in
                     case maybeState of
@@ -774,8 +799,7 @@ update msg model =
         UpdateTransitionInput inputVal ->
             let
                 allSegmentsValid =
-                    String.split "," inputVal
-                        |> List.map String.trim
+                    String.split " " inputVal
                         |> List.filter (not << String.isEmpty)
                         |> List.all (\seg -> String.length seg <= 1)
             in
@@ -816,20 +840,17 @@ update msg model =
                                         , editingTransitionOldSymbol = Nothing
                                         , transitionInput = ""
                                         , transitionFrom = Nothing
+                                        , selectedState = Nothing
                                         , consoleMessages = { text = t.editorTransitionAddedPrefix ++ "ε", msgType = Console.Info } :: model.consoleMessages
                                       }
                                     , Cmd.none
                                     )
                             else
-                                -- Parse comma-separated symbols
+                                -- Parse space-separated symbols
                                 let
                                     rawSymbols =
-                                        String.split "," newInput
-                                            |> List.map String.trim
+                                        String.split " " newInput
                                             |> List.filter (not << String.isEmpty)
-
-                                    symbolsWithSpaces =
-                                        List.filter symbolHasSpaces rawSymbols
 
                                     symbols =
                                         Set.fromList rawSymbols
@@ -842,11 +863,7 @@ update msg model =
                                     uniqueSymbols =
                                         List.filter (\sym -> not (transitionExists from to sym filteredTransitions)) symbols
                                 in
-                                if not (List.isEmpty symbolsWithSpaces) then
-                                    ( { model | consoleMessages = { text = t.editorSymbolSpaces ++ ": " ++ String.join ", " symbolsWithSpaces, msgType = Console.Error } :: model.consoleMessages }
-                                    , Cmd.none
-                                    )
-                                else if from == to && List.member "ε" symbols then
+                                if from == to && List.member "ε" symbols then
                                     ( { model | consoleMessages = { text = t.editorLoopCannotBeEpsilon, msgType = Console.Error } :: model.consoleMessages }
                                     , Cmd.none
                                     )
@@ -878,6 +895,7 @@ update msg model =
                                         , editingTransitionOldSymbol = Nothing
                                         , transitionInput = ""
                                         , transitionFrom = Nothing
+                                        , selectedState = Nothing
                                         , consoleMessages = { text = message, msgType = Console.Info } :: model.consoleMessages
                                       }
                                     , Cmd.none
@@ -907,7 +925,8 @@ update msg model =
                                         , editingTransition = Nothing
                                         , transitionInput = ""
                                         , transitionFrom = Nothing
-                                                                                , consoleMessages = { text = t.editorEpsilonTransitionAdded, msgType = Console.Info } :: model.consoleMessages
+                                        , selectedState = Nothing
+                                        , consoleMessages = { text = t.editorEpsilonTransitionAdded, msgType = Console.Info } :: model.consoleMessages
                                       }
                                     , Cmd.none
                                     )
@@ -915,12 +934,8 @@ update msg model =
                             else
                                 let
                                     rawSymbols =
-                                        String.split "," model.transitionInput
-                                            |> List.map String.trim
+                                        String.split " " model.transitionInput
                                             |> List.filter (not << String.isEmpty)
-
-                                    symbolsWithSpaces =
-                                        List.filter symbolHasSpaces rawSymbols
 
                                     symbols =
                                         Set.fromList rawSymbols
@@ -933,11 +948,7 @@ update msg model =
                                     uniqueSymbols =
                                         List.filter (\sym -> not (transitionExists from to sym currentAutomaton.transitions)) symbols
                                 in
-                                if not (List.isEmpty symbolsWithSpaces) then
-                                    ( { model | consoleMessages = { text = t.editorSymbolSpaces ++ ": " ++ String.join ", " symbolsWithSpaces, msgType = Console.Error } :: model.consoleMessages }
-                                    , Cmd.none
-                                    )
-                                else if from == to && List.member "ε" symbols then
+                                if from == to && List.member "ε" symbols then
                                     ( { model | consoleMessages = { text = t.editorLoopCannotBeEpsilon, msgType = Console.Error } :: model.consoleMessages }
                                     , Cmd.none
                                     )
@@ -978,6 +989,7 @@ update msg model =
                                         , editingTransition = Nothing
                                         , transitionInput = ""
                                         , transitionFrom = Nothing
+                                        , selectedState = Nothing
                                         , consoleMessages = { text = message, msgType = Console.Info } :: model.consoleMessages
                                       }
                                     , Cmd.none
@@ -1013,6 +1025,28 @@ update msg model =
         ZoomOut ->
             ( { model | zoom = max 0.2 (model.zoom / 1.2) }, Cmd.none )
 
+        RecenterCanvas cw ch ->
+            let
+                targetState =
+                    List.filter .isStart model.automaton.present.states
+                        |> List.head
+                        |> (\ms -> case ms of
+                                Just s -> Just s
+                                Nothing -> List.reverse model.automaton.present.states |> List.head
+                           )
+            in
+            case targetState of
+                Just s ->
+                    ( { model
+                        | panX = cw / 2 - s.x * model.zoom
+                        , panY = ch / 2 - s.y * model.zoom
+                      }
+                    , Cmd.none
+                    )
+
+                Nothing ->
+                    ( model, Cmd.none )
+
         Wheel deltaY mouseX mouseY ->
             let
                 zoomFactor = if deltaY > 0 then 0.9 else 1.1
@@ -1036,11 +1070,6 @@ update msg model =
             ( { model | consoleMessages = { text = text, msgType = Console.Error } :: model.consoleMessages }
             , Cmd.none
             )
-
-
-symbolHasSpaces : String -> Bool
-symbolHasSpaces symbol =
-    String.contains " " symbol
 
 
 handleStateClick : Int -> Model -> ( Model, Cmd Msg )
@@ -1127,13 +1156,15 @@ toolToString tool =
             "DeleteTool"
 
 
-view : Bool -> Bool -> Bool -> Language -> Model -> Html Msg
-view consoleOpen darkMode settingsOpen language model =
+view : Bool -> Bool -> Bool -> Language -> Int -> Int -> Bool -> Model -> Html Msg
+view consoleOpen darkMode settingsOpen language windowWidth windowHeight tutorialHighlightSimulate model =
     let
         t =
             Translations.getTranslations language
 
         theme = Theme.getTheme darkMode
+        canvasW = toFloat windowWidth - 302
+        canvasH = toFloat windowHeight - 80
         { states, transitions } = model.automaton.present
         hasStart = List.any .isStart states
         hasEnd = List.any .isEnd states
@@ -1198,6 +1229,7 @@ view consoleOpen darkMode settingsOpen language model =
                 , darkMode = darkMode
                 , language = language
                 , onToggleLanguage = ToggleLanguage
+                , tutorialHighlightSimulate = tutorialHighlightSimulate
                 }
             ]
         ,
@@ -1208,11 +1240,31 @@ view consoleOpen darkMode settingsOpen language model =
             , style "overflow" "hidden"
             ]
             [
+              let
+                targetState =
+                    List.filter .isStart states
+                        |> List.head
+                        |> (\ms -> case ms of
+                                Just s -> Just s
+                                Nothing -> List.reverse states |> List.head
+                           )
+                targetVisible =
+                    case targetState of
+                        Just s ->
+                            let
+                                sx = s.x * model.zoom + model.panX
+                                sy = s.y * model.zoom + model.panY
+                            in
+                            sx >= -35 && sx <= canvasW + 35 && sy >= -35 && sy <= canvasH + 35
+                        Nothing ->
+                            True
+              in
               div
                 [ style "flex" "1"
                 , style "overflow" "hidden"
                 , style "background-color" theme.canvasBg
                 , style "user-select" "none"
+                , style "position" "relative"
                 ]
                 [ Canvas.view
                     { states = states
@@ -1227,6 +1279,7 @@ view consoleOpen darkMode settingsOpen language model =
                     , onCanvasDoubleClick = CanvasDoubleClick
                     , onStateClick = StateClick
                     , onStateDoubleClick = StateDoubleClick
+                    , onStateRightClick = StateRightClick
                     , onTransitionClick = TransitionClick
                     , onTransitionDoubleClick = TransitionDoubleClick
                     , onStartDrag = StartDrag
@@ -1243,8 +1296,29 @@ view consoleOpen darkMode settingsOpen language model =
                     , height = 600
                     , isSimulateMode = False
                     , highlightedStateIds = []
+                    , editingStateId = model.editingStateId
                     , theme = theme
                     }
+                , button
+                    ([ style "position" "absolute"
+                    , style "top" "10px"
+                    , style "right" "10px"
+                    , style "z-index" "10"
+                    , style "padding" "8px 16px"
+                    , style "font-size" "14px"
+                    , style "font-weight" "bold"
+                    , style "border" "none"
+                    , style "border-radius" "4px"
+                    , style "cursor" (if targetVisible then "default" else "pointer")
+                    , style "display" "flex"
+                    , style "align-items" "center"
+                    , style "justify-content" "center"
+                    , style "opacity" (if targetVisible then "0.4" else "1")
+                    , style "background-color" theme.btnSecondaryBg
+                    , style "color" "white"
+                    , style "white-space" "nowrap"
+                    ] ++ (if targetVisible then [ Html.Attributes.disabled True ] else [ onClick (RecenterCanvas canvasW canvasH) ]))
+                    [ text t.editorRecenter ]
                 ]
             , div
                 [ style "width" "300px"
@@ -1275,9 +1349,9 @@ view consoleOpen darkMode settingsOpen language model =
                         , language = language
             }
         ,
-                    viewInlineTransitionInput theme t model
+                    viewInlineTransitionInput theme t canvasW model
         ,
-                    viewStateModal theme t model
+                    viewStateModal theme t canvasW model
         ,
                     viewLoadModal theme t model
         ,
@@ -1285,18 +1359,33 @@ view consoleOpen darkMode settingsOpen language model =
         ]
 
 
-viewInlineTransitionInput : Theme.Theme -> Translations.Translations -> Model -> Html Msg
-viewInlineTransitionInput theme t model =
+viewInlineTransitionInput : Theme.Theme -> Translations.Translations -> Float -> Model -> Html Msg
+viewInlineTransitionInput theme t canvasW model =
     case model.editingTransition of
         Just { x, y } ->
             let
                 screenX = x * model.zoom + model.panX
                 screenY = y * model.zoom + model.panY
+                popupW = 195
+                popupH = 70
+                stateR = 35 * model.zoom
+                popupLeft =
+                    if screenX - popupW / 2 < 0 then
+                        screenX + stateR
+                    else if screenX + popupW / 2 > canvasW then
+                        screenX - stateR - popupW
+                    else
+                        screenX - popupW / 2
+                popupTop =
+                    if screenY - stateR - popupH < 0 then
+                        screenY + stateR + 5
+                    else
+                        screenY - stateR - popupH - 5
             in
             div
                 [ style "position" "absolute"
-                , style "left" (String.fromFloat (screenX - 75) ++ "px")
-                , style "top" (String.fromFloat (screenY - 60) ++ "px")
+                , style "left" (String.fromFloat popupLeft ++ "px")
+                , style "top" (String.fromFloat popupTop ++ "px")
                 , style "z-index" "1000"
                 , style "background-color" theme.inputBg
                 , style "border" ("2px solid " ++ theme.overlayBorder)
@@ -1308,37 +1397,56 @@ viewInlineTransitionInput theme t model =
                     [ style "font-size" "11px"
                     , style "color" theme.overlayHint
                     , style "margin-bottom" "4px"
-                    , style "white-space" "nowrap"
+                    , style "white-space" "pre-line"
                     ]
                     [ text (case model.editingTransitionOldSymbol of
                         Just _ -> t.editorEditSymbolLabel
                         Nothing -> t.editorSymbolsHint)
                     ]
-                , input
-                    [ type_ "text"
-                    , Html.Attributes.id "transition-input"
-                    , placeholder "a,b,eps"
-                    , value model.transitionInput
-                    , onInput UpdateTransitionInput
-                    , autofocus True
-                    , onEnterKey ConfirmTransitionSymbol
-                    , style "width" "130px"
-                    , style "padding" "4px 6px"
+                , div
+                    [ style "display" "flex"
                     , style "border" ("1px solid " ++ theme.inputBorder)
                     , style "border-radius" "3px"
-                    , style "font-size" "13px"
-                    , style "background-color" theme.inputBg
-                    , style "color" theme.inputText
+                    , style "overflow" "hidden"
                     ]
-                    []
+                    [ input
+                        [ type_ "text"
+                        , Html.Attributes.id "transition-input"
+                        , placeholder "a b \u{03B5}"
+                        , value model.transitionInput
+                        , onInput UpdateTransitionInput
+                        , autofocus True
+                        , onEnterKey ConfirmTransitionSymbol
+                        , style "flex" "1"
+                        , style "min-width" "0"
+                        , style "padding" "5px 7px"
+                        , style "border" "none"
+                        , style "outline" "none"
+                        , style "font-size" "13px"
+                        , style "background-color" theme.inputBg
+                        , style "color" theme.inputText
+                        ]
+                        []
+                    , button
+                        [ onClick ConfirmTransitionSymbol
+                        , style "padding" "5px 10px"
+                        , style "background-color" theme.btnPrimary
+                        , style "color" "white"
+                        , style "border" "none"
+                        , style "font-size" "13px"
+                        , style "font-weight" "bold"
+                        , style "cursor" "pointer"
+                        ]
+                        [ text "OK" ]
+                    ]
                 ]
 
         Nothing ->
             div [] []
 
 
-viewStateModal : Theme.Theme -> Translations.Translations -> Model -> Html Msg
-viewStateModal theme t model =
+viewStateModal : Theme.Theme -> Translations.Translations -> Float -> Model -> Html Msg
+viewStateModal theme t canvasW model =
     case model.editingStateId of
         Just stateId ->
             let
@@ -1349,11 +1457,26 @@ viewStateModal theme t model =
                     let
                         screenX = state.x * model.zoom + model.panX
                         screenY = state.y * model.zoom + model.panY
+                        modalW = 240
+                        modalH = 200
+                        stateR = 35 * model.zoom
+                        modalLeft =
+                            if screenX - modalW / 2 < 0 then
+                                screenX + stateR
+                            else if screenX + modalW / 2 > canvasW then
+                                screenX - stateR - modalW
+                            else
+                                screenX - modalW / 2
+                        modalTop =
+                            if screenY - stateR - modalH < 0 then
+                                screenY + stateR + 5
+                            else
+                                screenY - stateR - modalH - 5
                     in
                     div
                         [ style "position" "absolute"
-                        , style "left" (String.fromFloat (screenX - 110) ++ "px")
-                        , style "top" (String.fromFloat (screenY - 160) ++ "px")
+                        , style "left" (String.fromFloat modalLeft ++ "px")
+                        , style "top" (String.fromFloat modalTop ++ "px")
                         , style "z-index" "1000"
                         , style "background-color" theme.inputBg
                         , style "border" ("2px solid " ++ theme.overlayBorder)

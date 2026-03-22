@@ -999,8 +999,8 @@ viewNfaTree theme treeNodes instances states selectedId mergedEdges zoom =
         }
 
 
-viewReadingHead : Theme.Theme -> String -> String -> Html Msg
-viewReadingHead theme fullInput remaining =
+viewReadingHead : Theme.Theme -> List String -> String -> String -> Html Msg
+viewReadingHead theme alphabet fullInput remaining =
     let
         consumedCount =
             String.length fullInput - String.length remaining
@@ -1015,6 +1015,9 @@ viewReadingHead theme fullInput remaining =
 
                 isCurrent =
                     idx == consumedCount
+
+                isUnknown =
+                    not (List.member (String.fromChar c) alphabet)
             in
             div
                 [ style "min-width" "26px"
@@ -1026,21 +1029,33 @@ viewReadingHead theme fullInput remaining =
                 , style "font-weight" "bold"
                 , style "border-radius" "4px"
                 , style "background-color"
-                    (if isCurrent then
+                    (if isCurrent && isUnknown then
+                        "#f9a825"
+
+                     else if isCurrent then
                         "#1e88e5"
 
                      else if isConsumed then
                         theme.readingHeadConsumedBg
 
+                     else if isUnknown then
+                        "#f9a825"
+
                      else
                         theme.inputBg
                     )
                 , style "color"
-                    (if isCurrent then
+                    (if isCurrent && isUnknown then
+                        "#000"
+
+                     else if isCurrent then
                         "white"
 
                      else if isConsumed then
                         theme.readingHeadConsumedText
+
+                     else if isUnknown then
+                        "#000"
 
                      else
                         theme.inputText
@@ -1048,6 +1063,9 @@ viewReadingHead theme fullInput remaining =
                 , style "border"
                     (if isCurrent then
                         "2px solid #1565c0"
+
+                     else if isUnknown then
+                        "1px solid #f57f17"
 
                      else
                         "1px solid " ++ theme.inputBorder
@@ -1106,8 +1124,8 @@ viewToggleTab theme label isActive msg =
         [ Html.text label ]
 
 
-view : Bool -> Bool -> Bool -> Language -> Model -> Html Msg
-view consoleOpen darkMode settingsOpen language model =
+view : Bool -> Bool -> Bool -> Language -> Bool -> Bool -> Model -> Html Msg
+view consoleOpen darkMode settingsOpen language tutorialInputHighlight tutorialButtonsHighlight model =
     let
         t =
             Translations.getTranslations language
@@ -1218,6 +1236,7 @@ view consoleOpen darkMode settingsOpen language model =
             , darkMode = darkMode
             , language = language
             , onToggleLanguage = ToggleLanguage
+            , tutorialHighlightButtons = tutorialButtonsHighlight
             }
         , div
             [ style "display" "flex"
@@ -1306,6 +1325,7 @@ view consoleOpen darkMode settingsOpen language model =
                                 , height = 600
                                 , isSimulateMode = True
                                 , highlightedStateIds = efficientHighlights
+                                , editingStateId = Nothing
                                 , theme = theme
                                 }
                             ]
@@ -1353,7 +1373,17 @@ view consoleOpen darkMode settingsOpen language model =
                 , style "background-color" theme.rightPanelBg
                 , style "overflow" "hidden"
                 ]
-                [ div [ style "padding" "10px 15px 6px 15px", style "color" theme.textPrimary ]
+                [ div
+                    ([ style "padding" "10px 15px 6px 15px", style "color" theme.textPrimary ]
+                    ++ (if tutorialInputHighlight then
+                            [ style "position" "relative"
+                            , style "z-index" "501"
+                            , style "box-shadow" "0 0 0 3px #ffeb3b, 0 0 16px rgba(255,235,59,0.7)"
+                            ]
+                        else
+                            []
+                       )
+                    )
                     [ text (t.simInputWordLabel ++ ":")
                     , input
                         [ type_ "text"
@@ -1362,15 +1392,46 @@ view consoleOpen darkMode settingsOpen language model =
                         , style "width" "100%"
                         , style "padding" "8px"
                         , style "margin-top" "5px"
-                        , style "border" ("1px solid " ++ theme.inputBorder)
+                        , style "border" (if String.isEmpty model.inputString then "2px solid #e53935" else "1px solid " ++ theme.inputBorder)
                         , style "border-radius" "4px"
                         , style "box-sizing" "border-box"
                         , style "background-color" theme.inputBg
                         , style "color" theme.inputText
+                        , style "outline" (if String.isEmpty model.inputString then "none" else "")
                         ]
                         []
+                    , if String.isEmpty model.inputString then
+                        div
+                            [ style "color" "#e53935"
+                            , style "font-size" "12px"
+                            , style "margin-top" "4px"
+                            ]
+                            [ text t.simInputEmptyError ]
+                      else
+                        let
+                            alphabet =
+                                model.automaton.transitions
+                                    |> List.map .symbol
+                                    |> List.filter (\s -> s /= "ε")
+                            hasUnknownSymbol =
+                                model.inputString
+                                    |> String.toList
+                                    |> List.any (\c -> not (List.member (String.fromChar c) alphabet))
+                        in
+                        if hasUnknownSymbol then
+                            div
+                                [ style "color" "#f9a825"
+                                , style "font-size" "12px"
+                                , style "margin-top" "4px"
+                                ]
+                                [ text t.simInputUnknownSymbols ]
+                        else
+                            text ""
                     ]
-                , viewReadingHead theme model.inputString readingHeadRemaining
+                , viewReadingHead theme
+                    (model.automaton.transitions |> List.map .symbol |> List.filter (\s -> s /= "ε"))
+                    model.inputString
+                    readingHeadRemaining
                 , case model.mode of
                     DfaMode ->
                         SimulationStatus.view

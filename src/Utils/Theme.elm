@@ -73,6 +73,9 @@ type alias Theme =
     , stateBorder : String
     , stateText : String
     , stateTransitionHighlight : String
+    , tutorialVeilBg : String
+    , tutorialTooltipBg : String
+    , tutorialTooltipText : String
     }
 
 
@@ -149,6 +152,9 @@ lightTheme =
     , stateBorder = "#455a64"
     , stateText = "#000000"
     , stateTransitionHighlight = "#fff59d"
+    , tutorialVeilBg = "rgba(0,0,0,0.45)"
+    , tutorialTooltipBg = "#1a237e"
+    , tutorialTooltipText = "#ffffff"
     }
 
 
@@ -225,6 +231,9 @@ darkTheme =
     , stateBorder = "#cfd8dc"
     , stateText = "#ecf0f1"
     , stateTransitionHighlight = "#7a6000"
+    , tutorialVeilBg = "rgba(0,0,0,0.55)"
+    , tutorialTooltipBg = "#263238"
+    , tutorialTooltipText = "#ffffff"
     }
 
 

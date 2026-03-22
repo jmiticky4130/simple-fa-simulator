@@ -32,6 +32,8 @@ port saveDarkMode : Bool -> Cmd msg
 
 port saveLanguage : String -> Cmd msg
 
+port saveTutorialSeen : () -> Cmd msg
+
 port copyToClipboard : String -> Cmd msg
 
 port scrollToBottom : String -> Cmd msg
@@ -41,6 +43,18 @@ type Page
     = EditorPage
     | SimulatorPage
     | ConversionPage
+
+
+type TutorialStep
+    = TutWelcome
+    | TutCreateState1
+    | TutCreateState2
+    | TutSetStart
+    | TutSetEnd
+    | TutCreateTransition
+    | TutSimulateButton
+    | TutEnterInput
+    | TutRunSimulation
 
 
 type GuideTab
@@ -62,6 +76,9 @@ type alias Model =
     , darkMode : Bool
     , settingsOpen : Bool
     , language : Language
+    , windowWidth : Int
+    , windowHeight : Int
+    , tutorialStep : Maybe TutorialStep
     }
 
 
@@ -69,15 +86,21 @@ type alias Flags =
     { urlData : Maybe String
     , darkMode : Bool
     , language : String
+    , windowWidth : Int
+    , windowHeight : Int
+    , hasSeenTutorial : Bool
     }
 
 
 flagsDecoder : Decode.Decoder Flags
 flagsDecoder =
-    Decode.map3 Flags
+    Decode.map6 Flags
         (Decode.maybe (Decode.field "urlData" Decode.string))
         (Decode.field "darkMode" Decode.bool)
         (Decode.field "language" Decode.string)
+        (Decode.field "windowWidth" Decode.int)
+        (Decode.field "windowHeight" Decode.int)
+        (Decode.field "hasSeenTutorial" Decode.bool)
 
 
 init : Decode.Value -> ( Model, Cmd Msg )
@@ -86,7 +109,7 @@ init flagsValue =
         flags =
             case Decode.decodeValue flagsDecoder flagsValue of
                 Ok f -> f
-                Err _ -> { urlData = Nothing, darkMode = False, language = "sk" }
+                Err _ -> { urlData = Nothing, darkMode = False, language = "sk", windowWidth = 1200, windowHeight = 800, hasSeenTutorial = False }
 
         lang =
             if flags.language == "en" then English else Slovak
@@ -114,6 +137,9 @@ init flagsValue =
       , darkMode = flags.darkMode
       , settingsOpen = False
       , language = lang
+      , windowWidth = flags.windowWidth
+      , windowHeight = flags.windowHeight
+      , tutorialStep = if not flags.hasSeenTutorial then Just TutWelcome else Nothing
       }
     , Cmd.none
     )
@@ -161,6 +187,10 @@ type Msg
     | ToggleSettings
     | CloseSettings
     | ToggleLanguage
+    | WindowResize Int Int
+    | StartTutorial
+    | TutorialSkip
+    | TutorialWelcomeContinue
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
@@ -189,10 +219,15 @@ update msg model =
                     let
                         currentAutomaton = model.editorModel.automaton.present
                         simulatorInit = Simulator.init model.language currentAutomaton
+                        newTutorialStep =
+                            case model.tutorialStep of
+                                Just TutSimulateButton -> Just TutEnterInput
+                                other -> other
                     in
                     ( { model
                         | currentPage = SimulatorPage
                         , simulatorModel = simulatorInit
+                        , tutorialStep = newTutorialStep
                       }
                     , Cmd.none
                     )
@@ -285,8 +320,10 @@ update msg model =
                     let
                         ( newEditorModel, editorCmd ) =
                             Editor.update editorMsg model.editorModel
+                        newTutorialStep =
+                            advanceTutorialEditor model.tutorialStep newEditorModel
                     in
-                    ( { model | editorModel = newEditorModel }
+                    ( { model | editorModel = newEditorModel, tutorialStep = newTutorialStep }
                     , Cmd.map EditorMsg editorCmd
                     )
 
@@ -341,12 +378,15 @@ update msg model =
                                         Simulator.AutoStep _ -> True
                                         _ -> False
                                    )
+
+                        ( newTutorialStep, tutorialCmd ) =
+                            advanceTutorialSimulator model.tutorialStep simulatorMsg newSimulatorModel
                     in
-                    ( { model | simulatorModel = newSimulatorModel }
-                    , if shouldScrollTree then
-                        scrollToBottom "nfa-tree-scroll"
-                      else
-                        Cmd.none
+                    ( { model | simulatorModel = newSimulatorModel, tutorialStep = newTutorialStep }
+                    , Cmd.batch
+                        [ if shouldScrollTree then scrollToBottom "nfa-tree-scroll" else Cmd.none
+                        , tutorialCmd
+                        ]
                     )
 
         ConversionMsg convMsg ->
@@ -463,41 +503,77 @@ update msg model =
             , saveLanguage langStr
             )
 
+        WindowResize w h ->
+            ( { model | windowWidth = w, windowHeight = h }, Cmd.none )
+
+        TutorialWelcomeContinue ->
+            ( { model | tutorialStep = Just TutCreateState1 }, Cmd.none )
+
+        TutorialSkip ->
+            ( { model | tutorialStep = Nothing }, saveTutorialSeen () )
+
+        StartTutorial ->
+            let
+                em = model.editorModel
+                emptyAutomaton = { states = [], transitions = [], nextStateId = 0 }
+            in
+            ( { model
+                | tutorialStep = Just TutCreateState1
+                , showGuide = False
+                , currentPage = EditorPage
+                , editorModel = { em | automaton = UndoList.fresh emptyAutomaton }
+              }
+            , Cmd.none
+            )
+
 
 subscriptions : Model -> Sub Msg
 subscriptions model =
+    let
+        resizeSub = Browser.Events.onResize WindowResize
+    in
     case model.currentPage of
         EditorPage ->
             Sub.batch
                 [ Browser.Events.onKeyDown (keyDecoder model)
                 , storedAutomataLoaded (\list -> EditorMsg (Editor.StorageAutomataLoaded list))
+                , resizeSub
                 ]
 
         SimulatorPage ->
-            Sub.map SimulatorMsg (Simulator.subscriptions model.simulatorModel)
+            Sub.batch
+                [ Sub.map SimulatorMsg (Simulator.subscriptions model.simulatorModel)
+                , resizeSub
+                ]
 
         ConversionPage ->
-            Sub.none
+            resizeSub
 
 
 keyDecoder : Model -> Decode.Decoder Msg
 keyDecoder model =
-    Decode.map3 (\key ctrl shift ->
-        if ctrl && (key == "z" || key == "Z") then EditorMsg Editor.Undo
-        else if ctrl && (key == "y" || key == "Y") then EditorMsg Editor.Redo
-        else if shift && (key == "b" || key == "B") then EditorMsg (Editor.ChangeTool Editor.BuildTool)
-        else if shift && (key == "d" || key == "D") then EditorMsg (Editor.ChangeTool Editor.DeleteTool)
-        else if key == "Escape" then
-            if model.showGuide then CloseGuide
+    Decode.map4 (\key ctrl shift tagName ->
+        let
+            isTyping = tagName == "INPUT" || tagName == "TEXTAREA"
+        in
+        if key == "Escape" then
+            if model.tutorialStep /= Nothing then TutorialSkip
+            else if model.showGuide then CloseGuide
             else if model.settingsOpen then CloseSettings
             else if model.editorModel.showSaveModal then EditorMsg Editor.DismissSaveModal
             else if model.editorModel.showLoadModal then EditorMsg Editor.DismissLoadModal
             else EditorMsg Editor.CancelAction
+        else if isTyping then EditorMsg Editor.NoOp
+        else if ctrl && (key == "z" || key == "Z") then EditorMsg Editor.Undo
+        else if ctrl && (key == "y" || key == "Y") then EditorMsg Editor.Redo
+        else if shift && (key == "b" || key == "B") then EditorMsg (Editor.ChangeTool Editor.BuildTool)
+        else if shift && (key == "d" || key == "D") then EditorMsg (Editor.ChangeTool Editor.DeleteTool)
         else EditorMsg Editor.NoOp
     )
     (Decode.field "key" Decode.string)
     (Decode.field "ctrlKey" Decode.bool)
     (Decode.field "shiftKey" Decode.bool)
+    (Decode.at [ "target", "tagName" ] Decode.string)
 
 
 view : Model -> Html Msg
@@ -522,7 +598,7 @@ view model =
             text ""
         , case model.currentPage of
             EditorPage ->
-                Html.map EditorMsg (Editor.view model.consoleOpen model.darkMode model.settingsOpen model.language model.editorModel)
+                Html.map EditorMsg (Editor.view model.consoleOpen model.darkMode model.settingsOpen model.language model.windowWidth model.windowHeight (model.tutorialStep == Just TutSimulateButton) model.editorModel)
 
             SimulatorPage ->
                 div
@@ -530,13 +606,359 @@ view model =
                     , style "flex-direction" "column"
                     , style "height" "100vh"
                     ]
-                    [ Html.map SimulatorMsg (Simulator.view model.consoleOpen model.darkMode model.settingsOpen model.language model.simulatorModel)
+                    [ Html.map SimulatorMsg (Simulator.view model.consoleOpen model.darkMode model.settingsOpen model.language (model.tutorialStep == Just TutEnterInput) (model.tutorialStep == Just TutRunSimulation) model.simulatorModel)
                     ]
 
             ConversionPage ->
                 Html.map ConversionMsg (Conversion.view model.consoleOpen model.darkMode model.settingsOpen model.language model.conversionModel)
 
         , if model.showGuide then viewGuideModal theme t model else text ""
+        , case model.tutorialStep of
+            Just TutWelcome ->
+                viewTutorialWelcome theme t model
+            Just step ->
+                div []
+                    [ viewTutorialVeils theme step model.currentPage
+                    , viewTutorialTooltip theme t step
+                    ]
+            Nothing ->
+                text ""
+        ]
+
+
+-- TUTORIAL HELPERS
+
+
+advanceTutorialEditor : Maybe TutorialStep -> Editor.Model -> Maybe TutorialStep
+advanceTutorialEditor step edModel =
+    let
+        states = edModel.automaton.present.states
+        transitions = edModel.automaton.present.transitions
+    in
+    case step of
+        Just TutCreateState1 ->
+            if List.length states >= 1 then Just TutCreateState2 else step
+        Just TutCreateState2 ->
+            if List.length states >= 2 then Just TutSetStart else step
+        Just TutSetStart ->
+            if List.any .isStart states then Just TutSetEnd else step
+        Just TutSetEnd ->
+            if List.any .isEnd states then Just TutCreateTransition else step
+        Just TutCreateTransition ->
+            if List.length transitions >= 1 then Just TutSimulateButton else step
+        _ ->
+            step
+
+
+advanceTutorialSimulator : Maybe TutorialStep -> Simulator.Msg -> Simulator.Model -> ( Maybe TutorialStep, Cmd Msg )
+advanceTutorialSimulator step simMsg simModel =
+    case step of
+        Just TutEnterInput ->
+            if simModel.inputString /= "" then
+                ( Just TutRunSimulation, Cmd.none )
+            else
+                ( step, Cmd.none )
+
+        Just TutRunSimulation ->
+            case simMsg of
+                Simulator.StepForward ->
+                    ( Nothing, saveTutorialSeen () )
+
+                Simulator.AutoStep _ ->
+                    ( Nothing, saveTutorialSeen () )
+
+                _ ->
+                    ( step, Cmd.none )
+
+        _ ->
+            ( step, Cmd.none )
+
+
+tutorialStepIndex : TutorialStep -> Int
+tutorialStepIndex step =
+    case step of
+        TutWelcome -> 0
+        TutCreateState1 -> 1
+        TutCreateState2 -> 2
+        TutSetStart -> 3
+        TutSetEnd -> 4
+        TutCreateTransition -> 5
+        TutSimulateButton -> 6
+        TutEnterInput -> 7
+        TutRunSimulation -> 8
+
+
+tutorialStepText : Translations.Translations -> TutorialStep -> String
+tutorialStepText t step =
+    case step of
+        TutWelcome -> ""
+        TutCreateState1 -> t.tutStep1
+        TutCreateState2 -> t.tutStep2
+        TutSetStart -> t.tutStep3
+        TutSetEnd -> t.tutStep4
+        TutCreateTransition -> t.tutStep5
+        TutSimulateButton -> t.tutStep6
+        TutEnterInput -> t.tutStep7
+        TutRunSimulation -> t.tutStep8
+
+
+-- TUTORIAL VIEWS
+
+
+viewTutorialWelcome : Theme.Theme -> Translations.Translations -> Model -> Html Msg
+viewTutorialWelcome theme t model =
+    div
+        [ style "position" "fixed"
+        , style "top" "0"
+        , style "left" "0"
+        , style "width" "100%"
+        , style "height" "100%"
+        , style "background-color" "rgba(0,0,0,0.7)"
+        , style "z-index" "3000"
+        , style "display" "flex"
+        , style "align-items" "center"
+        , style "justify-content" "center"
+        ]
+        [ div
+            [ style "background" theme.modalBg
+            , style "border-radius" "12px"
+            , style "width" "420px"
+            , style "max-width" "96vw"
+            , style "padding" "32px"
+            , style "box-shadow" "0 8px 32px rgba(0,0,0,0.5)"
+            , style "font-family" "sans-serif"
+            ]
+            [ div
+                [ style "font-size" "22px"
+                , style "font-weight" "bold"
+                , style "color" theme.textPrimary
+                , style "margin-bottom" "10px"
+                ]
+                [ text t.tutWelcomeTitle ]
+            , div
+                [ style "font-size" "14px"
+                , style "color" theme.textSecondary
+                , style "margin-bottom" "24px"
+                , style "line-height" "1.6"
+                ]
+                [ text t.tutWelcomeBody ]
+            , div
+                [ style "display" "flex"
+                , style "align-items" "center"
+                , style "justify-content" "space-between"
+                , style "margin-bottom" "12px"
+                ]
+                [ div [ style "color" theme.textSecondary, style "font-size" "14px" ]
+                    [ text t.darkMode ]
+                , tutorialPillToggle ToggleDarkMode model.darkMode
+                ]
+            , div
+                [ style "display" "flex"
+                , style "align-items" "center"
+                , style "justify-content" "space-between"
+                , style "margin-bottom" "28px"
+                ]
+                [ div [ style "color" theme.textSecondary, style "font-size" "14px" ]
+                    [ text t.language ]
+                , button
+                    [ onClick ToggleLanguage
+                    , style "background" "#37474f"
+                    , style "color" "white"
+                    , style "border" "none"
+                    , style "border-radius" "4px"
+                    , style "padding" "4px 12px"
+                    , style "font-size" "13px"
+                    , style "cursor" "pointer"
+                    ]
+                    [ text t.languageName ]
+                ]
+            , button
+                [ onClick TutorialWelcomeContinue
+                , style "width" "100%"
+                , style "padding" "13px"
+                , style "background-color" theme.btnPrimary
+                , style "color" "white"
+                , style "border" "none"
+                , style "border-radius" "6px"
+                , style "font-size" "15px"
+                , style "font-weight" "bold"
+                , style "cursor" "pointer"
+                , style "margin-bottom" "10px"
+                ]
+                [ text t.tutContinueToTutorial ]
+            , div
+                [ style "text-align" "center" ]
+                [ button
+                    [ onClick TutorialSkip
+                    , style "background" "none"
+                    , style "border" "none"
+                    , style "color" theme.textMuted
+                    , style "font-size" "13px"
+                    , style "cursor" "pointer"
+                    , style "text-decoration" "underline"
+                    ]
+                    [ text t.tutSkipTutorial ]
+                ]
+            ]
+        ]
+
+
+tutorialPillToggle : msg -> Bool -> Html msg
+tutorialPillToggle onToggle isOn =
+    div
+        [ onClick onToggle
+        , style "width" "40px"
+        , style "height" "20px"
+        , style "border-radius" "10px"
+        , style "background-color" (if isOn then "#0288d1" else "#546e7a")
+        , style "cursor" "pointer"
+        , style "position" "relative"
+        , style "flex-shrink" "0"
+        ]
+        [ div
+            [ style "position" "absolute"
+            , style "top" "2px"
+            , style "left" (if isOn then "22px" else "2px")
+            , style "width" "16px"
+            , style "height" "16px"
+            , style "border-radius" "50%"
+            , style "background-color" "white"
+            ]
+            []
+        ]
+
+
+viewTutorialVeils : Theme.Theme -> TutorialStep -> Page -> Html Msg
+viewTutorialVeils theme step currentPage =
+    let
+        veilLeft top left width height =
+            div
+                [ style "position" "fixed"
+                , style "top" top
+                , style "left" left
+                , style "width" width
+                , style "height" height
+                , style "background-color" theme.tutorialVeilBg
+                , style "z-index" "500"
+                ]
+                []
+
+        veilRight top right width height =
+            div
+                [ style "position" "fixed"
+                , style "top" top
+                , style "right" right
+                , style "width" width
+                , style "height" height
+                , style "background-color" theme.tutorialVeilBg
+                , style "z-index" "500"
+                ]
+                []
+
+        canvasPhaseVeils =
+            div []
+                [ veilLeft "0" "0" "100%" "80px"
+                , veilRight "80px" "0" "302px" "calc(100vh - 80px)"
+                ]
+    in
+    case currentPage of
+        EditorPage ->
+            case step of
+                TutCreateState1 -> canvasPhaseVeils
+                TutCreateState2 -> canvasPhaseVeils
+                TutSetStart -> canvasPhaseVeils
+                TutSetEnd -> canvasPhaseVeils
+                TutCreateTransition -> canvasPhaseVeils
+
+                TutSimulateButton ->
+                    div []
+                        [ veilLeft "80px" "0" "calc(100% - 302px)" "calc(100vh - 80px)"
+                        , veilRight "80px" "0" "302px" "calc(100vh - 80px)"
+                        ]
+
+                _ ->
+                    text ""
+
+        _ ->
+            text ""
+
+
+viewTutorialTooltip : Theme.Theme -> Translations.Translations -> TutorialStep -> Html Msg
+viewTutorialTooltip theme t step =
+    let
+        idx = tutorialStepIndex step
+        total = 8
+        instructionText = tutorialStepText t step
+        showSkipOnly = step == TutSimulateButton
+    in
+    div
+        [ style "position" "fixed"
+        , style "bottom" "200px"
+        , style "left" "calc((100vw - 302px) * 0.2)"
+        , style "width" "calc((100vw - 302px) * 0.6)"
+        , style "background-color" theme.tutorialTooltipBg
+        , style "color" theme.tutorialTooltipText
+        , style "z-index" "502"
+        , style "display" "flex"
+        , style "align-items" "center"
+        , style "padding" "16px 20px"
+        , style "box-sizing" "border-box"
+        , style "border-radius" "12px"
+        , style "box-shadow" "0 6px 32px rgba(0,0,0,0.6), 0 0 0 1px rgba(255,255,255,0.08)"
+        , style "border" "2px solid rgba(255,255,255,0.5)"
+        , style "gap" "16px"
+        , style "font-family" "sans-serif"
+        ]
+        [ div
+            [ style "background-color" "rgba(255,255,255,0.2)"
+            , style "border-radius" "20px"
+            , style "padding" "4px 12px"
+            , style "font-size" "12px"
+            , style "font-weight" "bold"
+            , style "white-space" "nowrap"
+            , style "flex-shrink" "0"
+            ]
+            [ text (String.fromInt idx ++ " / " ++ String.fromInt total) ]
+        , div
+            [ style "flex" "1"
+            , style "font-size" "14px"
+            , style "line-height" "1.5"
+            ]
+            [ text instructionText ]
+        , div
+            [ style "display" "flex"
+            , style "gap" "8px"
+            , style "flex-shrink" "0"
+            ]
+            [ button
+                [ onClick TutorialSkip
+                , style "background-color" "rgba(255,255,255,0.12)"
+                , style "color" theme.tutorialTooltipText
+                , style "border" "1px solid rgba(255,255,255,0.3)"
+                , style "border-radius" "6px"
+                , style "padding" "6px 14px"
+                , style "font-size" "13px"
+                , style "cursor" "pointer"
+                ]
+                [ text t.tutSkip ]
+            , if showSkipOnly then
+                text ""
+              else if step == TutRunSimulation then
+                button
+                    [ onClick TutorialSkip
+                    , style "background-color" theme.btnPrimary
+                    , style "color" "white"
+                    , style "border" "none"
+                    , style "border-radius" "6px"
+                    , style "padding" "6px 14px"
+                    , style "font-size" "13px"
+                    , style "font-weight" "bold"
+                    , style "cursor" "pointer"
+                    ]
+                    [ text t.tutFinish ]
+              else
+                text ""
+            ]
         ]
 
 
@@ -645,6 +1067,19 @@ viewGuideHeader theme t =
         ]
         [ div [ style "font-size" "17px", style "font-weight" "bold", style "flex" "1" ]
             [ text t.guideTitle ]
+        , button
+            [ onClick StartTutorial
+            , style "background-color" "#00796b"
+            , style "border" "none"
+            , style "color" "white"
+            , style "font-size" "13px"
+            , style "font-weight" "bold"
+            , style "cursor" "pointer"
+            , style "padding" "6px 12px"
+            , style "border-radius" "4px"
+            , style "margin-right" "8px"
+            ]
+            [ text t.tutRelaunch ]
         , button
             [ onClick CloseGuide
             , style "background" "none"

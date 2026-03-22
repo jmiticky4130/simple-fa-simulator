@@ -28,6 +28,7 @@ type alias Config msg =
     , darkMode : Bool
     , language : Language
     , onToggleLanguage : msg
+    , tutorialHighlightButtons : Bool
     }
 
 
@@ -56,7 +57,7 @@ view config =
         , style "align-items" "center"
         ]
         [ iconToolButton config.theme resetIcon t.reset config.onReset True False
-        , toolButton config.theme t.stepBack config.onStepBackward config.canStepBackward False
+        , toolButton config.theme t.stepBack config.onStepBackward config.canStepBackward False False
         , toolButton config.theme
             (case config.nextSymbol of
                 Nothing ->
@@ -68,7 +69,8 @@ view config =
             config.onStepForward
             config.canStepForward
             False
-        , autoRunButton config.theme t config.onToggleAutoRun config.autoRunning
+            config.tutorialHighlightButtons
+        , autoRunButton config.theme t config.onToggleAutoRun config.autoRunning config.tutorialHighlightButtons
         , div
             [ style "display" "flex"
             , style "align-items" "center"
@@ -76,12 +78,12 @@ view config =
             ]
             [ input
                 [ type_ "range"
-                , HA.min "100"
-                , HA.max "2000"
-                , step "100"
+                , HA.min "50"
+                , HA.max "4000"
+                , step "50"
                 , value (String.fromInt (round config.autoSpeed))
                 , onInput config.onSetAutoSpeed
-                , style "width" "90px"
+                , style "width" "130px"
                 , style "cursor" "pointer"
                 , style "accent-color" "#00bcd4"
                 ]
@@ -250,10 +252,10 @@ iconToolButton theme icon label onClickMsg isEnabled isActive =
         [ icon, text label ]
 
 
-autoRunButton : Theme.Theme -> Translations.Translations -> msg -> Bool -> Html msg
-autoRunButton theme t onToggle running =
+autoRunButton : Theme.Theme -> Translations.Translations -> msg -> Bool -> Bool -> Html msg
+autoRunButton theme t onToggle running isHighlighted =
     button
-        [ onClick onToggle
+        ([ onClick onToggle
         , style "padding" "10px 14px"
         , style "background-color" (if running then theme.btnAutoRunActive else theme.btnSecondaryBg)
         , style "color" "white"
@@ -264,13 +266,22 @@ autoRunButton theme t onToggle running =
         , style "font-weight" (if running then "bold" else "normal")
         , style "transition" "all 0.2s"
         ]
+        ++ (if isHighlighted then
+                [ style "position" "relative"
+                , style "z-index" "501"
+                , style "box-shadow" "0 0 0 3px #ffeb3b, 0 0 18px rgba(255,235,59,0.7)"
+                ]
+            else
+                []
+           )
+        )
         [ text (if running then t.pause else t.auto) ]
 
 
-toolButton : Theme.Theme -> String -> msg -> Bool -> Bool -> Html msg
-toolButton theme label onClickMsg isEnabled isActive =
+toolButton : Theme.Theme -> String -> msg -> Bool -> Bool -> Bool -> Html msg
+toolButton theme label onClickMsg isEnabled isActive isHighlighted =
     button
-        [ onClick onClickMsg
+        ([ onClick onClickMsg
         , disabled (not isEnabled)
         , style "padding" "10px 14px"
         , style "background-color" (if isActive then theme.btnAutoRunActive else if isEnabled then theme.btnSecondaryBg else theme.btnDisabledBg)
@@ -282,6 +293,15 @@ toolButton theme label onClickMsg isEnabled isActive =
         , style "font-weight" (if isActive then "bold" else "normal")
         , style "transition" "all 0.3s"
         ]
+        ++ (if isHighlighted then
+                [ style "position" "relative"
+                , style "z-index" "501"
+                , style "box-shadow" "0 0 0 3px #ffeb3b, 0 0 18px rgba(255,235,59,0.7)"
+                ]
+            else
+                []
+           )
+        )
         [ text label ]
 
 

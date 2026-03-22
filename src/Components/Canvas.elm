@@ -25,6 +25,7 @@ type alias Config msg =
     , onCanvasDoubleClick : Float -> Float -> msg
     , onStateClick : Int -> msg
     , onStateDoubleClick : Int -> msg
+    , onStateRightClick : Int -> msg
     , onTransitionClick : Int -> Int -> String -> msg
     , onTransitionDoubleClick : Int -> Int -> String -> msg
     , onStartDrag : Int -> Float -> Float -> msg
@@ -41,6 +42,7 @@ type alias Config msg =
     , height : Float
     , isSimulateMode : Bool
     , highlightedStateIds : List { stateId : Int, isAccepted : Bool }
+    , editingStateId : Maybe Int
     , theme : Theme.Theme
     }
 
@@ -131,7 +133,14 @@ offsetY =
 
 wheelDeltaY : Decode.Decoder Float
 wheelDeltaY =
-    Decode.field "deltaY" Decode.float
+    Decode.field "ctrlKey" Decode.bool
+        |> Decode.andThen
+            (\ctrlKey ->
+                if ctrlKey then
+                    Decode.fail "pinch zoom"
+                else
+                    Decode.field "deltaY" Decode.float
+            )
 
 
 svgState : Config msg -> State -> Svg msg
@@ -148,6 +157,9 @@ svgState config state =
 
         isActive =
             config.activeStateId == Just state.id
+
+        isEditing =
+            config.editingStateId == Just state.id
 
         highlightMatch =
             List.filter (\h -> h.stateId == state.id) config.highlightedStateIds
@@ -166,6 +178,8 @@ svgState config state =
                         "#43a047"
                     Just False ->
                         "#e53935"
+            else if isEditing then
+                "#ffe082"
             else
                 case highlightMatch of
                     Just h ->
@@ -185,6 +199,8 @@ svgState config state =
                         "#2e7d32"
                     Just False ->
                         "#b71c1c"
+            else if isEditing then
+                "#f9a825"
             else
                 case highlightMatch of
                     Just h ->
@@ -210,6 +226,13 @@ svgState config state =
                 { message = config.onStateDoubleClick state.id
                 , stopPropagation = True
                 , preventDefault = False
+                }
+            )
+        , SE.custom "contextmenu"
+            (Decode.succeed
+                { message = config.onStateRightClick state.id
+                , stopPropagation = True
+                , preventDefault = True
                 }
             )
         , SE.custom "mousedown"
@@ -253,7 +276,7 @@ svgState config state =
             , SA.y (String.fromFloat (state.y + 4))
             , SA.textAnchor "middle"
             , SA.fontSize "14"
-            , SA.fill config.theme.stateText
+            , SA.fill (if isEditing then "#1a1a1a" else config.theme.stateText)
             , SA.fontWeight "bold"
             , SA.style "user-select: none; pointer-events: none;"
             ]

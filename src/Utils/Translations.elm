@@ -142,7 +142,6 @@ type alias Translations =
     , editorStateUpdatedPrefix : String
     , editorReset : String
     , editorLoopCannotBeEpsilon : String
-    , editorSymbolSpaces : String
     , editorTransitionExistsPrefix : String
     , editorTransitionExistsSuffix : String
     , editorEpsilonTransitionExists : String
@@ -160,6 +159,7 @@ type alias Translations =
     , editorStartStateRequirement : String
     , editorEndStateRequirement : String
     , editorConvertRequirement : String
+    , editorRecenter : String
     , editorEditSymbolLabel : String
     , editorSymbolsHint : String
     , editorEditStateTitle : String
@@ -186,6 +186,8 @@ type alias Translations =
     , simAutomatonTab : String
     , simTreeTab : String
     , simInputWordLabel : String
+    , simInputEmptyError : String
+    , simInputUnknownSymbols : String
     , simMergeUnavailable : String
     , simMergeLabel : String
     , simMergeTooltip : String
@@ -229,6 +231,21 @@ type alias Translations =
     , example6Name : String
     , example6Desc : String
     , guideExamplesSection : String
+    , tutWelcomeTitle : String
+    , tutWelcomeBody : String
+    , tutContinueToTutorial : String
+    , tutSkipTutorial : String
+    , tutFinish : String
+    , tutSkip : String
+    , tutStep1 : String
+    , tutStep2 : String
+    , tutStep3 : String
+    , tutStep4 : String
+    , tutStep5 : String
+    , tutStep6 : String
+    , tutStep7 : String
+    , tutStep8 : String
+    , tutRelaunch : String
     }
 
 
@@ -308,7 +325,6 @@ skTranslations =
     , editorStateUpdatedPrefix = "Stav upravený: "
     , editorReset = "Automat bol resetovaný."
     , editorLoopCannotBeEpsilon = "Slučka nemôže byť ε-prechodom."
-    , editorSymbolSpaces = "Symbol nemôže obsahovať medzery."
     , editorTransitionExistsPrefix = "Prechod '"
     , editorTransitionExistsSuffix = "' už existuje."
     , editorEpsilonTransitionExists = "ε-prechod už existuje."
@@ -319,15 +335,16 @@ skTranslations =
     , editorTransitionsAddedPrefix = "Pridaných "
     , editorTransitionsAddedSuffix = " prechodov."
     , editorSelectTargetState = "Vyberte cieľový stav pre prechod."
-    , editorEnterTransitionSymbols = "Zadajte symbol(y) pre prechod (oddeľte čiarkou)."
-    , editorToolBuildMessage = "Nástroj: Stavať - dvojklik=nový stav, klik na stav=prechod, dvojklik na stav=upraviť"
+    , editorEnterTransitionSymbols = "Zadajte symbol(y) pre prechod (oddeľte medzerou)."
+    , editorToolBuildMessage = "Nástroj: Stavať - dvojklik=nový stav, klik na stav=prechod, rýchly dvojklik=slučka, pravý klik=upraviť stav"
     , editorToolDeleteMessage = "Nástroj: Odstrániť - kliknite na stav alebo prechod"
     , editorAddStateRequirement = "Pridajte aspoň jeden stav."
     , editorStartStateRequirement = "Nastavte počiatočný stav."
     , editorEndStateRequirement = "Nastavte aspoň jeden koncový stav."
     , editorConvertRequirement = "Preveďte NFA (musí obsahovať eps-prechody alebo viacero prechodov na rovnakej abecede)."
+    , editorRecenter = "Vycentrovať"
     , editorEditSymbolLabel = "Upraviť symbol:"
-    , editorSymbolsHint = "Symbol(y): a,b,eps (prázdny=eps)"
+    , editorSymbolsHint = "Pre zadanie viacero symbolov oddeľte symboly medzerou.\nPrázdny symbol predstavuje \u{03B5}, alebo prázdne vstupné pole."
     , editorEditStateTitle = "Upraviť stav"
     , editorStateNamePlaceholder = "Názov stavu"
     , editorStartStateCheckbox = "Počiatočný stav"
@@ -352,12 +369,14 @@ skTranslations =
     , simAutomatonTab = "Automat"
     , simTreeTab = "Strom"
     , simInputWordLabel = "Vstupné slovo"
+    , simInputEmptyError = "Vstupné slovo je prázdne"
+    , simInputUnknownSymbols = "Slovo obsahuje symboly mimo abecedy"
     , simMergeUnavailable = "Zlúčenie stavov nie je dostupné pre automaty s ε-prechodmi"
     , simMergeLabel = "Zlúčiť stavy"
     , simMergeTooltip = "Bez zlúčenia môže počet inštancií rásť exponenciálne s dĺžkou vstupu (až k^n, kde k je priemer vetvení a n dĺžka vstupu). Zlúčenie redukuje počet aktívnych inštancií na najviac |Q| v každom kroku - rovnaký princíp ako algoritmus podmnožín. Odporúčané pre komplexné NFA."
     , simEfficientModeLabel = "Efektívny režim"
     , simEfficientModeTooltip = "Efektívny režim spustí simuláciu naraz bez budovania stromu inštancií. Vhodné pre komplexné NFA s dlhým vstupom, kde by klasická simulácia bola príliš pomalá."
-    , simInstantRun = "Okamzity beh"
+    , simInstantRun = "Okamžitý beh"
     , simReachedStatesPrefix = "Dosiahnuté stavy: "
     , simInstancePanelDisabled = "Panel instancií je deaktivovaný v efektívnom režime."
     , convStarted = "Konverzia NFA -> DFA spustená."
@@ -395,6 +414,21 @@ skTranslations =
     , example6Name = "ε-NFA – a*b*"
     , example6Desc = "Prijíma reťazce tvaru a⁰⁺b⁰⁺: nula alebo viac 'a', za nimi nula alebo viac 'b'."
     , guideExamplesSection = "Príklady automatov"
+    , tutWelcomeTitle = "Vitajte v simulátore DFA/NFA"
+    , tutWelcomeBody = "Nastavte jazyk a tému, potom pokračujte k tutoriálu."
+    , tutContinueToTutorial = "Pokračovať k tutoriálu"
+    , tutSkipTutorial = "Preskočiť tutoriál"
+    , tutFinish = "Dokončiť"
+    , tutSkip = "Preskočiť"
+    , tutStep1 = "Dvojkliknite na plátno a vytvorte prvý stav."
+    , tutStep2 = "Vytvorte druhý stav dvojklikom na iné miesto plátna."
+    , tutStep3 = "Pravým klikom na stav otvorte modál a zaškrtnite Počiatočný stav."
+    , tutStep4 = "Pravým klikom na druhý stav zaškrtnite Koncový stav."
+    , tutStep5 = "Kliknite na jeden stav, potom na druhý, zadajte symbol (napr. a) a stlacte Enter alebo OK."
+    , tutStep6 = "Automat je pripravený! Kliknite na tlačidlo Simulovať."
+    , tutStep7 = "Zadajte vstupné slovo do textového poľa (napr. a)."
+    , tutStep8 = "Kliknite na Krok dopredu alebo spustite automatický beh."
+    , tutRelaunch = "Spustiť tutoriál"
     }
 
 
@@ -474,7 +508,6 @@ enTranslations =
     , editorStateUpdatedPrefix = "State updated: "
     , editorReset = "Automaton was reset."
     , editorLoopCannotBeEpsilon = "A loop cannot be an ε-transition."
-    , editorSymbolSpaces = "A symbol cannot contain spaces."
     , editorTransitionExistsPrefix = "Transition '"
     , editorTransitionExistsSuffix = "' already exists."
     , editorEpsilonTransitionExists = "An ε-transition already exists."
@@ -485,15 +518,16 @@ enTranslations =
     , editorTransitionsAddedPrefix = "Added "
     , editorTransitionsAddedSuffix = " transitions."
     , editorSelectTargetState = "Select a target state for the transition."
-    , editorEnterTransitionSymbols = "Enter transition symbol(s), separated by commas."
-    , editorToolBuildMessage = "Tool: Build - double click=new state, click state=transition, double click state=edit"
+    , editorEnterTransitionSymbols = "Enter transition symbol(s), separated by spaces."
+    , editorToolBuildMessage = "Tool: Build - double click=new state, click state=transition, fast double click=self-loop, right click=edit state"
     , editorToolDeleteMessage = "Tool: Delete - click a state or transition"
     , editorAddStateRequirement = "Add at least one state."
     , editorStartStateRequirement = "Set a start state."
     , editorEndStateRequirement = "Set at least one end state."
     , editorConvertRequirement = "Convert an NFA (it must contain ε-transitions or multiple transitions for the same symbol)."
+    , editorRecenter = "Center"
     , editorEditSymbolLabel = "Edit symbol:"
-    , editorSymbolsHint = "Symbol(s): a,b,eps (empty=eps)"
+    , editorSymbolsHint = "To enter multiple symbols, separate with spaces.\nEmpty input represents \u{03B5}."
     , editorEditStateTitle = "Edit state"
     , editorStateNamePlaceholder = "State name"
     , editorStartStateCheckbox = "Start state"
@@ -518,6 +552,8 @@ enTranslations =
     , simAutomatonTab = "Automaton"
     , simTreeTab = "Tree"
     , simInputWordLabel = "Input word"
+    , simInputEmptyError = "Input field empty"
+    , simInputUnknownSymbols = "Word contains symbols not in alphabet"
     , simMergeUnavailable = "State merging is not available for automata with ε-transitions"
     , simMergeLabel = "Merge states"
     , simMergeTooltip = "Without merging, the number of instances can grow exponentially with input length (up to k^n, where k is the average branching factor and n is the input length). Merging reduces active instances to at most |Q| at each step - the same principle as the subset construction algorithm. Recommended for complex NFAs."
@@ -561,6 +597,21 @@ enTranslations =
     , example6Name = "ε-NFA – a*b*"
     , example6Desc = "Accepts strings of the form a⁰⁺b⁰⁺: zero or more 'a' symbols followed by zero or more 'b' symbols."
     , guideExamplesSection = "Example automata"
+    , tutWelcomeTitle = "Welcome to the DFA/NFA Simulator"
+    , tutWelcomeBody = "Choose your language and theme, then start the tutorial."
+    , tutContinueToTutorial = "Continue to Tutorial"
+    , tutSkipTutorial = "Skip Tutorial"
+    , tutFinish = "Finish"
+    , tutSkip = "Skip"
+    , tutStep1 = "Double-click on the canvas to create your first state."
+    , tutStep2 = "Create a second state by double-clicking elsewhere on the canvas."
+    , tutStep3 = "Right-click a state to open the modal and check Start state."
+    , tutStep4 = "Right-click the other state and check End state."
+    , tutStep5 = "Click one state, then another, enter a symbol (e.g. a) and press Enter or click OK."
+    , tutStep6 = "Your automaton is ready! Click the Simulate button."
+    , tutStep7 = "Type an input word into the text field (e.g. a)."
+    , tutStep8 = "Click Step Forward or start Auto-run."
+    , tutRelaunch = "Relaunch Tutorial"
     }
 
 
@@ -597,11 +648,11 @@ guideEditorPage lang =
             , sections =
                 [ section "Akcie na plátne (nástroj Stavať)"
                     [ row "Pridanie stavu" "Dvojklik na prázdne plátno (predvolený názov q0, q1, ...)"
-                    , row "Premenovanie stavu" "Rýchly dvojklik na stav -> upraviť názov v modáli"
-                    , row "Nastavenie počiatočného stavu" "Rýchly dvojklik na stav -> zaškrtnúť Počiatočný stav"
-                    , row "Nastavenie koncového stavu" "Rýchly dvojklik na stav -> zaškrtnúť Koncový stav"
+                    , row "Premenovanie stavu" "Pravý klik na stav -> upraviť názov v modáli"
+                    , row "Nastavenie počiatočného stavu" "Pravý klik na stav -> zaškrtnúť Počiatočný stav"
+                    , row "Nastavenie koncového stavu" "Pravý klik na stav -> zaškrtnúť Koncový stav"
                     , row "Pridanie prechodu" "Kliknutie na zdrojový stav, potom kliknutie na cieľový stav"
-                    , row "Pridanie slučky (self-loop)" "Pomalý dvojklik na stav"
+                    , row "Pridanie slučky (self-loop)" "Rýchly dvojklik na stav"
                     , row "Epsilon prechod" "Nechajte vstupné pole prázdne"
                     , row "Viac prechodov naraz" "Symboly oddeľujte čiarkou, napr. a,b"
                     , row "Úprava symbolu prechodu" "Dvojklik na symbol prechodu"
@@ -650,11 +701,11 @@ guideEditorPage lang =
             , sections =
                 [ section "Canvas actions (Build tool)"
                     [ row "Add state" "Double-click empty canvas (default name q0, q1, ...)"
-                    , row "Rename state" "Quick double-click on a state -> edit the name in the modal"
-                    , row "Set start state" "Quick double-click on a state -> check Start state"
-                    , row "Set end state" "Quick double-click on a state -> check End state"
+                    , row "Rename state" "Right-click on a state -> edit the name in the modal"
+                    , row "Set start state" "Right-click on a state -> check Start state"
+                    , row "Set end state" "Right-click on a state -> check End state"
                     , row "Add transition" "Click the source state, then click the target state"
-                    , row "Add self-loop" "Slow double-click on a state"
+                    , row "Add self-loop" "Fast double-click on a state"
                     , row "Epsilon transition" "Leave the input field empty"
                     , row "Add multiple transitions" "Separate symbols with commas, e.g. a,b"
                     , row "Edit transition symbol" "Double-click the transition symbol"

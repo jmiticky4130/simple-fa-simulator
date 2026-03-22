@@ -36,6 +36,7 @@ type alias Config msg =
     , darkMode : Bool
     , language : Language
     , onToggleLanguage : msg
+    , tutorialHighlightSimulate : Bool
     }
 
 
@@ -90,7 +91,7 @@ view config =
             , style "margin" "0 4px"
             ]
             []
-        , actionButton config.theme "NFA->DFA" config.onSwitchToConversion config.isConvertEnabled config.convertDisabledReason (Just config.onConvertDisabledClick) config.theme.btnConvert
+        , actionButton config.theme "NFA->DFA" config.onSwitchToConversion config.isConvertEnabled config.convertDisabledReason (Just config.onConvertDisabledClick) config.theme.btnConvert False
         , div [ style "flex" "1" ] []
         , div
             [ style "width" "300px"
@@ -99,7 +100,7 @@ view config =
             , style "gap" "8px"
             ]
             [ guideButton config.theme t.guide config.onShowGuide
-            , actionButton config.theme t.simulate config.onSwitchToSimulator config.isSimulateEnabled config.simulateDisabledReason (Just config.onSimulateDisabledClick) config.theme.btnPrimary
+            , actionButton config.theme t.simulate config.onSwitchToSimulator config.isSimulateEnabled config.simulateDisabledReason (Just config.onSimulateDisabledClick) config.theme.btnPrimary config.tutorialHighlightSimulate
             , settingsGearBtn config
             ]
         ]
@@ -381,8 +382,8 @@ guideButton theme label onClickMsg =
         ]
 
 
-actionButton : Theme.Theme -> String -> msg -> Bool -> Maybe String -> Maybe msg -> String -> Html msg
-actionButton theme label onClickMsg isEnabled disabledReason onDisabledClick bgColor =
+actionButton : Theme.Theme -> String -> msg -> Bool -> Maybe String -> Maybe msg -> String -> Bool -> Html msg
+actionButton theme label onClickMsg isEnabled disabledReason onDisabledClick bgColor isHighlighted =
     let
         ( effectiveClick, isDisabled ) =
             if isEnabled then
@@ -393,7 +394,7 @@ actionButton theme label onClickMsg isEnabled disabledReason onDisabledClick bgC
                     Nothing -> ( onClickMsg, True )
     in
     button
-        [ onClick effectiveClick
+        ([ onClick effectiveClick
         , HA.class "elm-btn"
         , style "padding" "11px 18px"
         , style "background-color" (if isEnabled then bgColor else theme.btnDisabledBg)
@@ -406,4 +407,13 @@ actionButton theme label onClickMsg isEnabled disabledReason onDisabledClick bgC
         , HA.disabled isDisabled
         , HA.title (disabledReason |> Maybe.withDefault "")
         ]
+        ++ (if isHighlighted then
+                [ style "position" "relative"
+                , style "z-index" "501"
+                , style "box-shadow" "0 0 0 3px #ffeb3b, 0 0 18px rgba(255,235,59,0.7)"
+                ]
+            else
+                []
+           )
+        )
         [ text label ]
