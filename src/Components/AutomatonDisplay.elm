@@ -4,8 +4,8 @@ import Html exposing (Html, div, h3, p, text, span, button, img)
 import Html.Attributes exposing (style, src)
 import Html.Events exposing (onClick)
 import Set
-import Shared exposing (State, Transition)
-import Utils.AutomatonHelpers exposing (getStateLabel)
+import Shared exposing (State, Transition, AutomatonType(..))
+import Utils.AutomatonHelpers exposing (getStateLabel, classifyAutomaton)
 import Utils.Theme as Theme
 import Utils.Translations as Translations exposing (Language)
 
@@ -26,94 +26,151 @@ view config =
         t =
             Translations.getTranslations config.language
 
-        isNFA =
-            let
-                check ts seen =
-                    case ts of
-                        [] -> False
-                        transition :: rest ->
-                            if Set.member (transition.from, transition.symbol) seen then
-                                True
-                            else
-                                check rest (Set.insert (transition.from, transition.symbol) seen)
-            in
-            check config.transitions Set.empty
+        autoType =
+            classifyAutomaton config.states config.transitions
 
         typeLabel =
-            if isNFA then
-                "NFA"
-            else
+            if autoType == CompleteDFA then
                 "DFA"
+            else
+                "NFA"
 
         typeColor =
-            if isNFA then
-                config.theme.automatonTypeNfa
-            else
+            if autoType == CompleteDFA then
                 config.theme.automatonTypeDfa
+            else
+                config.theme.automatonTypeNfa
     in
     div
-        [ style "padding" "15px"
+        [ style "display" "flex"
+        , style "flex-direction" "column"
         , style "height" "100%"
-        , style "overflow-y" "auto"
-        , style "box-sizing" "border-box"
+        , style "overflow" "hidden"
         , style "color" config.theme.textPrimary
         ]
-        [ div
-            [ style "display" "flex"
-            , style "align-items" "center"
-            , style "justify-content" "space-between"
-            , style "border-bottom" ("2px solid " ++ config.theme.automatonDefBorder)
-            , style "padding-bottom" "10px"
-            , style "margin-bottom" "10px"
+        [ -- Sticky header: title + Why NFA
+          div
+            [ style "flex-shrink" "0"
+            , style "padding" "15px 15px 0 15px"
+            , style "background-color" config.theme.rightPanelBg
             ]
-            [ h3
-                [ style "margin" "0"
-                , style "color" config.theme.automatonDefTitle
+            [ div
+                [ style "display" "flex"
+                , style "align-items" "center"
+                , style "justify-content" "space-between"
+                , style "border-bottom" ("2px solid " ++ config.theme.automatonDefBorder)
+                , style "padding-bottom" "10px"
                 ]
-                [ text (t.automatonDefinition ++ ": ")
-                , span [ style "color" typeColor ] [ text typeLabel ]
-                ]
-            , div [ style "position" "relative" ]
-                [ button
-                    [ onClick config.onCopyDefinition
-                    , style "background" config.theme.copyBtnBg
-                    , style "border" "none"
-                    , style "cursor" "pointer"
-                    , style "padding" "4px 6px"
-                    , style "border-radius" "5px"
-                    , style "display" "flex"
-                    , style "align-items" "center"
-                    , style "justify-content" "center"
+                [ h3
+                    [ style "margin" "0"
+                    , style "color" config.theme.automatonDefTitle
                     ]
-                    [ img
-                        [ src (if config.copySuccess then "icons/copy_success.svg" else "icons/copy_svg.svg")
-                        , style "width" "18px"
-                        , style "height" "18px"
-                        , style "display" "block"
-                        ]
-                        []
+                    [ text (t.automatonDefinition ++ ": ")
+                    , span [ style "color" typeColor ] [ text typeLabel ]
                     ]
-                , if config.copySuccess then
-                    div
-                        [ style "position" "absolute"
-                        , style "top" "calc(100% + 6px)"
-                        , style "right" "0"
-                        , style "background" "#333"
-                        , style "color" "white"
-                        , style "padding" "3px 8px"
-                        , style "border-radius" "4px"
-                        , style "font-size" "11px"
-                        , style "white-space" "nowrap"
-                        , style "pointer-events" "none"
-                        , style "z-index" "10"
+                , div [ style "position" "relative" ]
+                    [ button
+                        [ onClick config.onCopyDefinition
+                        , style "background" config.theme.copyBtnBg
+                        , style "border" "none"
+                        , style "cursor" "pointer"
+                        , style "padding" "4px 6px"
+                        , style "border-radius" "5px"
+                        , style "display" "flex"
+                        , style "align-items" "center"
+                        , style "justify-content" "center"
                         ]
-                                                [ text t.copied ]
-                  else
-                    text ""
+                        [ img
+                            [ src (if config.copySuccess then "icons/copy_success.svg" else "icons/copy_svg.svg")
+                            , style "width" "18px"
+                            , style "height" "18px"
+                            , style "display" "block"
+                            ]
+                            []
+                        ]
+                    , if config.copySuccess then
+                        div
+                            [ style "position" "absolute"
+                            , style "top" "calc(100% + 6px)"
+                            , style "right" "0"
+                            , style "background" "#333"
+                            , style "color" "white"
+                            , style "padding" "3px 8px"
+                            , style "border-radius" "4px"
+                            , style "font-size" "11px"
+                            , style "white-space" "nowrap"
+                            , style "pointer-events" "none"
+                            , style "z-index" "10"
+                            ]
+                            [ text t.copied ]
+                      else
+                        text ""
+                    ]
                 ]
+            , viewWhyNfaBlock config.theme t autoType config.transitions
             ]
-        , viewDefinition config
+        , -- Scrollable body: formal definition
+          div
+            [ style "flex" "1"
+            , style "overflow-y" "auto"
+            , style "padding" "0 15px 15px 15px"
+            ]
+            [ viewDefinition config ]
         ]
+
+
+viewWhyNfaBlock : Theme.Theme -> Translations.Translations -> AutomatonType -> List Transition -> Html msg
+viewWhyNfaBlock theme t autoType transitions =
+    if autoType == CompleteDFA then
+        text ""
+    else
+        let
+            hasEpsilon =
+                List.any (\tr -> tr.symbol == "\u{03B5}") transitions
+
+            hasNonDet =
+                let
+                    checkDups tl seen =
+                        case tl of
+                            [] -> False
+                            tr :: rest ->
+                                let k = String.fromInt tr.from ++ "|" ++ tr.symbol
+                                in
+                                if List.member k seen then True
+                                else checkDups rest (k :: seen)
+                in
+                checkDups (List.filter (\tr -> tr.symbol /= "\u{03B5}") transitions) []
+
+            reasons =
+                (if hasEpsilon then [ t.simWhyNfaEpsilon ] else [])
+                    ++ (if hasNonDet then [ t.simWhyNfaNondet ] else [])
+                    ++ (if autoType == IncompleteDFA then [ t.simWhyNfaIncomplete ] else [])
+        in
+        div
+            [ style "padding" "10px 0 6px 0"
+            ]
+            [ div
+                [ style "font-weight" "bold"
+                , style "font-size" "14px"
+                , style "color" theme.textPrimary
+                , style "margin-bottom" "6px"
+                ]
+                [ text t.simWhyNfaTitle ]
+            , div []
+                (List.map
+                    (\reason ->
+                        div
+                            [ style "font-size" "13px"
+                            , style "color" theme.textMuted
+                            , style "padding-left" "10px"
+                            , style "margin-bottom" "3px"
+                            , style "line-height" "1.4"
+                            ]
+                            [ text ("\u{2022} " ++ reason) ]
+                    )
+                    reasons
+                )
+            ]
 
 
 viewDefinition : Config msg -> Html msg

@@ -11,7 +11,7 @@ import Components.AutomatonDisplay as AutomatonDisplay
 import Utils.Theme as Theme
 import Utils.Translations as Translations exposing (Language)
 import UndoList exposing (UndoList)
-import Shared exposing (State, Transition, AutomatonState)
+import Shared exposing (State, Transition, AutomatonState, AutomatonType(..))
 import Utils.AutomatonHelpers exposing
     ( getStateById
     , transitionExists
@@ -21,6 +21,7 @@ import Utils.AutomatonHelpers exposing
     , toggleEndState
     , updateTransitionSymbol
     , isDFA
+    , classifyAutomaton
     )
 import Browser.Dom
 import Task
@@ -1169,7 +1170,26 @@ view consoleOpen darkMode settingsOpen language windowWidth windowHeight tutoria
         hasStart = List.any .isStart states
         hasEnd = List.any .isEnd states
         isSimulateEnabled = not (List.isEmpty states) && hasStart && hasEnd
-        isConvertEnabled = not (List.isEmpty states) && hasStart && hasEnd && not (isDFA states transitions)
+        autoType = classifyAutomaton states transitions
+        isConvertEnabled = not (List.isEmpty states) && hasStart && hasEnd && autoType == NFA
+        problematicTransitions =
+            if autoType == CompleteDFA then
+                []
+            else
+                let
+                    nonDetKeys =
+                        transitions
+                            |> List.filter (\tr -> tr.symbol /= "\u{03B5}")
+                            |> List.filter (\tr ->
+                                List.length (List.filter (\t2 -> t2.from == tr.from && t2.symbol == tr.symbol) transitions) > 1
+                            )
+                            |> List.map (\tr -> { from = tr.from, to = tr.to })
+                    epsHighlights =
+                        transitions
+                            |> List.filter (\tr -> tr.symbol == "\u{03B5}")
+                            |> List.map (\tr -> { from = tr.from, to = tr.to })
+                in
+                nonDetKeys ++ epsHighlights
         simulateDisabledReason =
             if List.isEmpty states then
                 Just t.editorAddStateRequirement
@@ -1186,8 +1206,10 @@ view consoleOpen darkMode settingsOpen language windowWidth windowHeight tutoria
                 Just t.editorStartStateRequirement
             else if not hasEnd then
                 Just t.editorEndStateRequirement
-            else if isDFA states transitions then
+            else if autoType == CompleteDFA then
                 Just t.editorConvertRequirement
+            else if autoType == IncompleteDFA then
+                Just t.editorConvertRequirementIncomplete
             else
                 Nothing
     in
@@ -1296,6 +1318,7 @@ view consoleOpen darkMode settingsOpen language windowWidth windowHeight tutoria
                     , height = 600
                     , isSimulateMode = False
                     , highlightedStateIds = []
+                    , highlightedTransitions = problematicTransitions
                     , editingStateId = model.editingStateId
                     , theme = theme
                     }

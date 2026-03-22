@@ -1,13 +1,13 @@
 module Pages.Simulator exposing (Model, Msg(..), SimulationMode(..), init, update, view, subscriptions)
 
-import Html exposing (Html, div, text, input, span)
+import Html exposing (Html, div, text, input, span, button)
 import Html.Attributes exposing (style, placeholder, value, disabled, type_)
 import Html.Events exposing (onClick, onInput, on)
 import Html.Lazy
 import Json.Decode as Decode
 import Browser.Events
 import Time
-import Shared exposing (AutomatonState, State, Transition, NfaInstance, NfaTreeNode)
+import Shared exposing (AutomatonState, State, Transition, NfaInstance, NfaTreeNode, AutomatonType(..))
 import Components.Canvas as Canvas
 import Components.Console as Console
 import Components.SimulateToolbar as SimulateToolbar
@@ -15,7 +15,7 @@ import Components.SimulationStatus as SimulationStatus
 import Components.NfaInstancePanel as NfaInstancePanel
 import Components.NfaTreeView as NfaTreeView
 import Set
-import Utils.AutomatonHelpers exposing (getStateLabel, getStateById, isDFA, epsilonClosure)
+import Utils.AutomatonHelpers exposing (getStateLabel, getStateById, isDFA, classifyAutomaton, epsilonClosure)
 import Json.Encode
 import Utils.Theme as Theme
 import Utils.Translations as Translations exposing (Language)
@@ -30,6 +30,7 @@ type alias Model =
     { automaton : AutomatonState
     , language : Language
     , mode : SimulationMode
+    , automatonType : AutomatonType
     -- DFA
     , currentStateId : Maybe Int
     , remainingInput : String
@@ -71,12 +72,16 @@ type alias Model =
 init : Language -> AutomatonState -> Model
 init language automaton =
     let
-        mode =
-            if isDFA automaton.states automaton.transitions then
-                DfaMode
+        autoType =
+            classifyAutomaton automaton.states automaton.transitions
 
-            else
-                NfaMode
+        mode =
+            case autoType of
+                NFA ->
+                    NfaMode
+
+                _ ->
+                    DfaMode
 
         nfaState =
             initNfaState automaton language ""
@@ -87,6 +92,7 @@ init language automaton =
     { automaton = automaton
     , language = language
     , mode = mode
+    , automatonType = autoType
     , currentStateId = startState
     , inputString = ""
     , remainingInput = ""
@@ -163,6 +169,7 @@ type Msg
     | ToggleSettings
     | ToggleDarkMode
     | ToggleLanguage
+    | RecenterCanvas Float Float
 
 
 update : Msg -> Model -> Model
@@ -301,6 +308,26 @@ update msg model =
                 newPanY = mouseY - (mouseY - model.panY) * scale
             in
             { model | zoom = newZoom, panX = newPanX, panY = newPanY }
+
+        RecenterCanvas cw ch ->
+            let
+                targetState =
+                    List.filter .isStart model.automaton.states
+                        |> List.head
+                        |> (\ms -> case ms of
+                                Just s -> Just s
+                                Nothing -> List.reverse model.automaton.states |> List.head
+                           )
+            in
+            case targetState of
+                Just s ->
+                    { model
+                        | panX = cw / 2 - s.x * model.zoom
+                        , panY = ch / 2 - s.y * model.zoom
+                    }
+
+                Nothing ->
+                    model
 
         TreeZoomIn ->
             { model | treeZoom = min 3.0 (model.treeZoom * 1.2) }
@@ -866,7 +893,7 @@ canStepForward model =
     else
         case model.mode of
             DfaMode ->
-                not (String.isEmpty model.remainingInput)
+                not (String.isEmpty model.remainingInput) && model.verdict == Nothing
 
             NfaMode ->
                 List.any (\i -> i.verdict == Nothing) model.nfaInstances
@@ -1124,15 +1151,67 @@ viewToggleTab theme label isActive msg =
         [ Html.text label ]
 
 
-view : Bool -> Bool -> Bool -> Language -> Bool -> Bool -> Model -> Html Msg
-view consoleOpen darkMode settingsOpen language tutorialInputHighlight tutorialButtonsHighlight model =
+viewWhyNfaBlock : Theme.Theme -> Translations.Translations -> AutomatonType -> Bool -> Bool -> Html Msg
+viewWhyNfaBlock theme t autoType hasEpsilon hasNonDeterminism =
+    let
+        reasons =
+            (if hasEpsilon then [ t.simWhyNfaEpsilon ] else [])
+                ++ (if hasNonDeterminism then [ t.simWhyNfaNondet ] else [])
+                ++ (if autoType == IncompleteDFA then [ t.simWhyNfaIncomplete ] else [])
+    in
+    div
+        [ style "padding" "10px 15px"
+        , style "border-top" ("1px solid " ++ theme.separatorColor)
+        ]
+        [ div
+            [ style "font-weight" "bold"
+            , style "font-size" "14px"
+            , style "color" theme.textPrimary
+            , style "margin-bottom" "6px"
+            ]
+            [ text t.simWhyNfaTitle ]
+        , div []
+            (List.map
+                (\reason ->
+                    div
+                        [ style "font-size" "13px"
+                        , style "color" theme.textMuted
+                        , style "padding-left" "10px"
+                        , style "margin-bottom" "3px"
+                        , style "line-height" "1.4"
+                        ]
+                        [ text ("\u{2022} " ++ reason) ]
+                )
+                reasons
+            )
+        ]
+
+
+view : Bool -> Bool -> Bool -> Language -> Bool -> Bool -> Int -> Int -> Model -> Html Msg
+view consoleOpen darkMode settingsOpen language tutorialInputHighlight tutorialButtonsHighlight windowWidth windowHeight model =
     let
         t =
             Translations.getTranslations language
 
         theme = Theme.getTheme darkMode
+        canvasW = toFloat windowWidth - 302
+        canvasH = toFloat windowHeight - 80
         hasEpsilon =
-            List.any (\transition -> transition.symbol == "ε") model.automaton.transitions
+            List.any (\transition -> transition.symbol == "\u{03B5}") model.automaton.transitions
+
+        hasNonDeterminism =
+            let
+                key tr = String.fromInt tr.from ++ "|" ++ tr.symbol
+                checkDups tl seen =
+                    case tl of
+                        [] -> False
+                        tr :: rest ->
+                            let k = key tr
+                            in
+                            if List.member k seen then True
+                            else checkDups rest (k :: seen)
+            in
+            checkDups (List.filter (\tr -> tr.symbol /= "\u{03B5}") model.automaton.transitions) []
 
         activeStateId =
             case model.mode of
@@ -1278,6 +1357,25 @@ view consoleOpen darkMode settingsOpen language tutorialInputHighlight tutorialB
                     , style "overflow" "hidden"
                     ]
                     [ if model.mode == DfaMode || model.showCanvas || model.efficientMode then
+                        let
+                            targetState =
+                                List.filter .isStart model.automaton.states
+                                    |> List.head
+                                    |> (\ms -> case ms of
+                                            Just s -> Just s
+                                            Nothing -> List.reverse model.automaton.states |> List.head
+                                       )
+                            targetVisible =
+                                case targetState of
+                                    Just s ->
+                                        let
+                                            sx = s.x * model.zoom + model.panX
+                                            sy = s.y * model.zoom + model.panY
+                                        in
+                                        sx >= -35 && sx <= canvasW + 35 && sy >= -35 && sy <= canvasH + 35
+                                    Nothing ->
+                                        True
+                        in
                         div
                             [ if model.mode == NfaMode && model.showCanvas && model.showTree && not model.efficientMode then
                                 style "flex-basis" (String.fromFloat (model.splitRatio * 100) ++ "%")
@@ -1289,6 +1387,7 @@ view consoleOpen darkMode settingsOpen language tutorialInputHighlight tutorialB
                             , style "min-width" "150px"
                             , style "overflow" "auto"
                             , style "background-color" theme.canvasBg
+                            , style "position" "relative"
                             ]
                             [ Canvas.view
                                 { states = model.automaton.states
@@ -1325,14 +1424,35 @@ view consoleOpen darkMode settingsOpen language tutorialInputHighlight tutorialB
                                 , height = 600
                                 , isSimulateMode = True
                                 , highlightedStateIds = efficientHighlights
+                                , highlightedTransitions = []
                                 , editingStateId = Nothing
                                 , theme = theme
                                 }
+                            , button
+                                ([ style "position" "absolute"
+                                , style "top" "10px"
+                                , style "right" "10px"
+                                , style "z-index" "10"
+                                , style "padding" "8px 16px"
+                                , style "font-size" "14px"
+                                , style "font-weight" "bold"
+                                , style "border" "none"
+                                , style "border-radius" "4px"
+                                , style "cursor" (if targetVisible then "default" else "pointer")
+                                , style "display" "flex"
+                                , style "align-items" "center"
+                                , style "justify-content" "center"
+                                , style "opacity" (if targetVisible then "0.4" else "1")
+                                , style "background-color" theme.btnSecondaryBg
+                                , style "color" "white"
+                                , style "white-space" "nowrap"
+                                ] ++ (if targetVisible then [ disabled True ] else [ onClick (RecenterCanvas canvasW canvasH) ]))
+                                [ text t.editorRecenter ]
                             ]
 
                       else
                         div [] []
-                    , if model.mode == NfaMode && model.showCanvas && model.showTree && not model.efficientMode then
+                    , if model.mode == NfaMode && model.showCanvas && model.showTree && not model.efficientMode  then
                         div
                             [ style "width" "6px"
                             , style "background-color" theme.dividerColor
@@ -1343,7 +1463,7 @@ view consoleOpen darkMode settingsOpen language tutorialInputHighlight tutorialB
                             ]
                             []
 
-                      else if model.mode == NfaMode && model.showTree && not model.efficientMode then
+                      else if model.mode == NfaMode && model.showTree && not model.efficientMode  then
                         div
                             [ style "width" "1px"
                             , style "background-color" theme.separatorColor
@@ -1352,7 +1472,7 @@ view consoleOpen darkMode settingsOpen language tutorialInputHighlight tutorialB
 
                       else
                         div [] []
-                    , if model.mode == NfaMode && model.showTree && not model.efficientMode then
+                    , if model.mode == NfaMode && model.showTree && not model.efficientMode  then
                         viewNfaTree theme
                             model.nfaTree
                             model.nfaInstances
@@ -1434,14 +1554,20 @@ view consoleOpen darkMode settingsOpen language tutorialInputHighlight tutorialB
                     readingHeadRemaining
                 , case model.mode of
                     DfaMode ->
-                        SimulationStatus.view
-                            { inputString = model.inputString
-                            , remainingInput = model.remainingInput
-                            , currentState = getStateById (Maybe.withDefault -1 model.currentStateId) model.automaton.states
-                            , verdict = model.verdict
-                            , theme = theme
-                            , language = language
-                            }
+                        div []
+                            [ SimulationStatus.view
+                                { inputString = model.inputString
+                                , remainingInput = model.remainingInput
+                                , currentState = getStateById (Maybe.withDefault -1 model.currentStateId) model.automaton.states
+                                , verdict = model.verdict
+                                , theme = theme
+                                , language = language
+                                }
+                            , if model.automatonType == IncompleteDFA then
+                                viewWhyNfaBlock theme t model.automatonType hasEpsilon hasNonDeterminism
+                              else
+                                text ""
+                            ]
 
                     NfaMode ->
                         div
@@ -1462,48 +1588,97 @@ view consoleOpen darkMode settingsOpen language tutorialInputHighlight tutorialB
 
                               else
                                 div [] []
+                            , viewWhyNfaBlock theme t model.automatonType hasEpsilon hasNonDeterminism
                             , div
-                                [ style "padding" "6px 15px"
-                                , style "border-top" ("1px solid " ++ theme.separatorColor)
-                                , style "display" "flex"
-                                , style "align-items" "center"
-                                , style "justify-content" "space-between"
-                                ]
-                                [ div
-                                    [ style "display" "flex"
+                                    [ style "padding" "6px 15px"
+                                    , style "border-top" ("1px solid " ++ theme.separatorColor)
+                                    , style "display" "flex"
                                     , style "align-items" "center"
-                                    , style "gap" "4px"
+                                    , style "justify-content" "space-between"
                                     ]
-                                    [ Html.label
-                                        ([ style "display" "flex"
-                                         , style "align-items" "center"
-                                         , style "gap" "6px"
-                                         , style "font-size" "12px"
-                                         , style "user-select" "none"
-                                         , style "cursor" (if hasEpsilon then "not-allowed" else "pointer")
-                                         , style "color" (if hasEpsilon then theme.textMuted else theme.textMuted)
-                                         ]
-                                            ++ (if hasEpsilon then
-                                                    [ Html.Attributes.title t.simMergeUnavailable ]
-
-                                                else
-                                                    []
-                                               )
-                                        )
-                                        [ Html.input
-                                            ([ type_ "checkbox"
-                                             , Html.Attributes.checked model.mergeEnabled
+                                    [ div
+                                        [ style "display" "flex"
+                                        , style "align-items" "center"
+                                        , style "gap" "4px"
+                                        ]
+                                        [ Html.label
+                                            ([ style "display" "flex"
+                                             , style "align-items" "center"
+                                             , style "gap" "6px"
+                                             , style "font-size" "12px"
+                                             , style "user-select" "none"
                                              , style "cursor" (if hasEpsilon then "not-allowed" else "pointer")
+                                             , style "color" (if hasEpsilon then theme.textMuted else theme.textMuted)
                                              ]
                                                 ++ (if hasEpsilon then
-                                                        [ Html.Attributes.disabled True ]
+                                                        [ Html.Attributes.title t.simMergeUnavailable ]
 
                                                     else
-                                                        [ onClick ToggleMerge ]
+                                                        []
                                                    )
                                             )
+                                            [ Html.input
+                                                ([ type_ "checkbox"
+                                                 , Html.Attributes.checked model.mergeEnabled
+                                                 , style "cursor" (if hasEpsilon then "not-allowed" else "pointer")
+                                                 ]
+                                                    ++ (if hasEpsilon then
+                                                            [ Html.Attributes.disabled True ]
+
+                                                        else
+                                                            [ onClick ToggleMerge ]
+                                                       )
+                                                )
+                                                []
+                                            , text t.simMergeLabel
+                                            ]
+                                        , span
+                                            [ style "display" "inline-flex"
+                                            , style "align-items" "center"
+                                            , style "justify-content" "center"
+                                            , style "width" "14px"
+                                            , style "height" "14px"
+                                            , style "border-radius" "50%"
+                                            , style "background" "#90a4ae"
+                                            , style "color" "white"
+                                            , style "font-size" "9px"
+                                            , style "font-weight" "bold"
+                                            , style "cursor" "help"
+                                            , style "flex-shrink" "0"
+                                            , Html.Attributes.title t.simMergeTooltip
+                                            ]
+                                            [ text "?" ]
+                                        ]
+                                    , div
+                                        [ style "font-weight" "bold"
+                                        , style "font-size" "13px"
+                                        ]
+                                        []
+                                    ]
+                            , div
+                                    [ style "padding" "6px 15px"
+                                    , style "border-top" "1px solid #e0e0e0"
+                                    , style "display" "flex"
+                                    , style "align-items" "center"
+                                    , style "gap" "6px"
+                                    ]
+                                    [ Html.label
+                                        [ style "display" "flex"
+                                        , style "align-items" "center"
+                                        , style "gap" "6px"
+                                        , style "font-size" "12px"
+                                        , style "user-select" "none"
+                                        , style "cursor" "pointer"
+                                        , style "color" "#546e7a"
+                                        ]
+                                        [ Html.input
+                                            [ type_ "checkbox"
+                                            , Html.Attributes.checked model.efficientMode
+                                            , onClick ToggleEfficientMode
+                                            , style "cursor" "pointer"
+                                            ]
                                             []
-                                        , text t.simMergeLabel
+                                        , text t.simEfficientModeLabel
                                         ]
                                     , span
                                         [ style "display" "inline-flex"
@@ -1518,58 +1693,10 @@ view consoleOpen darkMode settingsOpen language tutorialInputHighlight tutorialB
                                         , style "font-weight" "bold"
                                         , style "cursor" "help"
                                         , style "flex-shrink" "0"
-                                        , Html.Attributes.title t.simMergeTooltip
+                                        , Html.Attributes.title t.simEfficientModeTooltip
                                         ]
                                         [ text "?" ]
                                     ]
-                                , div
-                                    [ style "font-weight" "bold"
-                                    , style "font-size" "13px"
-                                    ]
-                                    []
-                                ]
-                            , div
-                                [ style "padding" "6px 15px"
-                                , style "border-top" "1px solid #e0e0e0"
-                                , style "display" "flex"
-                                , style "align-items" "center"
-                                , style "gap" "6px"
-                                ]
-                                [ Html.label
-                                    [ style "display" "flex"
-                                    , style "align-items" "center"
-                                    , style "gap" "6px"
-                                    , style "font-size" "12px"
-                                    , style "user-select" "none"
-                                    , style "cursor" "pointer"
-                                    , style "color" "#546e7a"
-                                    ]
-                                    [ Html.input
-                                        [ type_ "checkbox"
-                                        , Html.Attributes.checked model.efficientMode
-                                        , onClick ToggleEfficientMode
-                                        , style "cursor" "pointer"
-                                        ]
-                                        []
-                                    , text t.simEfficientModeLabel
-                                    ]
-                                , span
-                                    [ style "display" "inline-flex"
-                                    , style "align-items" "center"
-                                    , style "justify-content" "center"
-                                    , style "width" "14px"
-                                    , style "height" "14px"
-                                    , style "border-radius" "50%"
-                                    , style "background" "#90a4ae"
-                                    , style "color" "white"
-                                    , style "font-size" "9px"
-                                    , style "font-weight" "bold"
-                                    , style "cursor" "help"
-                                    , style "flex-shrink" "0"
-                                    , Html.Attributes.title t.simEfficientModeTooltip
-                                    ]
-                                    [ text "?" ]
-                                ]
                             , if model.efficientMode then
                                 div []
                                     [ Html.button

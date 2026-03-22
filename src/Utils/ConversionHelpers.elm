@@ -238,28 +238,7 @@ expandSymbol nfa nfaEndIds dfaStateId sym acc =
         closed =
             epsilonClosureSet nfa.transitions moved
     in
-    if List.isEmpty closed then
-        let
-            snap =
-                { states = acc.currentStates
-                , transitions = acc.currentTransitions
-                , step =
-                    StepProcessSymbol
-                        { dfaStateId = dfaStateId
-                        , symbol = sym
-                        , moveResult = moved
-                        , epsClosed = closed
-                        , resultDfaId = -1
-                        , isNewState = False
-                        }
-                , processedIds = acc.processedIds
-                , worklist = acc.worklist
-                }
-        in
-        { acc | snapshots = acc.snapshots ++ [ snap ] }
-
-    else
-        case findBySubset closed acc.currentStates of
+    case findBySubset closed acc.currentStates of
             Just existing ->
                 let
                     newTrans =
@@ -507,10 +486,7 @@ stepExplanation t nfaStates dfaStates step =
                 destStr =
                     subsetLabel nfaStates info.epsClosed
             in
-            if info.resultDfaId < 0 then
-                 t.convProcessingPrefix ++ srcLabel ++ " so symbolom '" ++ info.symbol ++ t.convDeadStateSuffix
-            else
-                 t.convProcessingPrefix ++ srcLabel ++ " so symbolom '" ++ info.symbol
+            t.convProcessingPrefix ++ srcLabel ++ " so symbolom '" ++ info.symbol
                     ++ t.convMovePrefix ++ moveStr ++ t.convClosurePrefix ++ destStr
                     ++ (if info.isNewState then t.convNewStateCreated else t.convStateAlreadyExists)
 

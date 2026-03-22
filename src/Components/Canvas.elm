@@ -42,6 +42,7 @@ type alias Config msg =
     , height : Float
     , isSimulateMode : Bool
     , highlightedStateIds : List { stateId : Int, isAccepted : Bool }
+    , highlightedTransitions : List { from : Int, to : Int }
     , editingStateId : Maybe Int
     , theme : Theme.Theme
     }
@@ -357,23 +358,26 @@ viewGroupedTransition config grouped =
                     active.from == grouped.from && active.to == grouped.to && List.member active.symbol grouped.symbols
                 Nothing ->
                     False
+
+        isHighlighted =
+            List.any (\ht -> ht.from == grouped.from && ht.to == grouped.to) config.highlightedTransitions
     in
     case ( maybeFromState, maybeToState ) of
         ( Just fromState, Just toState ) ->
             if fromState.id == toState.id then
-                svgSelfLoop config fromState grouped.symbols isActive
+                svgSelfLoop config fromState grouped.symbols isActive isHighlighted
             else
                 if hasReverseTransition then
-                    svgCurvedEdge config fromState toState grouped.symbols isActive
+                    svgCurvedEdge config fromState toState grouped.symbols isActive isHighlighted
                 else
-                    svgEdge config fromState toState grouped.symbols isActive
+                    svgEdge config fromState toState grouped.symbols isActive isHighlighted
 
         _ ->
             Svg.g [] []
 
 
-svgSelfLoop : Config msg -> State -> List String -> Bool -> Svg msg
-svgSelfLoop config state symbols isActive =
+svgSelfLoop : Config msg -> State -> List String -> Bool -> Bool -> Svg msg
+svgSelfLoop config state symbols isActive isHighlighted =
     let
         r = 35
         startAngle = degrees -150
@@ -447,7 +451,7 @@ svgSelfLoop config state symbols isActive =
                 symbols
 
         strokeWidth = if isActive then "4" else "2"
-        strokeColor = if isActive then "#e74c3c" else config.theme.edgeColor
+        strokeColor = if isActive then "#e74c3c" else if isHighlighted then "#f9a825" else config.theme.edgeColor
     in
     Svg.g []
         ([ Svg.path [ SA.d d, SA.fill "none", SA.stroke strokeColor, SA.strokeWidth strokeWidth, SA.strokeLinecap "round" ] []
@@ -457,8 +461,8 @@ svgSelfLoop config state symbols isActive =
         )
 
 
-svgEdge : Config msg -> State -> State -> List String -> Bool -> Svg msg
-svgEdge config a b symbols isActive =
+svgEdge : Config msg -> State -> State -> List String -> Bool -> Bool -> Svg msg
+svgEdge config a b symbols isActive isHighlighted =
     let
         r = 35
         vx = b.x - a.x
@@ -527,7 +531,7 @@ svgEdge config a b symbols isActive =
             ]
 
         strokeWidth = if isActive then "4" else "2"
-        strokeColor = if isActive then "#e74c3c" else config.theme.edgeColor
+        strokeColor = if isActive then "#e74c3c" else if isHighlighted then "#f9a825" else config.theme.edgeColor
     in
     Svg.g []
         ([ Svg.path [ SA.d d, SA.fill "none", SA.stroke strokeColor, SA.strokeWidth strokeWidth ] []
@@ -536,7 +540,7 @@ svgEdge config a b symbols isActive =
             ++ labels
         )
 
-svgCurvedEdge config a b symbols isActive =
+svgCurvedEdge config a b symbols isActive isHighlighted =
     let
         r = 35
 
@@ -637,7 +641,7 @@ svgCurvedEdge config a b symbols isActive =
             ]
 
         strokeWidth = if isActive then "4" else "2"
-        strokeColor = if isActive then "#e74c3c" else config.theme.edgeColor
+        strokeColor = if isActive then "#e74c3c" else if isHighlighted then "#f9a825" else config.theme.edgeColor
     in
     Svg.g []
         ([ Svg.path [ SA.d d, SA.fill "none", SA.stroke strokeColor, SA.strokeWidth strokeWidth, SA.fill "none" ] []

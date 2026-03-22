@@ -606,7 +606,7 @@ view model =
                     , style "flex-direction" "column"
                     , style "height" "100vh"
                     ]
-                    [ Html.map SimulatorMsg (Simulator.view model.consoleOpen model.darkMode model.settingsOpen model.language (model.tutorialStep == Just TutEnterInput) (model.tutorialStep == Just TutRunSimulation) model.simulatorModel)
+                    [ Html.map SimulatorMsg (Simulator.view model.consoleOpen model.darkMode model.settingsOpen model.language (model.tutorialStep == Just TutEnterInput) (model.tutorialStep == Just TutRunSimulation) model.windowWidth model.windowHeight model.simulatorModel)
                     ]
 
             ConversionPage ->

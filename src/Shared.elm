@@ -1,5 +1,11 @@
 module Shared exposing (..)
 
+
+type AutomatonType
+    = CompleteDFA
+    | IncompleteDFA
+    | NFA
+
 type alias State =
     { id : Int
     , x : Float

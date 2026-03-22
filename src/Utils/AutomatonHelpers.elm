@@ -8,11 +8,13 @@ module Utils.AutomatonHelpers exposing
     , toggleEndState
     , updateTransitionSymbol
     , isDFA
+    , classifyAutomaton
     , calculateArrowHead
     , epsilonClosure
     )
 
-import Shared exposing (State, Transition)
+import Set
+import Shared exposing (State, Transition, AutomatonType(..))
 
 
 calculateArrowHead : Float -> Float -> Float -> Float -> String
@@ -57,6 +59,57 @@ isDFA states transitions =
                         checkDuplicates rest (k :: seenKeys)
     in
     not hasEpsilon && not (checkDuplicates transitions [])
+
+
+classifyAutomaton : List State -> List Transition -> AutomatonType
+classifyAutomaton states transitions =
+    let
+        hasEpsilon =
+            List.any (\t -> t.symbol == "\u{03B5}") transitions
+
+        key t = String.fromInt t.from ++ "|" ++ t.symbol
+
+        checkDuplicates transList seenKeys =
+            case transList of
+                [] -> False
+                t :: rest ->
+                    let
+                        k = key t
+                    in
+                    if List.member k seenKeys then
+                        True
+                    else
+                        checkDuplicates rest (k :: seenKeys)
+
+        hasDuplicates =
+            checkDuplicates transitions []
+
+        alphabet =
+            transitions
+                |> List.filterMap (\t -> if t.symbol == "\u{03B5}" then Nothing else Just t.symbol)
+                |> Set.fromList
+                |> Set.toList
+
+        isComplete =
+            if List.isEmpty alphabet then
+                True
+            else
+                List.all
+                    (\state ->
+                        List.all
+                            (\sym ->
+                                List.any (\t -> t.from == state.id && t.symbol == sym) transitions
+                            )
+                            alphabet
+                    )
+                    states
+    in
+    if hasEpsilon || hasDuplicates then
+        NFA
+    else if not isComplete then
+        IncompleteDFA
+    else
+        CompleteDFA
 
 
 epsilonClosure : List Transition -> Int -> List Int

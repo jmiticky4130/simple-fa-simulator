@@ -246,6 +246,11 @@ type alias Translations =
     , tutStep7 : String
     , tutStep8 : String
     , tutRelaunch : String
+    , simWhyNfaTitle : String
+    , simWhyNfaIncomplete : String
+    , simWhyNfaNondet : String
+    , simWhyNfaEpsilon : String
+    , editorConvertRequirementIncomplete : String
     }
 
 
@@ -429,6 +434,11 @@ skTranslations =
     , tutStep7 = "Zadajte vstupné slovo do textového poľa (napr. a)."
     , tutStep8 = "Kliknite na Krok dopredu alebo spustite automatický beh."
     , tutRelaunch = "Spustiť tutoriál"
+    , simWhyNfaTitle = "Prečo NFA?"
+    , simWhyNfaIncomplete = "Automat je neúplný — niektorým stavom chýbajú prechody pre symboly abecedy."
+    , simWhyNfaNondet = "Viacero prechodov z rovnakého stavu s rovnakým symbolom."
+    , simWhyNfaEpsilon = "Obsahuje ε-prechody."
+    , editorConvertRequirementIncomplete = "Neúplný DFA — nie je nedeterministický automat"
     }
 
 
@@ -612,6 +622,11 @@ enTranslations =
     , tutStep7 = "Type an input word into the text field (e.g. a)."
     , tutStep8 = "Click Step Forward or start Auto-run."
     , tutRelaunch = "Relaunch Tutorial"
+    , simWhyNfaTitle = "Why NFA?"
+    , simWhyNfaNondet = "Non-deterministic — multiple transitions from same state with same symbol."
+    , simWhyNfaIncomplete = "Automaton is incomplete — some states are missing transitions for alphabet symbols."
+    , simWhyNfaEpsilon = "Contains ε-transitions."
+    , editorConvertRequirementIncomplete = "Incomplete DFA — not a non-deterministic automaton"
     }
 
 
