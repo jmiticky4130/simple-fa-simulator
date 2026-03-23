@@ -535,6 +535,9 @@ viewDfaState theme onStateMouseDown highlightId newlyCreatedId processedIds stat
         isHighlighted =
             highlightId == Just state.id
 
+        isLightFill =
+            newlyCreatedId == Just state.id || List.member state.id processedIds
+
         fillColor =
             if newlyCreatedId == Just state.id then
                 "#b3e5fc"
@@ -542,6 +545,9 @@ viewDfaState theme onStateMouseDown highlightId newlyCreatedId processedIds stat
                 "#cfd8dc"
             else
                 theme.stateFill
+
+        textColor =
+            if isLightFill then "#222222" else theme.stateText
 
         borderColor =
             if isHighlighted then "#f57f17" else theme.stateBorder
@@ -596,7 +602,7 @@ viewDfaState theme onStateMouseDown highlightId newlyCreatedId processedIds stat
                     , SA.y (String.fromFloat (state.y + 4))
                     , SA.textAnchor "middle"
                     , SA.fontSize "11"
-                    , SA.fill theme.stateText
+                    , SA.fill textColor
                     , SA.fontWeight "bold"
                     , SA.style "user-select: none; pointer-events: none;"
                     ]

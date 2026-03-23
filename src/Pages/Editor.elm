@@ -96,7 +96,6 @@ type Msg
     | StateDoubleClick Int
     | StateRightClick Int
     | TransitionClick Int Int String
-    | TransitionDoubleClick Int Int String
     | StartDrag Int Float Float
     | DragMove Float Float
     | EndDrag
@@ -558,34 +557,6 @@ update msg model =
                             )
                         Nothing ->
                             ( model, Cmd.none )
-
-                DeleteTool ->
-                    ( model, Cmd.none )
-
-        TransitionDoubleClick from to symbol ->
-            case model.currentTool of
-                BuildTool ->
-                    let
-                        fromState = getStateById from currentAutomaton.states
-                        toState = getStateById to currentAutomaton.states
-                        ( inputX, inputY ) =
-                            case ( fromState, toState ) of
-                                ( Just fs, Just ts ) ->
-                                    if from == to then
-                                        ( fs.x, fs.y - 80 )
-                                    else
-                                        ( (fs.x + ts.x) / 2, (fs.y + ts.y) / 2 )
-                                _ ->
-                                    ( 400, 300 )
-                    in
-                    ( { model
-                        | editingTransition = Just { from = from, to = to, x = inputX, y = inputY }
-                        , editingTransitionOldSymbol = Just symbol
-                        , transitionInput = symbol
-                                                , consoleMessages = { text = t.editorEditTransitionSymbol, msgType = Console.Info } :: model.consoleMessages
-                      }
-                    , Task.attempt (\_ -> NoOp) (Browser.Dom.focus "transition-input")
-                    )
 
                 DeleteTool ->
                     ( model, Cmd.none )
@@ -1332,6 +1303,26 @@ view consoleOpen darkMode settingsOpen language windowWidth windowHeight tutoria
                             |> List.map (\tr -> { from = tr.from, to = tr.to })
                 in
                 nonDetKeys ++ epsHighlights
+
+        problematicSymbols =
+            if autoType == CompleteDFA then
+                []
+            else
+                let
+                    nonDetSymbols =
+                        transitions
+                            |> List.filter (\tr -> tr.symbol /= "\u{03B5}")
+                            |> List.filter (\tr ->
+                                List.length (List.filter (\t2 -> t2.from == tr.from && t2.symbol == tr.symbol) transitions) > 1
+                            )
+                            |> List.map (\tr -> { from = tr.from, to = tr.to, symbol = tr.symbol })
+                    epsSymbols =
+                        transitions
+                            |> List.filter (\tr -> tr.symbol == "\u{03B5}")
+                            |> List.map (\tr -> { from = tr.from, to = tr.to, symbol = tr.symbol })
+                in
+                nonDetSymbols ++ epsSymbols
+
         simulateDisabledReason =
             if List.isEmpty states then
                 Just t.editorAddStateRequirement
@@ -1452,7 +1443,6 @@ view consoleOpen darkMode settingsOpen language windowWidth windowHeight tutoria
                     , onStateDoubleClick = StateDoubleClick
                     , onStateRightClick = StateRightClick
                     , onTransitionClick = TransitionClick
-                    , onTransitionDoubleClick = TransitionDoubleClick
                     , onArrowClick = DeleteAllTransitionsBetween
                     , onStartDrag = StartDrag
                     , onDragMove = DragMove
@@ -1469,6 +1459,7 @@ view consoleOpen darkMode settingsOpen language windowWidth windowHeight tutoria
                     , isSimulateMode = False
                     , highlightedStateIds = []
                     , highlightedTransitions = problematicTransitions
+                    , highlightedSymbols = problematicSymbols
                     , editingStateId = model.editingStateId
                     , theme = theme
                     , gridMode = model.gridMode

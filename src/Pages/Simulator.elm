@@ -1409,7 +1409,6 @@ view consoleOpen darkMode settingsOpen language tutorialInputHighlight tutorialB
                                 , onStateDoubleClick = \_ -> CanvasClick 0 0
                                 , onStateRightClick = \_ -> CanvasClick 0 0
                                 , onTransitionClick = TransitionClick
-                                , onTransitionDoubleClick = \_ _ _ -> CanvasClick 0 0
                                 , onArrowClick = \_ _ -> CanvasClick 0 0
                                 , onStartDrag = StartDrag
                                 , onDragMove = DragMove
@@ -1426,6 +1425,7 @@ view consoleOpen darkMode settingsOpen language tutorialInputHighlight tutorialB
                                 , isSimulateMode = True
                                 , highlightedStateIds = efficientHighlights
                                 , highlightedTransitions = []
+                                , highlightedSymbols = []
                                 , editingStateId = Nothing
                                 , theme = theme
                                 , gridMode = False

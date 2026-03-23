@@ -28,7 +28,6 @@ type alias Config msg =
     , onStateDoubleClick : Int -> msg
     , onStateRightClick : Int -> msg
     , onTransitionClick : Int -> Int -> String -> msg
-    , onTransitionDoubleClick : Int -> Int -> String -> msg
     , onArrowClick : Int -> Int -> msg
     , onStartDrag : Int -> Float -> Float -> msg
     , onDragMove : Float -> Float -> msg
@@ -45,6 +44,7 @@ type alias Config msg =
     , isSimulateMode : Bool
     , highlightedStateIds : List { stateId : Int, isAccepted : Bool }
     , highlightedTransitions : List { from : Int, to : Int }
+    , highlightedSymbols : List { from : Int, to : Int, symbol : String }
     , editingStateId : Maybe Int
     , theme : Theme.Theme
     , gridMode : Bool
@@ -422,23 +422,28 @@ viewGroupedTransition config grouped =
 
         isHighlighted =
             List.any (\ht -> ht.from == grouped.from && ht.to == grouped.to) config.highlightedTransitions
+
+        highlightedSymbolsForGroup =
+            config.highlightedSymbols
+                |> List.filter (\hs -> hs.from == grouped.from && hs.to == grouped.to)
+                |> List.map .symbol
     in
     case ( maybeFromState, maybeToState ) of
         ( Just fromState, Just toState ) ->
             if fromState.id == toState.id then
-                svgSelfLoop config fromState grouped.symbols isActive isHighlighted
+                svgSelfLoop config fromState grouped.symbols isActive isHighlighted highlightedSymbolsForGroup
             else
                 if hasReverseTransition then
-                    svgCurvedEdge config fromState toState grouped.symbols isActive isHighlighted
+                    svgCurvedEdge config fromState toState grouped.symbols isActive isHighlighted highlightedSymbolsForGroup
                 else
-                    svgEdge config fromState toState grouped.symbols isActive isHighlighted
+                    svgEdge config fromState toState grouped.symbols isActive isHighlighted highlightedSymbolsForGroup
 
         _ ->
             Svg.g [] []
 
 
-svgSelfLoop : Config msg -> State -> List String -> Bool -> Bool -> Svg msg
-svgSelfLoop config state symbols isActive isHighlighted =
+svgSelfLoop : Config msg -> State -> List String -> Bool -> Bool -> List String -> Svg msg
+svgSelfLoop config state symbols isActive isHighlighted highlightedSymbolsList =
     let
         r = 35
         startAngle = degrees -150
@@ -491,13 +496,6 @@ svgSelfLoop config state symbols isActive isHighlighted =
                                 , preventDefault = False
                                 }
                             )
-                        , SE.custom "dblclick"
-                            (Decode.succeed
-                                { message = config.onTransitionDoubleClick state.id state.id sym
-                                , stopPropagation = True
-                                , preventDefault = False
-                                }
-                            )
                         ]
                 startX = state.x - (toFloat (n - 1) * toFloat spacing) / 2
             in
@@ -505,6 +503,7 @@ svgSelfLoop config state symbols isActive isHighlighted =
                 (\i sym ->
                     let
                         cx = startX + toFloat i * toFloat spacing
+                        labelColor = if List.member sym highlightedSymbolsList then "#f9a825" else config.theme.edgeLabelColor
                     in
                     Svg.g (symClickAttrs sym)
                         [ Svg.rect
@@ -521,7 +520,7 @@ svgSelfLoop config state symbols isActive isHighlighted =
                             , SA.y (String.fromFloat labelY)
                             , SA.textAnchor "middle"
                             , SA.fontSize "16"
-                            , SA.fill config.theme.edgeLabelColor
+                            , SA.fill labelColor
                             , SA.fontWeight "bold"
                             , SA.style symbolStyle
                             ]
@@ -556,8 +555,8 @@ svgSelfLoop config state symbols isActive isHighlighted =
         )
 
 
-svgEdge : Config msg -> State -> State -> List String -> Bool -> Bool -> Svg msg
-svgEdge config a b symbols isActive isHighlighted =
+svgEdge : Config msg -> State -> State -> List String -> Bool -> Bool -> List String -> Svg msg
+svgEdge config a b symbols isActive isHighlighted highlightedSymbolsList =
     let
         r = 35
         vx = b.x - a.x
@@ -597,13 +596,6 @@ svgEdge config a b symbols isActive isHighlighted =
                         , preventDefault = False
                         }
                     )
-                , SE.custom "dblclick"
-                    (Decode.succeed
-                        { message = config.onTransitionDoubleClick a.id b.id sym
-                        , stopPropagation = True
-                        , preventDefault = False
-                        }
-                    )
                 ]
 
         labels =
@@ -616,6 +608,7 @@ svgEdge config a b symbols isActive isHighlighted =
                     (\i sym ->
                         let
                             sx2 = (toFloat i - toFloat (n - 1) / 2.0) * toFloat spacing
+                            labelColor = if List.member sym highlightedSymbolsList then "#f9a825" else config.theme.edgeLabelColor
                         in
                         Svg.g (symClickAttrs sym)
                             [ Svg.rect
@@ -632,7 +625,7 @@ svgEdge config a b symbols isActive isHighlighted =
                                 , SA.y "-6"
                                 , SA.textAnchor "middle"
                                 , SA.fontSize "16"
-                                , SA.fill config.theme.edgeLabelColor
+                                , SA.fill labelColor
                                 , SA.fontWeight "bold"
                                 , SA.style "user-select: none;"
                                 ]
@@ -668,7 +661,7 @@ svgEdge config a b symbols isActive isHighlighted =
             ++ labels
         )
 
-svgCurvedEdge config a b symbols isActive isHighlighted =
+svgCurvedEdge config a b symbols isActive isHighlighted highlightedSymbolsList =
     let
         r = 35
 
@@ -740,13 +733,6 @@ svgCurvedEdge config a b symbols isActive isHighlighted =
                         , preventDefault = False
                         }
                     )
-                , SE.custom "dblclick"
-                    (Decode.succeed
-                        { message = config.onTransitionDoubleClick a.id b.id sym
-                        , stopPropagation = True
-                        , preventDefault = False
-                        }
-                    )
                 ]
 
         labels =
@@ -759,6 +745,7 @@ svgCurvedEdge config a b symbols isActive isHighlighted =
                     (\i sym ->
                         let
                             sx2 = (toFloat i - toFloat (n - 1) / 2.0) * toFloat spacing
+                            labelColor = if List.member sym highlightedSymbolsList then "#f9a825" else config.theme.edgeLabelColor
                         in
                         Svg.g (symClickAttrs sym)
                             [ Svg.rect
@@ -775,7 +762,7 @@ svgCurvedEdge config a b symbols isActive isHighlighted =
                                 , SA.y "-6"
                                 , SA.textAnchor "middle"
                                 , SA.fontSize "16"
-                                , SA.fill config.theme.edgeLabelColor
+                                , SA.fill labelColor
                                 , SA.fontWeight "bold"
                                 , SA.style "user-select: none;"
                                 ]
