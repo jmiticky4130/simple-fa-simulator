@@ -700,18 +700,48 @@ update msg model =
             )
 
         DeleteAllTransitionsBetween from to ->
-            let
-                newAutomaton =
-                    { currentAutomaton
-                    | transitions = List.filter (\transition -> not (transition.from == from && transition.to == to)) currentAutomaton.transitions
-                    }
-            in
-            ( { model
-                | automaton = UndoList.new newAutomaton model.automaton
-                , consoleMessages = { text = t.editorTransitionDeletedPrefix ++ "all", msgType = Console.Info } :: model.consoleMessages
-              }
-            , Cmd.none
-            )
+            case model.currentTool of
+                DeleteTool ->
+                    let
+                        newAutomaton =
+                            { currentAutomaton
+                            | transitions = List.filter (\transition -> not (transition.from == from && transition.to == to)) currentAutomaton.transitions
+                            }
+                    in
+                    ( { model
+                        | automaton = UndoList.new newAutomaton model.automaton
+                        , consoleMessages = { text = t.editorTransitionDeletedAll, msgType = Console.Info } :: model.consoleMessages
+                      }
+                    , Cmd.none
+                    )
+
+                BuildTool ->
+                    let
+                        fromState = getStateById from currentAutomaton.states
+                        toState = getStateById to currentAutomaton.states
+                        ( inputX, inputY ) =
+                            case ( fromState, toState ) of
+                                ( Just fs, Just ts ) ->
+                                    if from == to then
+                                        ( fs.x, fs.y - 80 )
+                                    else
+                                        ( (fs.x + ts.x) / 2, (fs.y + ts.y) / 2 )
+                                _ ->
+                                    ( 400, 300 )
+                        allSymbols =
+                            List.filter (\tr -> tr.from == from && tr.to == to) currentAutomaton.transitions
+                                |> List.map .symbol
+                                |> List.sort
+                                |> String.join " "
+                    in
+                    ( { model
+                        | editingTransition = Just { from = from, to = to, x = inputX, y = inputY }
+                        , editingTransitionOldSymbol = Just "__ALL__"
+                        , transitionInput = allSymbols
+                        , consoleMessages = { text = t.editorEditTransitionSymbol, msgType = Console.Info } :: model.consoleMessages
+                      }
+                    , Task.attempt (\_ -> NoOp) (Browser.Dom.focus "transition-input")
+                    )
 
         SetStateLabel stateId newLabel ->
             let
@@ -892,12 +922,15 @@ update msg model =
                 Just { from, to } ->
                     case model.editingTransitionOldSymbol of
                         Just oldSymbol ->
-                            -- Edit mode: remove old transition, add new (comma-separated)
+                            -- Edit mode: remove old transition(s), add new (space-separated)
                             let
                                 newInput = String.trim model.transitionInput
-                                -- Remove old transition
+                                -- "__ALL__" sentinel means replace all transitions between from/to
                                 filteredTransitions =
-                                    List.filter (\transition -> not (transition.from == from && transition.to == to && transition.symbol == oldSymbol)) currentAutomaton.transitions
+                                    if oldSymbol == "__ALL__" then
+                                        List.filter (\transition -> not (transition.from == from && transition.to == to)) currentAutomaton.transitions
+                                    else
+                                        List.filter (\transition -> not (transition.from == from && transition.to == to && transition.symbol == oldSymbol)) currentAutomaton.transitions
                             in
                             if String.isEmpty newInput then
                                 -- Empty → ε transition
@@ -1077,23 +1110,49 @@ update msg model =
                 Nothing ->
                     ( model, Cmd.none )
 
-        TransitionClick from to symbol ->
-            if model.currentTool == DeleteTool then
-                let
-                    message = t.editorTransitionDeletedPrefix ++ symbol
-                    newAutomaton =
-                        { currentAutomaton
-                        | transitions = List.filter (\transition -> not (transition.from == from && transition.to == to && transition.symbol == symbol)) currentAutomaton.transitions
-                        }
-                in
-                ( { model
-                    | automaton = UndoList.new newAutomaton model.automaton
-                    , consoleMessages = { text = message, msgType = Console.Info } :: model.consoleMessages
-                  }
-                , Cmd.none
-                )
-            else
-                ( model, Cmd.none )
+        TransitionClick from to _ ->
+            case model.currentTool of
+                DeleteTool ->
+                    let
+                        newAutomaton =
+                            { currentAutomaton
+                            | transitions = List.filter (\transition -> not (transition.from == from && transition.to == to)) currentAutomaton.transitions
+                            }
+                    in
+                    ( { model
+                        | automaton = UndoList.new newAutomaton model.automaton
+                        , consoleMessages = { text = t.editorTransitionDeletedAll, msgType = Console.Info } :: model.consoleMessages
+                      }
+                    , Cmd.none
+                    )
+
+                BuildTool ->
+                    let
+                        fromState = getStateById from currentAutomaton.states
+                        toState = getStateById to currentAutomaton.states
+                        ( inputX, inputY ) =
+                            case ( fromState, toState ) of
+                                ( Just fs, Just ts ) ->
+                                    if from == to then
+                                        ( fs.x, fs.y - 80 )
+                                    else
+                                        ( (fs.x + ts.x) / 2, (fs.y + ts.y) / 2 )
+                                _ ->
+                                    ( 400, 300 )
+                        allSymbols =
+                            List.filter (\tr -> tr.from == from && tr.to == to) currentAutomaton.transitions
+                                |> List.map .symbol
+                                |> List.sort
+                                |> String.join " "
+                    in
+                    ( { model
+                        | editingTransition = Just { from = from, to = to, x = inputX, y = inputY }
+                        , editingTransitionOldSymbol = Just "__ALL__"
+                        , transitionInput = allSymbols
+                        , consoleMessages = { text = t.editorEditTransitionSymbol, msgType = Console.Info } :: model.consoleMessages
+                      }
+                    , Task.attempt (\_ -> NoOp) (Browser.Dom.focus "transition-input")
+                    )
 
         CanvasMouseDown x y ->
             ( { model | isPanning = True, panLastX = x, panLastY = y, hasPanned = False }, Cmd.none )
@@ -1380,7 +1439,9 @@ view consoleOpen darkMode settingsOpen language windowWidth windowHeight tutoria
                     { states = states
                     , transitions = transitions
                     , selectedState = model.selectedState
-                    , transitionFrom = model.transitionFrom
+                    , transitionFrom = case model.editingTransition of
+                        Just { from } -> Just from
+                        Nothing -> model.transitionFrom
                     , transitionTo = Maybe.map .to model.editingTransition
                     , activeStateId = Nothing
                     , activeStateVerdict = Nothing

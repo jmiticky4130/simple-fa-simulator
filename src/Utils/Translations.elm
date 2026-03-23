@@ -135,6 +135,7 @@ type alias Translations =
     , editorEditTransitionSymbol : String
     , editorStateDeletedPrefix : String
     , editorTransitionDeletedPrefix : String
+    , editorTransitionDeletedAll : String
     , editorEmptyName : String
     , editorStateExistsPrefix : String
     , editorStateExistsSuffix : String
@@ -333,6 +334,7 @@ skTranslations =
     , editorEditTransitionSymbol = "Upravte symbol prechodu."
     , editorStateDeletedPrefix = "Odstránený stav: "
     , editorTransitionDeletedPrefix = "Odstránený prechod: "
+    , editorTransitionDeletedAll = "Odstránené všetky prechody."
     , editorEmptyName = "Prázdny názov nie je povolený."
     , editorStateExistsPrefix = "Stav s názvom '"
     , editorStateExistsSuffix = "' už existuje."
@@ -348,10 +350,10 @@ skTranslations =
     , editorAllTransitionsExist = "Všetky prechody už existujú."
     , editorTransitionAddedPrefix = "Pridaný prechod: "
     , editorTransitionsAddedPrefix = "Pridaných "
-    , editorTransitionsAddedSuffix = " prechodov."
+    , editorTransitionsAddedSuffix = " prechody."
     , editorSelectTargetState = "Vyberte cieľový stav pre prechod."
     , editorEnterTransitionSymbols = "Zadajte symbol(y) pre prechod (oddeľte medzerou)."
-    , editorToolBuildMessage = "Nástroj: Stavať - dvojklik=nový stav, klik na stav=prechod, rýchly dvojklik=slučka, pravý klik=upraviť stav"
+    , editorToolBuildMessage = "Nástroj: Stavať - dvojklik na plátno=nový stav, klik na stav=prechod, dvojklik na stav=slučka, pravý klik na stav=upraviť stav"
     , editorToolDeleteMessage = "Nástroj: Odstrániť - kliknite na stav alebo prechod"
     , editorAddStateRequirement = "Pridajte aspoň jeden stav."
     , editorStartStateRequirement = "Nastavte počiatočný stav."
@@ -531,6 +533,7 @@ enTranslations =
     , editorEditTransitionSymbol = "Edit the transition symbol."
     , editorStateDeletedPrefix = "Deleted state: "
     , editorTransitionDeletedPrefix = "Deleted transition: "
+    , editorTransitionDeletedAll = "All transitions deleted."
     , editorEmptyName = "An empty name is not allowed."
     , editorStateExistsPrefix = "A state named '"
     , editorStateExistsSuffix = "' already exists."
@@ -549,7 +552,7 @@ enTranslations =
     , editorTransitionsAddedSuffix = " transitions."
     , editorSelectTargetState = "Select a target state for the transition."
     , editorEnterTransitionSymbols = "Enter transition symbol(s), separated by spaces."
-    , editorToolBuildMessage = "Tool: Build - double click=new state, click state=transition, fast double click=self-loop, right click=edit state"
+    , editorToolBuildMessage = "Tool: Build - double click on empty canvas=new state, click two states=transition, double click on state=self-loop, right click state=edit state"
     , editorToolDeleteMessage = "Tool: Delete - click a state or transition"
     , editorAddStateRequirement = "Add at least one state."
     , editorStartStateRequirement = "Set a start state."
