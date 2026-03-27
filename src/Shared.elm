@@ -14,6 +14,7 @@ type alias State =
     , isStart : Bool
     , isEnd : Bool
     , isCompact : Bool
+    , startAngle : Float
     }
 
 
@@ -21,6 +22,7 @@ type alias Transition =
     { from : Int
     , to : Int
     , symbol : String
+    , bend : Float
     }
 
 

@@ -30,16 +30,16 @@ view config =
             classifyAutomaton config.states config.transitions
 
         typeLabel =
-            if autoType == CompleteDFA then
-                "DFA"
-            else
-                "NFA"
+            case autoType of
+                CompleteDFA -> "DFA"
+                IncompleteDFA -> t.incompleteDfaLabel
+                NFA -> "NFA"
 
         typeColor =
-            if autoType == CompleteDFA then
-                config.theme.automatonTypeDfa
-            else
-                config.theme.automatonTypeNfa
+            case autoType of
+                CompleteDFA -> config.theme.automatonTypeDfa
+                IncompleteDFA -> config.theme.automatonTypeIncompleteDfa
+                NFA -> config.theme.automatonTypeNfa
     in
     div
         [ style "display" "flex"
@@ -93,8 +93,8 @@ view config =
                             [ style "position" "absolute"
                             , style "top" "calc(100% + 6px)"
                             , style "right" "0"
-                            , style "background" "#333"
-                            , style "color" "white"
+                            , style "background" config.theme.copyTooltipBg
+                            , style "color" config.theme.textOnDark
                             , style "padding" "3px 8px"
                             , style "border-radius" "4px"
                             , style "font-size" "11px"
@@ -121,56 +121,65 @@ view config =
 
 viewWhyNfaBlock : Theme.Theme -> Translations.Translations -> AutomatonType -> List Transition -> Html msg
 viewWhyNfaBlock theme t autoType transitions =
-    if autoType == CompleteDFA then
-        text ""
-    else
-        let
-            hasEpsilon =
-                List.any (\tr -> tr.symbol == "\u{03B5}") transitions
+    case autoType of
+        CompleteDFA ->
+            text ""
 
-            hasNonDet =
-                let
-                    checkDups tl seen =
-                        case tl of
-                            [] -> False
-                            tr :: rest ->
-                                let k = String.fromInt tr.from ++ "|" ++ tr.symbol
-                                in
-                                if List.member k seen then True
-                                else checkDups rest (k :: seen)
-                in
-                checkDups (List.filter (\tr -> tr.symbol /= "\u{03B5}") transitions) []
+        IncompleteDFA ->
+            viewWhyBlock theme t.simWhyIncompleteDfaTitle [ t.simWhyNfaIncomplete ]
 
-            reasons =
-                (if hasEpsilon then [ t.simWhyNfaEpsilon ] else [])
-                    ++ (if hasNonDet then [ t.simWhyNfaNondet ] else [])
-                    ++ (if autoType == IncompleteDFA then [ t.simWhyNfaIncomplete ] else [])
-        in
-        div
-            [ style "padding" "10px 0 6px 0"
+        NFA ->
+            let
+                hasEpsilon =
+                    List.any (\tr -> tr.symbol == "\u{03B5}") transitions
+
+                hasNonDet =
+                    let
+                        checkDups tl seen =
+                            case tl of
+                                [] -> False
+                                tr :: rest ->
+                                    let k = String.fromInt tr.from ++ "|" ++ tr.symbol
+                                    in
+                                    if List.member k seen then True
+                                    else checkDups rest (k :: seen)
+                    in
+                    checkDups (List.filter (\tr -> tr.symbol /= "\u{03B5}") transitions) []
+
+                reasons =
+                    (if hasEpsilon then [ t.simWhyNfaEpsilon ] else [])
+                        ++ (if hasNonDet then [ t.simWhyNfaNondet ] else [])
+            in
+            viewWhyBlock theme t.simWhyNfaTitle reasons
+
+
+viewWhyBlock : Theme.Theme -> String -> List String -> Html msg
+viewWhyBlock theme title reasons =
+    div
+        [ style "padding" "10px 0 6px 0"
+        ]
+        [ div
+            [ style "font-weight" "bold"
+            , style "font-size" "14px"
+            , style "color" theme.textPrimary
+            , style "margin-bottom" "6px"
             ]
-            [ div
-                [ style "font-weight" "bold"
-                , style "font-size" "14px"
-                , style "color" theme.textPrimary
-                , style "margin-bottom" "6px"
-                ]
-                [ text t.simWhyNfaTitle ]
-            , div []
-                (List.map
-                    (\reason ->
-                        div
-                            [ style "font-size" "13px"
-                            , style "color" theme.textMuted
-                            , style "padding-left" "10px"
-                            , style "margin-bottom" "3px"
-                            , style "line-height" "1.4"
-                            ]
-                            [ text ("\u{2022} " ++ reason) ]
-                    )
-                    reasons
+            [ text title ]
+        , div []
+            (List.map
+                (\reason ->
+                    div
+                        [ style "font-size" "13px"
+                        , style "color" theme.textMuted
+                        , style "padding-left" "10px"
+                        , style "margin-bottom" "3px"
+                        , style "line-height" "1.4"
+                        ]
+                        [ text ("\u{2022} " ++ reason) ]
                 )
-            ]
+                reasons
+            )
+        ]
 
 
 viewDefinition : Config msg -> Html msg

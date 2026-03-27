@@ -779,7 +779,7 @@ viewTutorialWelcome theme t model =
         , style "left" "0"
         , style "width" "100%"
         , style "height" "100%"
-        , style "background-color" "rgba(0,0,0,0.7)"
+        , style "background-color" theme.overlayDark70
         , style "z-index" "3000"
         , style "display" "flex"
         , style "align-items" "center"
@@ -816,7 +816,7 @@ viewTutorialWelcome theme t model =
                 ]
                 [ div [ style "color" theme.textSecondary, style "font-size" "14px" ]
                     [ text t.darkMode ]
-                , tutorialPillToggle ToggleDarkMode model.darkMode
+                , tutorialPillToggle theme ToggleDarkMode model.darkMode
                 ]
             , div
                 [ style "display" "flex"
@@ -828,8 +828,8 @@ viewTutorialWelcome theme t model =
                     [ text t.language ]
                 , button
                     [ onClick ToggleLanguage
-                    , style "background" "#37474f"
-                    , style "color" "white"
+                    , style "background" theme.btnSecondaryBg
+                    , style "color" theme.textOnDark
                     , style "border" "none"
                     , style "border-radius" "4px"
                     , style "padding" "4px 12px"
@@ -846,14 +846,14 @@ viewTutorialWelcome theme t model =
                 ]
                 [ div [ style "color" theme.textSecondary, style "font-size" "14px" ]
                     [ text t.gridMode ]
-                , tutorialPillToggle ToggleGridMode model.gridMode
+                , tutorialPillToggle theme ToggleGridMode model.gridMode
                 ]
             , button
                 [ onClick TutorialWelcomeContinue
                 , style "width" "100%"
                 , style "padding" "13px"
                 , style "background-color" theme.btnPrimary
-                , style "color" "white"
+                , style "color" theme.textOnDark
                 , style "border" "none"
                 , style "border-radius" "6px"
                 , style "font-size" "15px"
@@ -879,14 +879,14 @@ viewTutorialWelcome theme t model =
         ]
 
 
-tutorialPillToggle : msg -> Bool -> Html msg
-tutorialPillToggle onToggle isOn =
+tutorialPillToggle : Theme.Theme -> msg -> Bool -> Html msg
+tutorialPillToggle theme onToggle isOn =
     div
         [ onClick onToggle
         , style "width" "40px"
         , style "height" "20px"
         , style "border-radius" "10px"
-        , style "background-color" (if isOn then "#0288d1" else "#546e7a")
+        , style "background-color" (if isOn then theme.toggleOnBg else theme.toggleOffBg)
         , style "cursor" "pointer"
         , style "position" "relative"
         , style "flex-shrink" "0"
@@ -898,7 +898,7 @@ tutorialPillToggle onToggle isOn =
             , style "width" "16px"
             , style "height" "16px"
             , style "border-radius" "50%"
-            , style "background-color" "white"
+            , style "background-color" theme.colorWhite
             ]
             []
         ]
@@ -1005,13 +1005,13 @@ viewTutorialTooltip theme t step =
         , style "padding" "16px 20px"
         , style "box-sizing" "border-box"
         , style "border-radius" "12px"
-        , style "box-shadow" "0 6px 32px rgba(0,0,0,0.6), 0 0 0 1px rgba(255,255,255,0.08)"
-        , style "border" "2px solid rgba(255,255,255,0.5)"
+        , style "box-shadow" ("0 6px 32px " ++ theme.overlayDark60 ++ ", 0 0 0 1px " ++ theme.overlayLight08)
+        , style "border" ("2px solid " ++ theme.overlayLight50)
         , style "gap" "16px"
         , style "font-family" "sans-serif"
         ]
         [ div
-            [ style "background-color" "rgba(255,255,255,0.2)"
+                [ style "background-color" theme.overlayLight20
             , style "border-radius" "20px"
             , style "padding" "4px 12px"
             , style "font-size" "12px"
@@ -1036,8 +1036,8 @@ viewTutorialTooltip theme t step =
                     , style "gap" "4px"
                     ]
                     [ span
-                        [ style "background-color" "rgba(255,255,255,0.2)"
-                        , style "border" "1px solid rgba(255,255,255,0.5)"
+                        [ style "background-color" theme.overlayLight20
+                        , style "border" ("1px solid " ++ theme.overlayLight50)
                         , style "border-radius" "4px"
                         , style "padding" "1px 6px"
                         , style "font-family" "monospace"
@@ -1058,9 +1058,9 @@ viewTutorialTooltip theme t step =
             ]
             [ button
                 [ onClick TutorialSkip
-                , style "background-color" "rgba(255,255,255,0.12)"
+                , style "background-color" theme.overlayLight12
                 , style "color" theme.tutorialTooltipText
-                , style "border" "1px solid rgba(255,255,255,0.3)"
+                , style "border" ("1px solid " ++ theme.overlayLight30)
                 , style "border-radius" "6px"
                 , style "padding" "6px 14px"
                 , style "font-size" "13px"
@@ -1071,7 +1071,7 @@ viewTutorialTooltip theme t step =
                 button
                     [ onClick TutorialNext
                     , style "background-color" theme.btnPrimary
-                    , style "color" "white"
+                    , style "color" theme.textOnDark
                     , style "border" "none"
                     , style "border-radius" "6px"
                     , style "padding" "6px 14px"
@@ -1086,7 +1086,7 @@ viewTutorialTooltip theme t step =
                 button
                     [ onClick TutorialSkip
                     , style "background-color" theme.btnPrimary
-                    , style "color" "white"
+                    , style "color" theme.textOnDark
                     , style "border" "none"
                     , style "border-radius" "6px"
                     , style "padding" "6px 14px"
@@ -1159,7 +1159,7 @@ viewGuideModal theme t model =
         , style "left" "0"
         , style "width" "100%"
         , style "height" "100%"
-        , style "background-color" "rgba(0,0,0,0.6)"
+        , style "background-color" theme.overlayDark60
         , style "z-index" "3000"
         , style "display" "flex"
         , style "align-items" "center"
@@ -1175,7 +1175,7 @@ viewGuideModal theme t model =
             , style "display" "flex"
             , style "flex-direction" "column"
             , style "overflow" "hidden"
-            , style "box-shadow" "0 8px 32px rgba(0,0,0,0.4)"
+            , style "box-shadow" ("0 8px 32px " ++ theme.overlayDark50)
             , Html.Events.stopPropagationOn "click" (Decode.succeed ( NoOp, True ))
             ]
             [ viewGuideHeader theme t
@@ -1201,16 +1201,16 @@ viewGuideHeader theme t =
         , style "align-items" "center"
         , style "padding" "14px 20px"
         , style "background-color" theme.toolbarBg
-        , style "color" "white"
+        , style "color" theme.textOnDark
         , style "flex-shrink" "0"
         ]
         [ div [ style "font-size" "17px", style "font-weight" "bold", style "flex" "1" ]
             [ text t.guideTitle ]
         , button
             [ onClick StartTutorial
-            , style "background-color" "#00796b"
+            , style "background-color" theme.relaunchBtnBg
             , style "border" "none"
-            , style "color" "white"
+            , style "color" theme.textOnDark
             , style "font-size" "13px"
             , style "font-weight" "bold"
             , style "cursor" "pointer"
@@ -1223,7 +1223,7 @@ viewGuideHeader theme t =
             [ onClick CloseGuide
             , style "background" "none"
             , style "border" "none"
-            , style "color" "white"
+            , style "color" theme.textOnDark
             , style "font-size" "22px"
             , style "cursor" "pointer"
             , style "padding" "0 2px"
@@ -1254,11 +1254,11 @@ guideTabBtn theme tab label current =
         [ onClick (SetGuideTab tab)
         , style "padding" "10px 18px"
         , style "background-color"
-            (if tab == current then theme.modalTabActiveBg else "transparent")
-        , style "color" "white"
+            (if tab == current then theme.modalTabActiveBg else theme.colorTransparent)
+        , style "color" theme.textOnDark
         , style "border" "none"
         , style "border-bottom"
-            (if tab == current then ("2px solid " ++ theme.modalTabActiveBorder) else "2px solid transparent")
+            (if tab == current then ("2px solid " ++ theme.modalTabActiveBorder) else ("2px solid " ++ theme.colorTransparent))
         , style "cursor" "pointer"
         , style "font-size" "13px"
         , style "font-weight"

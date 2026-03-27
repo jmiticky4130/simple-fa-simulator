@@ -105,6 +105,7 @@ type alias Translations =
     , deleteStored : String
     , consoleTitle : String
     , automatonDefinition : String
+    , incompleteDfaLabel : String
     , copied : String
     , noStartStateSelected : String
     , currentState : String
@@ -254,6 +255,7 @@ type alias Translations =
     , tutUnderstand : String
     , tutRelaunch : String
     , simWhyNfaTitle : String
+    , simWhyIncompleteDfaTitle : String
     , simWhyNfaIncomplete : String
     , simWhyNfaNondet : String
     , simWhyNfaEpsilon : String
@@ -295,7 +297,7 @@ skTranslations =
     , stepForward = "Krok vpred"
     , auto = "Auto"
     , pause = "Pauza"
-    , backToEditor = "<- Editor"
+    , backToEditor = "Editor"
     , replaceAutomaton = "Nahradiť automat"
     , saveDfa = "Uložiť DFA"
     , stepLabel = "Krok"
@@ -304,6 +306,7 @@ skTranslations =
     , deleteStored = "Vymazať"
     , consoleTitle = "Konzola"
     , automatonDefinition = "Definícia automatu"
+    , incompleteDfaLabel = "Neúplný DFA"
     , copied = "Skopírované"
     , noStartStateSelected = "nebol vybratý počiatočný stav"
     , currentState = "Aktuálny stav"
@@ -395,7 +398,7 @@ skTranslations =
     , simEfficientModeTooltip = "Efektívny režim spustí simuláciu naraz bez budovania stromu inštancií. Vhodné pre komplexné NFA s dlhým vstupom, kde by klasická simulácia bola príliš pomalá."
     , simInstantRun = "Okamžitý beh"
     , simReachedStatesPrefix = "Dosiahnuté stavy: "
-    , simInstancePanelDisabled = "Panel instancií je deaktivovaný v efektívnom režime."
+    , simInstancePanelDisabled = "Panel inštancií je deaktivovaný v efektívnom režime."
     , convStarted = "Konverzia NFA -> DFA spustená."
     , convFinished = "Konverzia dokončená."
     , convAutomatonReplaced = "Automat nahradený konvertovaným DFA."
@@ -453,6 +456,7 @@ skTranslations =
     , tutUnderstand = "Rozumiem"
     , tutRelaunch = "Spustiť tutoriál"
     , simWhyNfaTitle = "Prečo NFA?"
+    , simWhyIncompleteDfaTitle = "Prečo neúplný DFA?"
     , simWhyNfaIncomplete = "Automat je neúplný — niektorým stavom chýbajú prechody pre symboly abecedy. Použite tlačidlo 'Doplniť mŕtvy stav' na doplnenie formálne správneho DFA."
     , simWhyNfaNondet = "Viacero prechodov z rovnakého stavu s rovnakým symbolom."
     , simWhyNfaEpsilon = "Obsahuje ε-prechody."
@@ -494,7 +498,7 @@ enTranslations =
     , stepForward = "Step forward"
     , auto = "Auto"
     , pause = "Pause"
-    , backToEditor = "<- Editor"
+    , backToEditor = "Editor"
     , replaceAutomaton = "Replace automaton"
     , saveDfa = "Save DFA"
     , stepLabel = "Step"
@@ -503,6 +507,7 @@ enTranslations =
     , deleteStored = "Delete"
     , consoleTitle = "Console"
     , automatonDefinition = "Automaton definition"
+    , incompleteDfaLabel = "Incomplete DFA"
     , copied = "Copied"
     , noStartStateSelected = "no start state selected"
     , currentState = "Current state"
@@ -652,6 +657,7 @@ enTranslations =
     , tutUnderstand = "Understand"
     , tutRelaunch = "Relaunch Tutorial"
     , simWhyNfaTitle = "Why NFA?"
+    , simWhyIncompleteDfaTitle = "Why incomplete DFA?"
     , simWhyNfaNondet = "Non-deterministic — multiple transitions from same state with same symbol."
     , simWhyNfaIncomplete = "Automaton is incomplete — some states are missing transitions for alphabet symbols. Use 'Add dead state' to complete the automaton as a formally correct DFA."
     , simWhyNfaEpsilon = "Contains ε-transitions."
@@ -1034,6 +1040,8 @@ guideAboutPage lang =
                 , row "Typ" "Bakalárska práca"
                 , row "Rok" "2026"
                 , row "Škola" "STU FIIT"
+                , row "Autor" "Jakub Mitický"
+                , row "Vedúci práce" "Ing. Ivan Kapustík"
                 ]
             , contactPrefix = "Spätná väzba, otázky alebo hlásenie chýb - napíšte na: "
             }
@@ -1045,6 +1053,8 @@ guideAboutPage lang =
                 , row "Type" "Bachelor thesis"
                 , row "Year" "2026"
                 , row "School" "STU FIIT"
+                , row "Author" "Jakub Mitický"
+                , row "Supervisor" "Ing. Ivan Kapustík"
                 ]
             , contactPrefix = "Feedback, questions, or bug reports - write to: "
             }

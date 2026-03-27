@@ -181,19 +181,19 @@ view config =
             case findInstance nid of
                 Nothing ->
                     -- Intermediate node (was replaced by children)
-                    { fill = "#90a4ae", stroke = "#607d8b", textFill = "white" }
+                    { fill = config.theme.neutralGrayBg, stroke = config.theme.neutralGrayStroke, textFill = config.theme.textOnDark }
 
                 Just inst ->
                     case inst.verdict of
                         Nothing ->
-                            { fill = "#1e88e5", stroke = "#1565c0", textFill = "white" }
+                            { fill = config.theme.runningFillColor, stroke = config.theme.runningBorderColor, textFill = config.theme.textOnDark }
 
                         Just v ->
                             if v.isAccepted then
-                                { fill = "#43a047", stroke = "#2e7d32", textFill = "white" }
+                                { fill = config.theme.acceptFillColor, stroke = config.theme.acceptBorderColor, textFill = config.theme.textOnDark }
 
                             else
-                                { fill = "#e53935", stroke = "#b71c1c", textFill = "white" }
+                                { fill = config.theme.rejectFillColor, stroke = config.theme.rejectBorderColor, textFill = config.theme.textOnDark }
 
         isSelected nid =
             config.selectedId == Just nid
@@ -206,7 +206,7 @@ view config =
                 , SA.y1 (String.fromFloat (parentPos.y + nodeR))
                 , SA.x2 (String.fromFloat childPos.x)
                 , SA.y2 (String.fromFloat (childPos.y - nodeR))
-                , SA.stroke "#b0bec5"
+                , SA.stroke config.theme.dividerColor
                 , SA.strokeWidth "1.5"
                 ]
                 []
@@ -219,7 +219,7 @@ view config =
                 , SA.y1 (String.fromFloat (parentPos.y + nodeR))
                 , SA.x2 (String.fromFloat childPos.x)
                 , SA.y2 (String.fromFloat (childPos.y - nodeR))
-                , SA.stroke "#90a4ae"
+                , SA.stroke config.theme.neutralGrayBg
                 , SA.strokeWidth "1.5"
                 , SA.strokeDasharray "5,4"
                 ]
@@ -241,7 +241,7 @@ view config =
 
                 strokeColor =
                     if isSelected pos.id then
-                        "white"
+                        config.theme.textOnDark
 
                     else
                         colors.stroke
@@ -300,7 +300,7 @@ view config =
                     , SA.y1 (String.fromFloat (y - levelH / 2))
                     , SA.x2 (String.fromFloat (leftPad + contentW - 4))
                     , SA.y2 (String.fromFloat (y - levelH / 2))
-                    , SA.stroke "#cfd8dc"
+                    , SA.stroke config.theme.mutedContrastText
                     , SA.strokeWidth "1"
                     , SA.strokeDasharray "4,3"
                     ]
@@ -312,8 +312,8 @@ view config =
                     , SA.width "36"
                     , SA.height "22"
                     , SA.rx "4"
-                    , SA.fill "#eceff1"
-                    , SA.stroke "#90a4ae"
+                    , SA.fill config.theme.nfaNodeBoxBg
+                    , SA.stroke config.theme.nfaNodeBoxStroke
                     , SA.strokeWidth "1"
                     ]
                     []
@@ -322,7 +322,7 @@ view config =
                     , SA.y (String.fromFloat (y - levelH / 2))
                     , SA.textAnchor "middle"
                     , SA.dominantBaseline "central"
-                    , SA.fill "#37474f"
+                    , SA.fill config.theme.nfaNodeBoxText
                     , SA.fontSize "13"
                     , SA.fontWeight "bold"
                     ]
@@ -410,7 +410,7 @@ view config =
                                         , SA.y1 (String.fromFloat (y - levelH / 2))
                                         , SA.x2 (String.fromFloat (leftPad + contentW - 4))
                                         , SA.y2 (String.fromFloat (y - levelH / 2))
-                                        , SA.stroke "#cfd8dc"
+                                        , SA.stroke config.theme.mutedContrastText
                                         , SA.strokeWidth "1"
                                         , SA.strokeDasharray "4,3"
                                         ]
@@ -428,8 +428,8 @@ view config =
                     , SA.width "24"
                     , SA.height "18"
                     , SA.rx "3"
-                    , SA.fill "#eceff1"
-                    , SA.stroke "#90a4ae"
+                    , SA.fill config.theme.nfaNodeBoxBg
+                    , SA.stroke config.theme.nfaNodeBoxStroke
                     , SA.strokeWidth "1"
                     ]
                     []
@@ -438,7 +438,7 @@ view config =
                     , SA.y (String.fromFloat my)
                     , SA.textAnchor "middle"
                     , SA.dominantBaseline "central"
-                    , SA.fill "#37474f"
+                    , SA.fill config.theme.nfaNodeBoxText
                     , SA.fontSize "11"
                     , SA.fontWeight "bold"
                     , SA.pointerEvents "none"
@@ -549,7 +549,7 @@ view config =
                 , style "font-size" "18px"
                 , style "font-weight" "bold"
                 , style "background-color" config.theme.btnSecondaryBg
-                , style "color" "white"
+                , style "color" config.theme.textOnDark
                 , style "border" "none"
                 , style "border-radius" "4px"
                 , style "cursor" "pointer"
@@ -563,7 +563,7 @@ view config =
                 , style "font-size" "18px"
                 , style "font-weight" "bold"
                 , style "background-color" config.theme.btnSecondaryBg
-                , style "color" "white"
+                , style "color" config.theme.textOnDark
                 , style "border" "none"
                 , style "border-radius" "4px"
                 , style "cursor" "pointer"

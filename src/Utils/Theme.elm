@@ -55,6 +55,7 @@ type alias Theme =
     , settingsBg : String
     , settingsBorder : String
     , automatonTypeDfa : String
+    , automatonTypeIncompleteDfa : String
     , automatonTypeNfa : String
     , automatonDefTitle : String
     , automatonDefBorder : String
@@ -76,6 +77,60 @@ type alias Theme =
     , tutorialVeilBg : String
     , tutorialTooltipBg : String
     , tutorialTooltipText : String
+    , colorWhite : String
+    , colorBlack : String
+    , colorTransparent : String
+    , overlayDark25 : String
+    , overlayDark50 : String
+    , overlayDark60 : String
+    , overlayDark70 : String
+    , overlayLight08 : String
+    , overlayLight12 : String
+    , overlayLight20 : String
+    , overlayLight25 : String
+    , overlayLight30 : String
+    , overlayLight50 : String
+    , yellowGlowShadow : String
+    , toggleOnBg : String
+    , toggleOffBg : String
+    , accentColor : String
+    , mutedContrastText : String
+    , infoColor : String
+    , infoColorDark : String
+    , successColor : String
+    , successColorDark : String
+    , errorColor : String
+    , errorColorDark : String
+    , warningColor : String
+    , neutralGrayBg : String
+    , neutralGrayStroke : String
+    , copyTooltipBg : String
+    , relaunchBtnBg : String
+    , strongBorderColor : String
+    , lightDividerBorder : String
+    , activeEdgeColor : String
+    , highlightEdgeColor : String
+    , gridStrokeColor : String
+    , selectedFillColor : String
+    , selectedBorderColor : String
+    , editingFillColor : String
+    , editingTextColor : String
+    , runningFillColor : String
+    , runningBorderColor : String
+    , acceptFillColor : String
+    , acceptBorderColor : String
+    , rejectFillColor : String
+    , rejectBorderColor : String
+    , trailAcceptFillColor : String
+    , trailRejectFillColor : String
+    , conversionNewFillColor : String
+    , conversionProcessedFillColor : String
+    , lightTextColor : String
+    , highlightBorderColor : String
+    , nfaNodeBoxBg : String
+    , nfaNodeBoxStroke : String
+    , nfaNodeBoxText : String
+    , startArrowColor : String
     }
 
 
@@ -134,6 +189,7 @@ lightTheme =
     , settingsBg = "#1e3a50"
     , settingsBorder = "#263238"
     , automatonTypeDfa = "#358cc7"
+    , automatonTypeIncompleteDfa = "#d4a017"
     , automatonTypeNfa = "#ec7c1a"
     , automatonDefTitle = "#273646"
     , automatonDefBorder = "#359ee4"
@@ -155,6 +211,60 @@ lightTheme =
     , tutorialVeilBg = "rgba(0,0,0,0.45)"
     , tutorialTooltipBg = "#1e293b"
     , tutorialTooltipText = "#ffffff"
+    , colorWhite = "white"
+    , colorBlack = "#000"
+    , colorTransparent = "transparent"
+    , overlayDark25 = "rgba(0,0,0,0.25)"
+    , overlayDark50 = "rgba(0,0,0,0.5)"
+    , overlayDark60 = "rgba(0,0,0,0.6)"
+    , overlayDark70 = "rgba(0,0,0,0.7)"
+    , overlayLight08 = "rgba(255,255,255,0.08)"
+    , overlayLight12 = "rgba(255,255,255,0.12)"
+    , overlayLight20 = "rgba(255,255,255,0.2)"
+    , overlayLight25 = "rgba(255,255,255,0.25)"
+    , overlayLight30 = "rgba(255,255,255,0.3)"
+    , overlayLight50 = "rgba(255,255,255,0.5)"
+    , yellowGlowShadow = "0 0 0 3px #ffeb3b, 0 0 18px rgba(255,235,59,0.7)"
+    , toggleOnBg = "#0288d1"
+    , toggleOffBg = "#546e7a"
+    , accentColor = "#00bcd4"
+    , mutedContrastText = "#cfd8dc"
+    , infoColor = "#2196F3"
+    , infoColorDark = "#1565C0"
+    , successColor = "#4CAF50"
+    , successColorDark = "#2E7D32"
+    , errorColor = "#F44336"
+    , errorColorDark = "#B71C1C"
+    , warningColor = "#f9a825"
+    , neutralGrayBg = "#90a4ae"
+    , neutralGrayStroke = "#607d8b"
+    , copyTooltipBg = "#333"
+    , relaunchBtnBg = "#00796b"
+    , strongBorderColor = "#0d1e30"
+    , lightDividerBorder = "#e0e0e0"
+    , activeEdgeColor = "#e74c3c"
+    , highlightEdgeColor = "#f9a825"
+    , gridStrokeColor = "rgba(120,120,120,0.22)"
+    , selectedFillColor = "#80cbc4"
+    , selectedBorderColor = "#004d40"
+    , editingFillColor = "#ffe082"
+    , editingTextColor = "#1a1a1a"
+    , runningFillColor = "#1e88e5"
+    , runningBorderColor = "#1565c0"
+    , acceptFillColor = "#43a047"
+    , acceptBorderColor = "#2e7d32"
+    , rejectFillColor = "#e53935"
+    , rejectBorderColor = "#b71c1c"
+    , trailAcceptFillColor = "#a5d6a7"
+    , trailRejectFillColor = "#ef9a9a"
+    , conversionNewFillColor = "#b3e5fc"
+    , conversionProcessedFillColor = "#cfd8dc"
+    , lightTextColor = "#222222"
+    , highlightBorderColor = "#f57f17"
+    , nfaNodeBoxBg = "#eceff1"
+    , nfaNodeBoxStroke = "#90a4ae"
+    , nfaNodeBoxText = "#37474f"
+    , startArrowColor = "#1a6baa"
     }
 
 
@@ -213,6 +323,7 @@ darkTheme =
     , settingsBg = "#0d1a27"
     , settingsBorder = "#1a2530"
     , automatonTypeDfa = "#4fc3f7"
+    , automatonTypeIncompleteDfa = "#ffd54f"
     , automatonTypeNfa = "#ffa726"
     , automatonDefTitle = "#90caf9"
     , automatonDefBorder = "#1976d2"
@@ -234,6 +345,60 @@ darkTheme =
     , tutorialVeilBg = "rgba(0,0,0,0.55)"
     , tutorialTooltipBg = "#263238"
     , tutorialTooltipText = "#ffffff"
+    , colorWhite = "white"
+    , colorBlack = "#000"
+    , colorTransparent = "transparent"
+    , overlayDark25 = "rgba(0,0,0,0.25)"
+    , overlayDark50 = "rgba(0,0,0,0.5)"
+    , overlayDark60 = "rgba(0,0,0,0.6)"
+    , overlayDark70 = "rgba(0,0,0,0.7)"
+    , overlayLight08 = "rgba(255,255,255,0.08)"
+    , overlayLight12 = "rgba(255,255,255,0.12)"
+    , overlayLight20 = "rgba(255,255,255,0.2)"
+    , overlayLight25 = "rgba(255,255,255,0.25)"
+    , overlayLight30 = "rgba(255,255,255,0.3)"
+    , overlayLight50 = "rgba(255,255,255,0.5)"
+    , yellowGlowShadow = "0 0 0 3px #ffeb3b, 0 0 18px rgba(255,235,59,0.7)"
+    , toggleOnBg = "#0288d1"
+    , toggleOffBg = "#546e7a"
+    , accentColor = "#00bcd4"
+    , mutedContrastText = "#cfd8dc"
+    , infoColor = "#2196F3"
+    , infoColorDark = "#1565C0"
+    , successColor = "#4CAF50"
+    , successColorDark = "#2E7D32"
+    , errorColor = "#F44336"
+    , errorColorDark = "#B71C1C"
+    , warningColor = "#f9a825"
+    , neutralGrayBg = "#90a4ae"
+    , neutralGrayStroke = "#607d8b"
+    , copyTooltipBg = "#333"
+    , relaunchBtnBg = "#00796b"
+    , strongBorderColor = "#0d1e30"
+    , lightDividerBorder = "#e0e0e0"
+    , activeEdgeColor = "#e74c3c"
+    , highlightEdgeColor = "#f9a825"
+    , gridStrokeColor = "rgba(120,120,120,0.22)"
+    , selectedFillColor = "#80cbc4"
+    , selectedBorderColor = "#004d40"
+    , editingFillColor = "#ffe082"
+    , editingTextColor = "#1a1a1a"
+    , runningFillColor = "#1e88e5"
+    , runningBorderColor = "#1565c0"
+    , acceptFillColor = "#43a047"
+    , acceptBorderColor = "#2e7d32"
+    , rejectFillColor = "#e53935"
+    , rejectBorderColor = "#b71c1c"
+    , trailAcceptFillColor = "#a5d6a7"
+    , trailRejectFillColor = "#ef9a9a"
+    , conversionNewFillColor = "#b3e5fc"
+    , conversionProcessedFillColor = "#cfd8dc"
+    , lightTextColor = "#222222"
+    , highlightBorderColor = "#f57f17"
+    , nfaNodeBoxBg = "#eceff1"
+    , nfaNodeBoxStroke = "#90a4ae"
+    , nfaNodeBoxText = "#37474f"
+    , startArrowColor = "#64b5f6"
     }
 
 

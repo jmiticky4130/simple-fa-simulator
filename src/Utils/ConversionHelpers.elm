@@ -454,14 +454,14 @@ lastSnapshotToAutomaton snapshots =
 
         Just snap ->
             { states = List.map dfaSubsetStateToState snap.states
-            , transitions = List.map (\dt -> { from = dt.from, to = dt.to, symbol = dt.symbol }) snap.transitions
+            , transitions = List.map (\dt -> { from = dt.from, to = dt.to, symbol = dt.symbol, bend = 0 }) snap.transitions
             , nextStateId = List.length snap.states
             }
 
 
 dfaSubsetStateToState : DfaSubsetState -> Shared.State
 dfaSubsetStateToState ds =
-    { id = ds.id, x = ds.x, y = ds.y, label = ds.label, isStart = ds.isStart, isEnd = ds.isEnd, isCompact = False }
+    { id = ds.id, x = ds.x, y = ds.y, label = ds.label, isStart = ds.isStart, isEnd = ds.isEnd, isCompact = False, startAngle = pi }
 
 
 -- STEP EXPLANATION

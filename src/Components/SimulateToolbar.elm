@@ -85,11 +85,11 @@ view config =
                 , onInput config.onSetAutoSpeed
                 , style "width" "130px"
                 , style "cursor" "pointer"
-                , style "accent-color" "#00bcd4"
+                , style "accent-color" config.theme.accentColor
                 ]
                 []
             , div
-                [ style "color" "#cfd8dc"
+                [ style "color" config.theme.mutedContrastText
                 , style "font-size" "12px"
                 , style "min-width" "36px"
                 ]
@@ -103,7 +103,24 @@ view config =
             , style "gap" "8px"
             ]
             [ guideButton config.theme t.guide config.onShowGuide
-            , actionButton config.theme t.backToEditor config.onSwitchToEditor True
+            , button
+                [ onClick config.onSwitchToEditor
+                , style "padding" "11px 18px"
+                , style "background-color" config.theme.btnPrimary
+                , style "color" config.theme.textOnDark
+                , style "border" "none"
+                , style "border-radius" "5px"
+                , style "cursor" "pointer"
+                , style "font-size" "14px"
+                , style "font-weight" "bold"
+                , style "display" "flex"
+                , style "align-items" "center"
+                , style "gap" "6px"
+                , style "white-space" "nowrap"
+                ]
+                [ img [ src "icons/undo_svg.svg", style "width" "18px", style "height" "18px" ] []
+                , text t.backToEditor
+                ]
             , settingsGearBtn config
             ]
         ]
@@ -123,7 +140,7 @@ settingsGearBtn config =
             , HA.class "elm-btn"
             , style "padding" "11px 18px"
             , style "background-color" config.theme.btnSecondaryBg
-            , style "color" "white"
+            , style "color" config.theme.textOnDark
             , style "border" "none"
             , style "border-radius" "5px"
             , style "cursor" "pointer"
@@ -143,10 +160,10 @@ settingsGearBtn config =
                 , style "padding" "12px 16px"
                 , style "z-index" "2000"
                 , style "min-width" "180px"
-                , style "box-shadow" "0 4px 16px rgba(0,0,0,0.4)"
+                , style "box-shadow" ("0 4px 16px " ++ config.theme.overlayDark50)
                 ]
                 [ div
-                    [ style "color" "white"
+                    [ style "color" config.theme.textOnDark
                     , style "font-size" "13px"
                     , style "font-weight" "bold"
                     , style "margin-bottom" "10px"
@@ -158,9 +175,9 @@ settingsGearBtn config =
                     , style "justify-content" "space-between"
                     , style "gap" "12px"
                     ]
-                    [ div [ style "color" "#cfd8dc", style "font-size" "13px" ]
+                    [ div [ style "color" config.theme.mutedContrastText, style "font-size" "13px" ]
                         [ text t.darkMode ]
-                    , pillToggle config.onToggleDarkMode config.darkMode
+                    , pillToggle config.theme config.onToggleDarkMode config.darkMode
                     ]
                 , div
                     [ style "height" "1px"
@@ -174,9 +191,9 @@ settingsGearBtn config =
                     , style "justify-content" "space-between"
                     , style "gap" "12px"
                     ]
-                    [ div [ style "color" "#cfd8dc", style "font-size" "13px" ]
+                    [ div [ style "color" config.theme.mutedContrastText, style "font-size" "13px" ]
                         [ text t.language ]
-                    , languageToggleBtn t config.onToggleLanguage
+                    , languageToggleBtn config.theme t config.onToggleLanguage
                     ]
                 ]
           else
@@ -184,14 +201,14 @@ settingsGearBtn config =
         ]
 
 
-pillToggle : msg -> Bool -> Html msg
-pillToggle onToggle isOn =
+pillToggle : Theme.Theme -> msg -> Bool -> Html msg
+pillToggle theme onToggle isOn =
     div
         [ onClick onToggle
         , style "width" "40px"
         , style "height" "20px"
         , style "border-radius" "10px"
-        , style "background-color" (if isOn then "#0288d1" else "#546e7a")
+        , style "background-color" (if isOn then theme.toggleOnBg else theme.toggleOffBg)
         , style "cursor" "pointer"
         , style "position" "relative"
         , style "transition" "background-color 0.2s"
@@ -204,19 +221,19 @@ pillToggle onToggle isOn =
             , style "width" "16px"
             , style "height" "16px"
             , style "border-radius" "50%"
-            , style "background-color" "white"
+            , style "background-color" theme.colorWhite
             , style "transition" "left 0.2s"
             ]
             []
         ]
 
 
-languageToggleBtn : Translations.Translations -> msg -> Html msg
-languageToggleBtn t onToggle =
+languageToggleBtn : Theme.Theme -> Translations.Translations -> msg -> Html msg
+languageToggleBtn theme t onToggle =
     button
         [ onClick onToggle
-        , style "background" "#37474f"
-        , style "color" "white"
+        , style "background" theme.btnSecondaryBg
+        , style "color" theme.textOnDark
         , style "border" "none"
         , style "border-radius" "4px"
         , style "padding" "2px 8px"
@@ -238,7 +255,7 @@ iconToolButton theme icon label onClickMsg isEnabled isActive =
         , disabled (not isEnabled)
         , style "padding" "10px 14px"
         , style "background-color" (if isActive then theme.btnAutoRunActive else if isEnabled then theme.btnSecondaryBg else theme.btnDisabledBg)
-        , style "color" (if isEnabled then "white" else theme.btnDisabledText)
+        , style "color" (if isEnabled then theme.textOnDark else theme.btnDisabledText)
         , style "border" "none"
         , style "border-radius" "4px"
         , style "cursor" (if isEnabled then "pointer" else "not-allowed")
@@ -258,7 +275,7 @@ autoRunButton theme t onToggle running isHighlighted =
         ([ onClick onToggle
         , style "padding" "10px 14px"
         , style "background-color" (if running then theme.btnAutoRunActive else theme.btnSecondaryBg)
-        , style "color" "white"
+        , style "color" theme.textOnDark
         , style "border" "none"
         , style "border-radius" "4px"
         , style "cursor" "pointer"
@@ -269,7 +286,7 @@ autoRunButton theme t onToggle running isHighlighted =
         ++ (if isHighlighted then
                 [ style "position" "relative"
                 , style "z-index" "501"
-                , style "box-shadow" "0 0 0 3px #ffeb3b, 0 0 18px rgba(255,235,59,0.7)"
+                , style "box-shadow" theme.yellowGlowShadow
                 ]
             else
                 []
@@ -285,7 +302,7 @@ toolButton theme label onClickMsg isEnabled isActive isHighlighted =
         , disabled (not isEnabled)
         , style "padding" "10px 14px"
         , style "background-color" (if isActive then theme.btnAutoRunActive else if isEnabled then theme.btnSecondaryBg else theme.btnDisabledBg)
-        , style "color" (if isEnabled then "white" else theme.btnDisabledText)
+        , style "color" (if isEnabled then theme.textOnDark else theme.btnDisabledText)
         , style "border" "none"
         , style "border-radius" "4px"
         , style "cursor" (if isEnabled then "pointer" else "not-allowed")
@@ -296,7 +313,7 @@ toolButton theme label onClickMsg isEnabled isActive isHighlighted =
         ++ (if isHighlighted then
                 [ style "position" "relative"
                 , style "z-index" "501"
-                , style "box-shadow" "0 0 0 3px #ffeb3b, 0 0 18px rgba(255,235,59,0.7)"
+                , style "box-shadow" theme.yellowGlowShadow
                 ]
             else
                 []
@@ -311,7 +328,7 @@ actionButton theme label onClickMsg isEnabled =
         [ onClick onClickMsg
         , style "padding" "11px 18px"
         , style "background-color" (if isEnabled then theme.btnPrimary else theme.btnDisabledBg)
-        , style "color" "white"
+        , style "color" theme.textOnDark
         , style "border" "none"
         , style "border-radius" "5px"
         , style "cursor" (if isEnabled then "pointer" else "not-allowed")
@@ -328,7 +345,7 @@ guideButton theme label onClickMsg =
         [ onClick onClickMsg
         , style "padding" "11px 18px"
         , style "background-color" theme.btnGuide
-        , style "color" "white"
+        , style "color" theme.textOnDark
         , style "border" "none"
         , style "border-radius" "5px"
         , style "cursor" "pointer"

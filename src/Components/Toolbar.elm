@@ -42,6 +42,7 @@ type alias Config msg =
     , gridMode : Bool
     , onToggleGridMode : msg
     , tutorialHighlightGroup : Maybe String
+    , windowWidth : Int
     }
 
 
@@ -63,6 +64,12 @@ view config =
     let
         t =
             Translations.getTranslations config.language
+
+        compactTools =
+            config.windowWidth < 1250
+
+        compactFiles =
+            config.windowWidth < 1540
     in
     div
         [ style "display" "flex"
@@ -74,29 +81,29 @@ view config =
         , style "align-items" "center"
         , style "transition" "background-color 0.25s"
         ]
-        [ highlightWrap (config.tutorialHighlightGroup == Just "undoRedo") (btnGroup
-            [ iconTextBtn config.theme resetIcon t.reset config.onResetTool False t.reset
+        [ highlightWrap config.theme (config.tutorialHighlightGroup == Just "undoRedo") (btnGroup config.theme
+            [ iconTextBtn config.theme resetIcon t.reset config.onResetTool False t.reset False
             , iconBtn config.theme undoIcon config.onUndo (not config.canUndo) "Ctrl+Z"
             , iconBtn config.theme redoIcon config.onRedo (not config.canRedo) "Ctrl+Y"
             ])
-        , highlightWrap (config.tutorialHighlightGroup == Just "tools") (btnGroup
-            [ toolBtn config.theme t.build config.onBuildTool (config.currentTool == "BuildTool") "Shift+B" config.theme.btnBuildActive
-            , toolBtn config.theme t.delete config.onDeleteTool (config.currentTool == "DeleteTool") "Shift+D" config.theme.btnDelete
+        , highlightWrap config.theme (config.tutorialHighlightGroup == Just "tools") (btnGroup config.theme
+            [ toolBtn config.theme t.build config.onBuildTool (config.currentTool == "BuildTool") "Shift+B" config.theme.btnBuildActive (Just buildToolIcon) compactTools
+            , toolBtn config.theme t.delete config.onDeleteTool (config.currentTool == "DeleteTool") "Shift+D" config.theme.btnDelete (Just deleteToolIcon) compactTools
             ])
-        , highlightWrap (config.tutorialHighlightGroup == Just "files") (btnGroup
-            [ iconTextBtn config.theme exportIcon t.export config.onExport False t.exportTooltip
-            , iconTextBtn config.theme saveIcon t.save config.onSave False t.saveTooltip
-            , iconTextBtn config.theme loadIcon t.load config.onLoad False t.loadTooltip
-            , iconTextBtn config.theme shareIcon t.shareViaUrl config.onShare False t.shareViaUrlTooltip
+        , highlightWrap config.theme (config.tutorialHighlightGroup == Just "files") (btnGroup config.theme
+            [ iconTextBtn config.theme exportIcon t.export config.onExport False t.exportTooltip compactFiles
+            , iconTextBtn config.theme saveIcon t.save config.onSave False t.saveTooltip compactFiles
+            , iconTextBtn config.theme loadIcon t.load config.onLoad False t.loadTooltip compactFiles
+            , iconTextBtn config.theme shareIcon t.shareViaUrl config.onShare False t.shareViaUrlTooltip compactFiles
             ])
         , div
             [ style "width" "1px"
             , style "height" "24px"
-            , style "background-color" "rgba(255,255,255,0.2)"
+            , style "background-color" config.theme.overlayLight20
             , style "margin" "0 4px"
             ]
             []
-        , highlightWrap (config.tutorialHighlightGroup == Just "convert") (div [ style "display" "flex", style "gap" "8px", style "align-items" "center" ]
+        , highlightWrap config.theme (config.tutorialHighlightGroup == Just "convert") (div [ style "display" "flex", style "gap" "8px", style "align-items" "center" ]
             [ actionButton config.theme "NFA->DFA" config.onSwitchToConversion config.isConvertEnabled config.convertDisabledReason (Just config.onConvertDisabledClick) config.theme.btnConvert False
             , deadStateButtonGroup config t
             ])
@@ -120,7 +127,7 @@ deadStateButtonGroup config t =
         ([ HA.class "elm-btn"
          , style "padding" "11px 18px"
          , style "background-color" (if config.isAddDeadStateEnabled then config.theme.btnConvert else config.theme.btnDisabledBg)
-         , style "color" (if config.isAddDeadStateEnabled then "white" else config.theme.btnDisabledText)
+         , style "color" (if config.isAddDeadStateEnabled then config.theme.textOnDark else config.theme.btnDisabledText)
          , style "border" "none"
          , style "border-radius" "5px"
          , style "cursor" (if config.isAddDeadStateEnabled then "pointer" else "not-allowed")
@@ -139,7 +146,7 @@ deadStateButtonGroup config t =
             [ style "width" "16px"
             , style "height" "16px"
             , style "border-radius" "50%"
-            , style "background-color" "rgba(255,255,255,0.25)"
+            , style "background-color" config.theme.overlayLight25
             , style "font-size" "11px"
             , style "font-weight" "bold"
             , style "display" "flex"
@@ -165,7 +172,7 @@ settingsGearBtn config =
             , HA.class "elm-btn"
             , style "padding" "11px 18px"
             , style "background-color" config.theme.btnSecondaryBg
-            , style "color" "white"
+            , style "color" config.theme.textOnDark
             , style "border" "none"
             , style "border-radius" "5px"
             , style "cursor" "pointer"
@@ -185,10 +192,10 @@ settingsGearBtn config =
                 , style "padding" "12px 16px"
                 , style "z-index" "2000"
                 , style "min-width" "180px"
-                , style "box-shadow" "0 4px 16px rgba(0,0,0,0.4)"
+                , style "box-shadow" ("0 4px 16px " ++ config.theme.overlayDark50)
                 ]
                 [ div
-                    [ style "color" "white"
+                    [ style "color" config.theme.textOnDark
                     , style "font-size" "13px"
                     , style "font-weight" "bold"
                     , style "margin-bottom" "10px"
@@ -200,9 +207,9 @@ settingsGearBtn config =
                     , style "justify-content" "space-between"
                     , style "gap" "12px"
                     ]
-                    [ div [ style "color" "#cfd8dc", style "font-size" "13px" ]
+                    [ div [ style "color" config.theme.mutedContrastText, style "font-size" "13px" ]
                         [ text t.darkMode ]
-                    , pillToggle config.onToggleDarkMode config.darkMode
+                    , pillToggle config.theme config.onToggleDarkMode config.darkMode
                     ]
                 , div
                     [ style "height" "1px"
@@ -216,9 +223,9 @@ settingsGearBtn config =
                     , style "justify-content" "space-between"
                     , style "gap" "12px"
                     ]
-                    [ div [ style "color" "#cfd8dc", style "font-size" "13px" ]
+                    [ div [ style "color" config.theme.mutedContrastText, style "font-size" "13px" ]
                         [ text t.language ]
-                    , languageToggleBtn t config.onToggleLanguage
+                    , languageToggleBtn config.theme t config.onToggleLanguage
                     ]
                 , div
                     [ style "height" "1px"
@@ -232,9 +239,9 @@ settingsGearBtn config =
                     , style "justify-content" "space-between"
                     , style "gap" "12px"
                     ]
-                    [ div [ style "color" "#cfd8dc", style "font-size" "13px" ]
+                    [ div [ style "color" config.theme.mutedContrastText, style "font-size" "13px" ]
                         [ text t.gridMode ]
-                    , pillToggle config.onToggleGridMode config.gridMode
+                    , pillToggle config.theme config.onToggleGridMode config.gridMode
                     ]
                 ]
           else
@@ -242,14 +249,14 @@ settingsGearBtn config =
         ]
 
 
-pillToggle : msg -> Bool -> Html msg
-pillToggle onToggle isOn =
+pillToggle : Theme.Theme -> msg -> Bool -> Html msg
+pillToggle theme onToggle isOn =
     div
         [ onClick onToggle
         , style "width" "40px"
         , style "height" "20px"
         , style "border-radius" "10px"
-        , style "background-color" (if isOn then "#0288d1" else "#546e7a")
+        , style "background-color" (if isOn then theme.toggleOnBg else theme.toggleOffBg)
         , style "cursor" "pointer"
         , style "position" "relative"
         , style "transition" "background-color 0.2s"
@@ -262,19 +269,19 @@ pillToggle onToggle isOn =
             , style "width" "16px"
             , style "height" "16px"
             , style "border-radius" "50%"
-            , style "background-color" "white"
+            , style "background-color" theme.colorWhite
             , style "transition" "left 0.2s"
             ]
             []
         ]
 
 
-languageToggleBtn : Translations.Translations -> msg -> Html msg
-languageToggleBtn t onToggle =
+languageToggleBtn : Theme.Theme -> Translations.Translations -> msg -> Html msg
+languageToggleBtn theme t onToggle =
     button
         [ onClick onToggle
-        , style "background" "#37474f"
-        , style "color" "white"
+        , style "background" theme.btnSecondaryBg
+        , style "color" theme.textOnDark
         , style "border" "none"
         , style "border-radius" "4px"
         , style "padding" "2px 8px"
@@ -284,13 +291,13 @@ languageToggleBtn t onToggle =
         [ text t.languageName ]
 
 
-highlightWrap : Bool -> Html msg -> Html msg
-highlightWrap isHighlighted inner =
+highlightWrap : Theme.Theme -> Bool -> Html msg -> Html msg
+highlightWrap theme isHighlighted inner =
     if isHighlighted then
         div
             [ style "position" "relative"
             , style "z-index" "501"
-            , style "box-shadow" "0 0 0 3px #ffeb3b, 0 0 18px rgba(255,235,59,0.7)"
+            , style "box-shadow" theme.yellowGlowShadow
             , style "border-radius" "6px"
             ]
             [ inner ]
@@ -298,13 +305,13 @@ highlightWrap isHighlighted inner =
         inner
 
 
-btnGroup : List (Html msg) -> Html msg
-btnGroup children =
+btnGroup : Theme.Theme -> List (Html msg) -> Html msg
+btnGroup theme children =
     div
         [ style "display" "flex"
         , style "flex-direction" "row"
         , style "gap" "3px"
-        , style "background-color" "rgba(0,0,0,0.25)"
+        , style "background-color" theme.overlayDark25
         , style "border-radius" "6px"
         , style "padding" "3px"
         ]
@@ -318,7 +325,7 @@ tooltipBtn theme label onClickMsg isDisabled tipText =
         , HA.class "elm-btn"
         , style "padding" "10px 14px"
         , style "background-color" (if isDisabled then theme.btnDisabledBg else theme.btnSecondaryBg)
-        , style "color" (if isDisabled then theme.btnDisabledText else "white")
+        , style "color" (if isDisabled then theme.btnDisabledText else theme.textOnDark)
         , style "border" "none"
         , style "border-radius" "4px"
         , style "cursor" (if isDisabled then "not-allowed" else "pointer")
@@ -336,7 +343,7 @@ iconBtn theme icon onClickMsg isDisabled tipText =
         , HA.class "elm-btn"
         , style "padding" "10px 12px"
         , style "background-color" (if isDisabled then theme.btnDisabledBg else theme.btnSecondaryBg)
-        , style "color" (if isDisabled then theme.btnDisabledText else "white")
+        , style "color" (if isDisabled then theme.btnDisabledText else theme.textOnDark)
         , style "border" "none"
         , style "border-radius" "4px"
         , style "cursor" (if isDisabled then "not-allowed" else "pointer")
@@ -348,8 +355,8 @@ iconBtn theme icon onClickMsg isDisabled tipText =
         [ icon ]
 
 
-toolBtn : Theme.Theme -> String -> msg -> Bool -> String -> String -> Html msg
-toolBtn theme label onClickMsg isActive shortcut activeColor =
+toolBtn : Theme.Theme -> String -> msg -> Bool -> String -> String -> Maybe (Html msg) -> Bool -> Html msg
+toolBtn theme label onClickMsg isActive shortcut activeColor maybeIcon compact =
     let
         displayLabel =
             if isActive then
@@ -362,25 +369,34 @@ toolBtn theme label onClickMsg isActive shortcut activeColor =
         , HA.class "elm-btn"
         , style "padding" "10px 14px"
         , style "background-color" (if isActive then activeColor else theme.btnSecondaryBg)
-        , style "color" "white"
+        , style "color" theme.textOnDark
         , style "border" "none"
         , style "border-radius" "4px"
         , style "cursor" "pointer"
         , style "font-size" "14px"
         , style "font-weight" (if isActive then "bold" else "normal")
+        , style "display" "flex"
+        , style "align-items" "center"
+        , style "gap" "6px"
         , HA.title (label ++ " (" ++ shortcut ++ ")")
         ]
-        [ text displayLabel ]
+        (case ( compact, maybeIcon ) of
+            ( True, Just icon ) ->
+                [ icon ]
+
+            _ ->
+                [ text displayLabel ]
+        )
 
 
-iconTextBtn : Theme.Theme -> Html msg -> String -> msg -> Bool -> String -> Html msg
-iconTextBtn theme icon label onClickMsg isDisabled tipText =
+iconTextBtn : Theme.Theme -> Html msg -> String -> msg -> Bool -> String -> Bool -> Html msg
+iconTextBtn theme icon label onClickMsg isDisabled tipText compact =
     button
         [ onClick onClickMsg
         , HA.class "elm-btn"
         , style "padding" "10px 14px"
         , style "background-color" (if isDisabled then theme.btnDisabledBg else theme.btnSecondaryBg)
-        , style "color" (if isDisabled then theme.btnDisabledText else "white")
+        , style "color" (if isDisabled then theme.btnDisabledText else theme.textOnDark)
         , style "border" "none"
         , style "border-radius" "4px"
         , style "cursor" (if isDisabled then "not-allowed" else "pointer")
@@ -391,7 +407,11 @@ iconTextBtn theme icon label onClickMsg isDisabled tipText =
         , HA.disabled isDisabled
         , HA.title tipText
         ]
-        [ icon, Html.span [ HA.class "toolbar-btn-label" ] [ text label ] ]
+        (if compact then
+            [ icon ]
+         else
+            [ icon, Html.span [ HA.class "toolbar-btn-label" ] [ text label ] ]
+        )
 
 
 exportIcon : Html msg
@@ -429,6 +449,16 @@ redoIcon =
     Html.img [ HA.src "icons/redo_svg.svg", HA.width 16, HA.height 16 ] []
 
 
+buildToolIcon : Html msg
+buildToolIcon =
+    Html.img [ HA.src "icons/build.svg", HA.width 18, HA.height 18 ] []
+
+
+deleteToolIcon : Html msg
+deleteToolIcon =
+    Html.img [ HA.src "icons/delete.svg", HA.width 18, HA.height 18 ] []
+
+
 guideButton : Theme.Theme -> String -> msg -> Html msg
 guideButton theme label onClickMsg =
     button
@@ -436,7 +466,7 @@ guideButton theme label onClickMsg =
         , HA.class "elm-btn"
         , style "padding" "11px 18px"
         , style "background-color" theme.btnGuide
-        , style "color" "white"
+        , style "color" theme.textOnDark
         , style "border" "none"
         , style "border-radius" "5px"
         , style "cursor" "pointer"
@@ -473,7 +503,7 @@ actionButton theme label onClickMsg isEnabled disabledReason onDisabledClick bgC
         , HA.class "elm-btn"
         , style "padding" "11px 18px"
         , style "background-color" (if isEnabled then bgColor else theme.btnDisabledBg)
-        , style "color" (if isEnabled then "white" else theme.btnDisabledText)
+        , style "color" (if isEnabled then theme.textOnDark else theme.btnDisabledText)
         , style "border" "none"
         , style "border-radius" "5px"
         , style "cursor" (if isEnabled then "pointer" else "not-allowed")
@@ -485,7 +515,7 @@ actionButton theme label onClickMsg isEnabled disabledReason onDisabledClick bgC
         ++ (if isHighlighted then
                 [ style "position" "relative"
                 , style "z-index" "501"
-                , style "box-shadow" "0 0 0 3px #ffeb3b, 0 0 18px rgba(255,235,59,0.7)"
+                , style "box-shadow" theme.yellowGlowShadow
                 ]
             else
                 []

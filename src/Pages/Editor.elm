@@ -85,6 +85,12 @@ type alias Model =
     , hasPanned : Bool
     , copyDefSuccess : Bool
     , gridMode : Bool
+    , bendingTransition : Maybe { from : Int, to : Int }
+    , bendDragStartX : Float
+    , bendDragStartY : Float
+    , isBending : Bool
+    , draggingStartArrow : Maybe Int
+    , isDraggingStartArrow : Bool
     }
 
 
@@ -96,6 +102,10 @@ type Msg
     | StateDoubleClick Int
     | StateRightClick Int
     | TransitionClick Int Int String
+    | TransitionRightClick Int Int String
+    | ArrowMouseDown Int Int Float Float
+    | ArrowRightClick Int Int
+    | StartArrowMouseDown Int Float Float
     | StartDrag Int Float Float
     | DragMove Float Float
     | EndDrag
@@ -193,6 +203,12 @@ init language =
     , hasPanned = False
     , copyDefSuccess = False
     , gridMode = False
+    , bendingTransition = Nothing
+    , bendDragStartX = 0
+    , bendDragStartY = 0
+    , isBending = False
+    , draggingStartArrow = Nothing
+    , isDraggingStartArrow = False
     }
 
 
@@ -262,10 +278,11 @@ update msg model =
                     , isStart = False
                     , isEnd = False
                     , isCompact = False
+                    , startAngle = pi
                     }
                 deadTransitions =
-                    List.map (\( fromId, sym ) -> { from = fromId, to = newDeadId, symbol = sym }) missingPairs
-                        ++ List.map (\sym -> { from = newDeadId, to = newDeadId, symbol = sym }) alphabet
+                    List.map (\( fromId, sym ) -> { from = fromId, to = newDeadId, symbol = sym, bend = 0 }) missingPairs
+                        ++ List.map (\sym -> { from = newDeadId, to = newDeadId, symbol = sym, bend = 0 }) alphabet
                 newAutomaton =
                     { states = states ++ [ deadState ]
                     , transitions = transitions ++ deadTransitions
@@ -470,6 +487,7 @@ update msg model =
                             , isStart = False
                             , isEnd = False
                             , isCompact = False
+                            , startAngle = pi
                             }
                         message = t.editorStateAddedPrefix ++ newState.label
                         newAutomaton =
@@ -517,7 +535,7 @@ update msg model =
                         fromState = getStateById stateId currentAutomaton.states
                         ( inputX, inputY ) =
                             case fromState of
-                                Just fs -> ( fs.x, fs.y - 80 )
+                                Just fs -> selfLoopPopupPos fs.x fs.y (getGroupBend stateId stateId currentAutomaton.transitions)
                                 Nothing -> ( 400, 300 )
                     in
                     ( { model
@@ -593,33 +611,33 @@ update msg model =
                 , Cmd.none
                 )
             else
-                case model.draggedState of
-                    Just stateId ->
+                case model.bendingTransition of
+                    Just bt ->
                         let
-                            rawWorldX = (x - model.panX) / model.zoom
-                            rawWorldY = (y - model.panY) / model.zoom
-                            worldX = if model.gridMode then snapToGrid 60.0 rawWorldX else rawWorldX
-                            worldY = if model.gridMode then snapToGrid 60.0 rawWorldY else rawWorldY
-                            dx = rawWorldX - model.dragStartX
-                            dy = rawWorldY - model.dragStartY
+                            worldX = (x - model.panX) / model.zoom
+                            worldY = (y - model.panY) / model.zoom
+                            dx = worldX - model.bendDragStartX
+                            dy = worldY - model.bendDragStartY
                             dist = sqrt (dx * dx + dy * dy)
                         in
-                        if not model.isDragging && dist > 5 then
+                        if not model.isBending && dist > 5 then
                             let
-                                newStates = updateStatePosition stateId worldX worldY currentAutomaton.states
-                                newAutomaton = { currentAutomaton | states = newStates }
+                                bendVal = computeBend bt.from bt.to worldX worldY currentAutomaton.states
+                                newTransitions = updateTransitionBend bt.from bt.to bendVal currentAutomaton.transitions
+                                newAutomaton = { currentAutomaton | transitions = newTransitions }
                                 newHistory = UndoList.new currentAutomaton model.automaton
                             in
                             ( { model
                                 | automaton = { newHistory | present = newAutomaton }
-                                , isDragging = True
+                                , isBending = True
                               }
                             , Cmd.none
                             )
-                        else if model.isDragging then
+                        else if model.isBending then
                             let
-                                newStates = updateStatePosition stateId worldX worldY currentAutomaton.states
-                                newAutomaton = { currentAutomaton | states = newStates }
+                                bendVal = computeBend bt.from bt.to worldX worldY currentAutomaton.states
+                                newTransitions = updateTransitionBend bt.from bt.to bendVal currentAutomaton.transitions
+                                newAutomaton = { currentAutomaton | transitions = newTransitions }
                                 undoList = model.automaton
                             in
                             ( { model
@@ -631,10 +649,86 @@ update msg model =
                             ( model, Cmd.none )
 
                     Nothing ->
-                        ( model, Cmd.none )
+                        case model.draggingStartArrow of
+                            Just saId ->
+                                let
+                                    worldX = (x - model.panX) / model.zoom
+                                    worldY = (y - model.panY) / model.zoom
+                                    dx = worldX - model.bendDragStartX
+                                    dy = worldY - model.bendDragStartY
+                                    dist = sqrt (dx * dx + dy * dy)
+                                in
+                                if not model.isDraggingStartArrow && dist > 5 then
+                                    let
+                                        angle = computeStartArrowAngle saId worldX worldY currentAutomaton.states
+                                        newStates = updateStartAngle saId angle currentAutomaton.states
+                                        newAutomaton = { currentAutomaton | states = newStates }
+                                        newHistory = UndoList.new currentAutomaton model.automaton
+                                    in
+                                    ( { model
+                                        | automaton = { newHistory | present = newAutomaton }
+                                        , isDraggingStartArrow = True
+                                      }
+                                    , Cmd.none
+                                    )
+                                else if model.isDraggingStartArrow then
+                                    let
+                                        angle = computeStartArrowAngle saId worldX worldY currentAutomaton.states
+                                        newStates = updateStartAngle saId angle currentAutomaton.states
+                                        newAutomaton = { currentAutomaton | states = newStates }
+                                        undoList = model.automaton
+                                    in
+                                    ( { model
+                                        | automaton = { undoList | present = newAutomaton }
+                                      }
+                                    , Cmd.none
+                                    )
+                                else
+                                    ( model, Cmd.none )
+
+                            Nothing ->
+                                case model.draggedState of
+                                    Just stateId ->
+                                        let
+                                            rawWorldX = (x - model.panX) / model.zoom
+                                            rawWorldY = (y - model.panY) / model.zoom
+                                            worldX = if model.gridMode then snapToGrid 60.0 rawWorldX else rawWorldX
+                                            worldY = if model.gridMode then snapToGrid 60.0 rawWorldY else rawWorldY
+                                            dxr = rawWorldX - model.dragStartX
+                                            dyr = rawWorldY - model.dragStartY
+                                            dist = sqrt (dxr * dxr + dyr * dyr)
+                                        in
+                                        if not model.isDragging && dist > 5 then
+                                            let
+                                                newStates = updateStatePosition stateId worldX worldY currentAutomaton.states
+                                                newAutomaton = { currentAutomaton | states = newStates }
+                                                newHistory = UndoList.new currentAutomaton model.automaton
+                                            in
+                                            ( { model
+                                                | automaton = { newHistory | present = newAutomaton }
+                                                , isDragging = True
+                                              }
+                                            , Cmd.none
+                                            )
+                                        else if model.isDragging then
+                                            let
+                                                newStates = updateStatePosition stateId worldX worldY currentAutomaton.states
+                                                newAutomaton = { currentAutomaton | states = newStates }
+                                                undoList = model.automaton
+                                            in
+                                            ( { model
+                                                | automaton = { undoList | present = newAutomaton }
+                                              }
+                                            , Cmd.none
+                                            )
+                                        else
+                                            ( model, Cmd.none )
+
+                                    Nothing ->
+                                        ( model, Cmd.none )
 
         EndDrag ->
-            ( { model | draggedState = Nothing, isPanning = False }, Cmd.none )
+            ( { model | draggedState = Nothing, isPanning = False, bendingTransition = Nothing, isBending = False, draggingStartArrow = Nothing, isDraggingStartArrow = False }, Cmd.none )
 
         DeleteState stateId ->
             let
@@ -694,7 +788,7 @@ update msg model =
                             case ( fromState, toState ) of
                                 ( Just fs, Just ts ) ->
                                     if from == to then
-                                        ( fs.x, fs.y - 80 )
+                                        selfLoopPopupPos fs.x fs.y (getGroupBend from to currentAutomaton.transitions)
                                     else
                                         ( (fs.x + ts.x) / 2, (fs.y + ts.y) / 2 )
                                 _ ->
@@ -896,6 +990,12 @@ update msg model =
                             -- Edit mode: remove old transition(s), add new (space-separated)
                             let
                                 newInput = String.trim model.transitionInput
+                                -- Preserve existing bend value
+                                oldBend =
+                                    List.filter (\tr -> tr.from == from && tr.to == to) currentAutomaton.transitions
+                                        |> List.head
+                                        |> Maybe.map .bend
+                                        |> Maybe.withDefault 0
                                 -- "__ALL__" sentinel means replace all transitions between from/to
                                 filteredTransitions =
                                     if oldSymbol == "__ALL__" then
@@ -915,7 +1015,7 @@ update msg model =
                                     )
                                 else
                                     let
-                                        newAutomaton = { currentAutomaton | transitions = filteredTransitions ++ [ { from = from, to = to, symbol = "ε" } ] }
+                                        newAutomaton = { currentAutomaton | transitions = filteredTransitions ++ [ { from = from, to = to, symbol = "ε", bend = oldBend } ] }
                                     in
                                     ( { model
                                         | automaton = UndoList.new newAutomaton model.automaton
@@ -958,7 +1058,7 @@ update msg model =
                                     let
                                         newTransitions =
                                             List.foldl
-                                                (\symbol acc -> acc ++ [ { from = from, to = to, symbol = symbol } ])
+                                                (\symbol acc -> acc ++ [ { from = from, to = to, symbol = symbol, bend = oldBend } ])
                                                 filteredTransitions
                                                 uniqueSymbols
 
@@ -1001,7 +1101,7 @@ update msg model =
                                 else
                                     let
                                         newAutomaton =
-                                            { currentAutomaton | transitions = currentAutomaton.transitions ++ [ { from = from, to = to, symbol = "ε" } ] }
+                                            { currentAutomaton | transitions = currentAutomaton.transitions ++ [ { from = from, to = to, symbol = "ε", bend = 0 } ] }
                                     in
                                     ( { model
                                         | automaton = UndoList.new newAutomaton model.automaton
@@ -1049,7 +1149,7 @@ update msg model =
                                         newTransitions =
                                             List.foldl
                                                 (\symbol acc ->
-                                                    acc ++ [ { from = from, to = to, symbol = symbol } ]
+                                                    acc ++ [ { from = from, to = to, symbol = symbol, bend = 0 } ]
                                                 )
                                                 currentAutomaton.transitions
                                                 uniqueSymbols
@@ -1098,6 +1198,93 @@ update msg model =
                     )
 
                 BuildTool ->
+                    ( model, Cmd.none )
+
+        TransitionRightClick from to _ ->
+            let
+                fromState = getStateById from currentAutomaton.states
+                toState = getStateById to currentAutomaton.states
+                ( inputX, inputY ) =
+                    case ( fromState, toState ) of
+                        ( Just fs, Just ts ) ->
+                            if from == to then
+                                selfLoopPopupPos fs.x fs.y (getGroupBend from to currentAutomaton.transitions)
+                            else
+                                ( (fs.x + ts.x) / 2, (fs.y + ts.y) / 2 )
+                        _ ->
+                            ( 400, 300 )
+                allSymbols =
+                    List.filter (\tr -> tr.from == from && tr.to == to) currentAutomaton.transitions
+                        |> List.map .symbol
+                        |> List.sort
+                        |> String.join " "
+            in
+            ( { model
+                | editingTransition = Just { from = from, to = to, x = inputX, y = inputY }
+                , editingTransitionOldSymbol = Just "__ALL__"
+                , transitionInput = allSymbols
+                , consoleMessages = { text = t.editorEditTransitionSymbol, msgType = Console.Info } :: model.consoleMessages
+              }
+            , Task.attempt (\_ -> NoOp) (Browser.Dom.focus "transition-input")
+            )
+
+        ArrowMouseDown from to x y ->
+            case model.currentTool of
+                BuildTool ->
+                    let
+                        worldX = (x - model.panX) / model.zoom
+                        worldY = (y - model.panY) / model.zoom
+                    in
+                    ( { model
+                        | bendingTransition = Just { from = from, to = to }
+                        , bendDragStartX = worldX
+                        , bendDragStartY = worldY
+                        , isBending = False
+                        , isPanning = False
+                      }
+                    , Cmd.none
+                    )
+
+                DeleteTool ->
+                    ( model, Cmd.none )
+
+        StartArrowMouseDown stateId x y ->
+            case model.currentTool of
+                BuildTool ->
+                    let
+                        worldX = (x - model.panX) / model.zoom
+                        worldY = (y - model.panY) / model.zoom
+                    in
+                    ( { model
+                        | draggingStartArrow = Just stateId
+                        , bendDragStartX = worldX
+                        , bendDragStartY = worldY
+                        , isDraggingStartArrow = False
+                        , isPanning = False
+                      }
+                    , Cmd.none
+                    )
+
+                DeleteTool ->
+                    ( model, Cmd.none )
+
+        ArrowRightClick from to ->
+            case model.currentTool of
+                DeleteTool ->
+                    let
+                        newAutomaton =
+                            { currentAutomaton
+                            | transitions = List.filter (\transition -> not (transition.from == from && transition.to == to)) currentAutomaton.transitions
+                            }
+                    in
+                    ( { model
+                        | automaton = UndoList.new newAutomaton model.automaton
+                        , consoleMessages = { text = t.editorTransitionDeletedAll, msgType = Console.Info } :: model.consoleMessages
+                      }
+                    , Cmd.none
+                    )
+
+                BuildTool ->
                     let
                         fromState = getStateById from currentAutomaton.states
                         toState = getStateById to currentAutomaton.states
@@ -1105,7 +1292,7 @@ update msg model =
                             case ( fromState, toState ) of
                                 ( Just fs, Just ts ) ->
                                     if from == to then
-                                        ( fs.x, fs.y - 80 )
+                                        selfLoopPopupPos fs.x fs.y (getGroupBend from to currentAutomaton.transitions)
                                     else
                                         ( (fs.x + ts.x) / 2, (fs.y + ts.y) / 2 )
                                 _ ->
@@ -1229,7 +1416,7 @@ handleStateClick stateId model =
                                 case ( fromState, toState ) of
                                     ( Just fs, Just ts ) ->
                                         if fromId == stateId then
-                                            ( fs.x, fs.y - 80 )
+                                            selfLoopPopupPos fs.x fs.y (getGroupBend fromId stateId currentAutomaton.transitions)
                                         else
                                             ( (fs.x + ts.x) / 2, (fs.y + ts.y) / 2 )
                                     _ ->
@@ -1248,6 +1435,97 @@ handleStateClick stateId model =
 snapToGrid : Float -> Float -> Float
 snapToGrid gridSize val =
     toFloat (round (val / gridSize)) * gridSize
+
+
+computeBend : Int -> Int -> Float -> Float -> List State -> Float
+computeBend fromId toId mouseX mouseY states =
+    let
+        fromState = getStateById fromId states
+        toState = getStateById toId states
+    in
+    case ( fromState, toState ) of
+        ( Just fs, Just ts ) ->
+            if fromId == toId then
+                -- Self-loop: bend = angle from state center to mouse
+                -- Convention: bend=0 means "up", stored as offset from -pi/2
+                -- atan2 gives standard math angle, add pi/2 so 0=up
+                let
+                    rawAngle = atan2 (mouseY - fs.y) (mouseX - fs.x)
+                in
+                rawAngle + pi / 2
+
+            else
+                let
+                    vx = ts.x - fs.x
+                    vy = ts.y - fs.y
+                    len = sqrt (vx * vx + vy * vy)
+                    uxDir = if len == 0 then 1 else vx / len
+                    uyDir = if len == 0 then 0 else vy / len
+                    px = -uyDir
+                    py = uxDir
+                    midX = (fs.x + ts.x) / 2
+                    midY = (fs.y + ts.y) / 2
+                    dmx = mouseX - midX
+                    dmy = mouseY - midY
+                    bendVal = (dmx * px + dmy * py) * 2
+                in
+                bendVal
+
+        _ ->
+            0
+
+
+selfLoopPopupPos : Float -> Float -> Float -> ( Float, Float )
+selfLoopPopupPos stateX stateY bend =
+    let
+        midAngle = bend - pi / 2
+        dist = 80
+    in
+    ( stateX + dist * cos midAngle
+    , stateY + dist * sin midAngle
+    )
+
+
+getGroupBend : Int -> Int -> List Transition -> Float
+getGroupBend fromId toId transitions =
+    List.filter (\tr -> tr.from == fromId && tr.to == toId) transitions
+        |> List.head
+        |> Maybe.map .bend
+        |> Maybe.withDefault 0
+
+
+updateTransitionBend : Int -> Int -> Float -> List Transition -> List Transition
+updateTransitionBend fromId toId newBend transitions =
+    List.map
+        (\tr ->
+            if tr.from == fromId && tr.to == toId then
+                { tr | bend = newBend }
+            else
+                tr
+        )
+        transitions
+
+
+computeStartArrowAngle : Int -> Float -> Float -> List State -> Float
+computeStartArrowAngle stateId mouseX mouseY states =
+    case getStateById stateId states of
+        Just s ->
+            atan2 (mouseY - s.y) (mouseX - s.x)
+
+        Nothing ->
+            pi
+
+
+updateStartAngle : Int -> Float -> List State -> List State
+updateStartAngle stateId angle states =
+    List.map
+        (\s ->
+            if s.id == stateId then
+                { s | startAngle = angle }
+            else
+                s
+        )
+        states
 
 
 getToolMessage : Translations.Translations -> Tool -> String
@@ -1390,6 +1668,7 @@ view consoleOpen darkMode settingsOpen language windowWidth windowHeight tutoria
                 , gridMode = model.gridMode
                 , onToggleGridMode = ToggleGridMode
                 , tutorialHighlightGroup = tutorialHighlightGroup
+                , windowWidth = windowWidth
                 }
             ]
         ,
@@ -1443,7 +1722,10 @@ view consoleOpen darkMode settingsOpen language windowWidth windowHeight tutoria
                     , onStateDoubleClick = StateDoubleClick
                     , onStateRightClick = StateRightClick
                     , onTransitionClick = TransitionClick
-                    , onArrowClick = DeleteAllTransitionsBetween
+                    , onTransitionRightClick = TransitionRightClick
+                    , onArrowMouseDown = ArrowMouseDown
+                    , onArrowRightClick = ArrowRightClick
+                    , onStartArrowMouseDown = StartArrowMouseDown
                     , onStartDrag = StartDrag
                     , onDragMove = DragMove
                     , onEndDrag = EndDrag
@@ -1480,7 +1762,7 @@ view consoleOpen darkMode settingsOpen language windowWidth windowHeight tutoria
                     , style "justify-content" "center"
                     , style "opacity" (if targetVisible then "0.4" else "1")
                     , style "background-color" theme.btnSecondaryBg
-                    , style "color" "white"
+                    , style "color" theme.textOnDark
                     , style "white-space" "nowrap"
                     ] ++ (if targetVisible then [ Html.Attributes.disabled True ] else [ onClick (RecenterCanvas canvasW canvasH) ]))
                     [ text t.editorRecenter ]
@@ -1596,7 +1878,7 @@ viewInlineTransitionInput theme t canvasW model =
                         [ onClick ConfirmTransitionSymbol
                         , style "padding" "5px 10px"
                         , style "background-color" theme.btnPrimary
-                        , style "color" "white"
+                        , style "color" theme.textOnDark
                         , style "border" "none"
                         , style "font-size" "13px"
                         , style "font-weight" "bold"
@@ -1735,7 +2017,7 @@ viewStateModal theme t canvasW model =
                                 , style "flex" "1"
                                 , style "padding" "6px"
                                 , style "background-color" theme.btnAutoRunActive
-                                , style "color" "white"
+                                , style "color" theme.textOnDark
                                 , style "border" "none"
                                 , style "border-radius" "4px"
                                 , style "cursor" "pointer"
@@ -1748,7 +2030,7 @@ viewStateModal theme t canvasW model =
                                 , style "flex" "1"
                                 , style "padding" "6px"
                                 , style "background-color" theme.btnDelete
-                                , style "color" "white"
+                                , style "color" theme.textOnDark
                                 , style "border" "none"
                                 , style "border-radius" "4px"
                                 , style "cursor" "pointer"
@@ -1772,7 +2054,7 @@ viewLoadModal theme t model =
             , style "left" "0"
             , style "width" "100%"
             , style "height" "100%"
-            , style "background-color" "rgba(0,0,0,0.5)"
+            , style "background-color" theme.overlayDark50
             , style "z-index" "2000"
             , style "display" "flex"
             , style "align-items" "center"
@@ -1807,7 +2089,7 @@ viewLoadModal theme t model =
                                 , Html.Attributes.class "elm-btn"
                                 , style "padding" "6px 14px"
                                 , style "background-color" theme.btnSecondaryBg
-                                , style "color" "white"
+                                , style "color" theme.textOnDark
                                 , style "border" "none"
                                 , style "border-radius" "5px"
                                 , style "cursor" "pointer"
@@ -1819,7 +2101,7 @@ viewLoadModal theme t model =
                                 , Html.Attributes.class "elm-btn"
                                 , style "padding" "6px 14px"
                                 , style "background-color" theme.btnDelete
-                                , style "color" "white"
+                                , style "color" theme.textOnDark
                                 , style "border" "none"
                                 , style "border-radius" "5px"
                                 , style "cursor" "pointer"
@@ -1834,7 +2116,7 @@ viewLoadModal theme t model =
                         , Html.Attributes.class "elm-btn"
                         , style "padding" "10px"
                         , style "background-color" theme.btnSecondaryBg
-                        , style "color" "white"
+                        , style "color" theme.textOnDark
                         , style "border" "none"
                         , style "border-radius" "5px"
                         , style "cursor" "pointer"
@@ -1847,7 +2129,7 @@ viewLoadModal theme t model =
                         , Html.Attributes.class "elm-btn"
                         , style "padding" "8px"
                         , style "background-color" theme.btnDelete
-                        , style "color" "white"
+                        , style "color" theme.textOnDark
                         , style "border" "none"
                         , style "border-radius" "5px"
                         , style "cursor" "pointer"
@@ -1870,7 +2152,7 @@ viewSaveModal theme t model =
             , style "left" "0"
             , style "width" "100%"
             , style "height" "100%"
-            , style "background-color" "rgba(0,0,0,0.5)"
+            , style "background-color" theme.overlayDark50
             , style "z-index" "2000"
             , style "display" "flex"
             , style "align-items" "center"
@@ -1907,7 +2189,7 @@ viewSaveModal theme t model =
                     , Html.Attributes.class "elm-btn"
                     , style "padding" "10px"
                     , style "background-color" theme.btnSecondaryBg
-                    , style "color" "white"
+                    , style "color" theme.textOnDark
                     , style "border" "none"
                     , style "border-radius" "5px"
                     , style "cursor" "pointer"
@@ -1919,7 +2201,7 @@ viewSaveModal theme t model =
                     , Html.Attributes.class "elm-btn"
                     , style "padding" "8px"
                     , style "background-color" theme.btnDelete
-                    , style "color" "white"
+                    , style "color" theme.textOnDark
                     , style "border" "none"
                     , style "border-radius" "5px"
                     , style "cursor" "pointer"

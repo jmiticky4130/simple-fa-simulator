@@ -98,7 +98,7 @@ zoomBtn theme label msg =
         , style "font-size" "18px"
         , style "font-weight" "bold"
         , style "background-color" theme.btnSecondaryBg
-        , style "color" "white"
+        , style "color" theme.textOnDark
         , style "border" "none"
         , style "border-radius" "4px"
         , style "cursor" "pointer"
@@ -230,7 +230,7 @@ viewStraightEdge theme a b symbols isActive =
             calculateArrowHead ex ey ux uy
 
         strokeColor =
-            if isActive then "#e74c3c" else theme.edgeColor
+            if isActive then theme.activeEdgeColor else theme.edgeColor
 
         strokeWidth =
             if isActive then "4" else "2"
@@ -375,7 +375,7 @@ viewCurvedEdge theme a b symbols isActive =
             calculateArrowHead ex ey tUx tUy
 
         strokeColor =
-            if isActive then "#e74c3c" else theme.edgeColor
+            if isActive then theme.activeEdgeColor else theme.edgeColor
 
         strokeWidth =
             if isActive then "4" else "2"
@@ -488,7 +488,7 @@ viewSelfLoop theme state symbols isActive =
             calculateArrowHead ex ey ux uy
 
         strokeColor =
-            if isActive then "#e74c3c" else theme.edgeColor
+            if isActive then theme.activeEdgeColor else theme.edgeColor
 
         strokeWidth =
             if isActive then "4" else "2"
@@ -540,17 +540,17 @@ viewDfaState theme onStateMouseDown highlightId newlyCreatedId processedIds stat
 
         fillColor =
             if newlyCreatedId == Just state.id then
-                "#b3e5fc"
+                theme.conversionNewFillColor
             else if List.member state.id processedIds then
-                "#cfd8dc"
+                theme.conversionProcessedFillColor
             else
                 theme.stateFill
 
         textColor =
-            if isLightFill then "#222222" else theme.stateText
+            if isLightFill then theme.lightTextColor else theme.stateText
 
         borderColor =
-            if isHighlighted then "#f57f17" else theme.stateBorder
+            if isHighlighted then theme.highlightBorderColor else theme.stateBorder
 
         borderWidth =
             if isHighlighted then "3" else "2"
@@ -619,35 +619,38 @@ startArrow theme state r =
 
     else
         let
-            labelOverflows = String.length state.label * 7 > 60
-            contactAngle = if labelOverflows then degrees 150 else degrees 180
+            contactAngle = degrees 180
+            arrowLen = 50
+            al = 14
+            aw = 7
             tipX = state.x + toFloat r * cos contactAngle
             tipY = state.y + toFloat r * sin contactAngle
-            lineX1 = state.x + (toFloat r + 40) * cos contactAngle
-            lineY1 = state.y + (toFloat r + 40) * sin contactAngle
-            baseX = tipX + 10 * cos contactAngle
-            baseY = tipY + 10 * sin contactAngle
+            lineX1 = state.x + (toFloat r + arrowLen) * cos contactAngle
+            lineY1 = state.y + (toFloat r + arrowLen) * sin contactAngle
+            baseX = tipX + al * cos contactAngle
+            baseY = tipY + al * sin contactAngle
             perpX = -(sin contactAngle)
             perpY = cos contactAngle
-            leftX = baseX + 5 * perpX
-            leftY = baseY + 5 * perpY
-            rightX = baseX - 5 * perpX
-            rightY = baseY - 5 * perpY
+            leftX = baseX + aw * perpX
+            leftY = baseY + aw * perpY
+            rightX = baseX - aw * perpX
+            rightY = baseY - aw * perpY
             pts =
                 String.join " "
                     [ String.fromFloat tipX ++ "," ++ String.fromFloat tipY
                     , String.fromFloat leftX ++ "," ++ String.fromFloat leftY
                     , String.fromFloat rightX ++ "," ++ String.fromFloat rightY
                     ]
+            color = theme.startArrowColor
         in
         [ Svg.line
             [ SA.x1 (String.fromFloat lineX1)
             , SA.y1 (String.fromFloat lineY1)
             , SA.x2 (String.fromFloat tipX)
             , SA.y2 (String.fromFloat tipY)
-            , SA.stroke theme.edgeColor
-            , SA.strokeWidth "2"
+            , SA.stroke color
+            , SA.strokeWidth "2.5"
             ]
             []
-        , Svg.polygon [ SA.points pts, SA.fill theme.edgeColor ] []
+        , Svg.polygon [ SA.points pts, SA.fill color ] []
         ]

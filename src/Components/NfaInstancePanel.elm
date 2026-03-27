@@ -90,14 +90,14 @@ viewInstance config displayIdx instance =
         ( statusText, statusBg, borderColor ) =
             case instance.verdict of
                 Nothing ->
-                    ( t.running, "#2196F3", if isSelected then "#1565C0" else "#2196F3" )
+                    ( t.running, config.theme.infoColor, if isSelected then config.theme.infoColorDark else config.theme.infoColor )
 
                 Just v ->
                     if v.isAccepted then
-                        ( t.accepted, "#4CAF50", if isSelected then "#2E7D32" else "#4CAF50" )
+                        ( t.accepted, config.theme.successColor, if isSelected then config.theme.successColorDark else config.theme.successColor )
 
                     else
-                        ( t.rejected, "#F44336", if isSelected then "#B71C1C" else "#F44336" )
+                        ( t.rejected, config.theme.errorColor, if isSelected then config.theme.errorColorDark else config.theme.errorColor )
 
         borderWidth =
             if isSelected then
@@ -135,7 +135,7 @@ viewInstance config displayIdx instance =
                 [ text (t.instancePrefix ++ String.fromInt displayIdx) ]
             , span
                 [ style "background-color" statusBg
-                , style "color" "white"
+                , style "color" config.theme.textOnDark
                 , style "padding" "2px 6px"
                 , style "border-radius" "4px"
                 , style "font-size" "11px"

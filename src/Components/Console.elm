@@ -38,11 +38,11 @@ view config =
     div
         [ style "display" "flex"
         , style "flex-direction" "column"
-        , style "border-top" "2px solid #0d1e30"
+        , style "border-top" ("2px solid " ++ config.theme.strongBorderColor)
         ]
         [ div
             [ style "background-color" config.theme.consoleHeaderBg
-            , style "color" "#ecf0f1"
+            , style "color" config.theme.consoleText
             , style "padding" "2px 10px"
             , style "font-size" "12px"
             , style "font-family" "sans-serif"
@@ -81,26 +81,26 @@ view config =
                 , style "display" "flex"
                 , style "flex-direction" "column-reverse"
                 ]
-                (List.map (viewMessage config.onLinkClick) config.messages)
+                (List.map (viewMessage config.theme config.onLinkClick) config.messages)
 
           else
             div [] []
         ]
 
 
-viewMessage : Maybe msg -> Message -> Html msg
-viewMessage maybeOnLinkClick message =
+viewMessage : Theme.Theme -> Maybe msg -> Message -> Html msg
+viewMessage theme maybeOnLinkClick message =
     let
         borderColor =
             case message.msgType of
                 Info ->
-                    "#3498db"
+                    theme.infoColor
 
                 Error ->
-                    "#e74c3c"
+                    theme.activeEdgeColor
 
                 InfoLink _ ->
-                    "#3498db"
+                    theme.infoColor
     in
     case message.msgType of
         InfoLink linkLabel ->
@@ -114,14 +114,14 @@ viewMessage maybeOnLinkClick message =
                     Just action ->
                         span
                             [ onClick action
-                            , style "color" "#4fc3f7"
+                            , style "color" theme.modalSectionTitle
                             , style "cursor" "pointer"
                             , style "text-decoration" "underline"
                             ]
                             [ text linkLabel ]
 
                     Nothing ->
-                        span [ style "color" "#4fc3f7" ] [ text linkLabel ]
+                        span [ style "color" theme.modalSectionTitle ] [ text linkLabel ]
                 ]
 
         _ ->

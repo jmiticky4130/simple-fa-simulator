@@ -28,7 +28,9 @@ type alias Config msg =
     , onStateDoubleClick : Int -> msg
     , onStateRightClick : Int -> msg
     , onTransitionClick : Int -> Int -> String -> msg
-    , onArrowClick : Int -> Int -> msg
+    , onTransitionRightClick : Int -> Int -> String -> msg
+    , onArrowMouseDown : Int -> Int -> Float -> Float -> msg
+    , onArrowRightClick : Int -> Int -> msg
     , onStartDrag : Int -> Float -> Float -> msg
     , onDragMove : Float -> Float -> msg
     , onEndDrag : msg
@@ -48,6 +50,7 @@ type alias Config msg =
     , editingStateId : Maybe Int
     , theme : Theme.Theme
     , gridMode : Bool
+    , onStartArrowMouseDown : Int -> Float -> Float -> msg
     }
 
 
@@ -102,7 +105,7 @@ view config =
                 , style "font-size" "18px"
                 , style "font-weight" "bold"
                 , style "background-color" config.theme.btnSecondaryBg
-                , style "color" "white"
+                , style "color" config.theme.textOnDark
                 , style "border" "none"
                 , style "border-radius" "4px"
                 , style "cursor" "pointer"
@@ -116,7 +119,7 @@ view config =
                 , style "font-size" "18px"
                 , style "font-weight" "bold"
                 , style "background-color" config.theme.btnSecondaryBg
-                , style "color" "white"
+                , style "color" config.theme.textOnDark
                 , style "border" "none"
                 , style "border-radius" "4px"
                 , style "cursor" "pointer"
@@ -149,7 +152,7 @@ svgGrid config =
             String.fromFloat cellPx
 
         strokeColor =
-            "rgba(120,120,120,0.22)"
+            config.theme.gridStrokeColor
     in
     Svg.g []
         [ Svg.defs []
@@ -229,44 +232,44 @@ svgState config state =
 
         fillColor =
             if isSelected then
-                "#80cbc4"
+                config.theme.selectedFillColor
             else if isTransitionStart || isTransitionEnd then
                 config.theme.stateTransitionHighlight
             else if isActive then
                 case config.activeStateVerdict of
                     Nothing ->
-                        "#1e88e5"
+                        config.theme.runningFillColor
                     Just True ->
-                        "#43a047"
+                        config.theme.acceptFillColor
                     Just False ->
-                        "#e53935"
+                        config.theme.rejectFillColor
             else if isEditing then
-                "#ffe082"
+                config.theme.editingFillColor
             else
                 case highlightMatch of
                     Just h ->
-                        if h.isAccepted then "#a5d6a7" else "#ef9a9a"
+                        if h.isAccepted then config.theme.trailAcceptFillColor else config.theme.trailRejectFillColor
 
                     Nothing ->
                         config.theme.stateFill
 
         borderColor =
             if isSelected then
-                "#004d40"
+                config.theme.selectedBorderColor
             else if isActive then
                 case config.activeStateVerdict of
                     Nothing ->
-                        "#1565c0"
+                        config.theme.runningBorderColor
                     Just True ->
-                        "#2e7d32"
+                        config.theme.acceptBorderColor
                     Just False ->
-                        "#b71c1c"
+                        config.theme.rejectBorderColor
             else if isEditing then
-                "#f9a825"
+                config.theme.highlightEdgeColor
             else
                 case highlightMatch of
                     Just h ->
-                        if h.isAccepted then "#2e7d32" else "#b71c1c"
+                        if h.isAccepted then config.theme.acceptBorderColor else config.theme.rejectBorderColor
 
                     Nothing ->
                         config.theme.stateBorder
@@ -338,7 +341,7 @@ svgState config state =
             , SA.y (String.fromFloat (state.y + 4))
             , SA.textAnchor "middle"
             , SA.fontSize "14"
-            , SA.fill (if isEditing then "#1a1a1a" else config.theme.stateText)
+            , SA.fill (if isEditing then config.theme.editingTextColor else config.theme.stateText)
             , SA.fontWeight "bold"
             , SA.style "user-select: none; pointer-events: none;"
             ]
@@ -346,29 +349,50 @@ svgState config state =
         ]
             ++ (if state.isStart then
                     let
-                        labelOverflows = String.length state.label * 8 > 60
-                        contactAngle = if labelOverflows then degrees 150 else degrees 180
+                        contactAngle = state.startAngle
+                        arrowLen = 50
+                        al = 14
+                        aw = 7
                         tipX = state.x + toFloat r * cos contactAngle
                         tipY = state.y + toFloat r * sin contactAngle
-                        lineX1 = state.x + (toFloat r + 40) * cos contactAngle
-                        lineY1 = state.y + (toFloat r + 40) * sin contactAngle
-                        baseX = tipX + 10 * cos contactAngle
-                        baseY = tipY + 10 * sin contactAngle
+                        lineX1 = state.x + (toFloat r + arrowLen) * cos contactAngle
+                        lineY1 = state.y + (toFloat r + arrowLen) * sin contactAngle
+                        baseX = tipX + al * cos contactAngle
+                        baseY = tipY + al * sin contactAngle
                         perpX = -(sin contactAngle)
                         perpY = cos contactAngle
-                        leftX = baseX + 5 * perpX
-                        leftY = baseY + 5 * perpY
-                        rightX = baseX - 5 * perpX
-                        rightY = baseY - 5 * perpY
+                        leftX = baseX + aw * perpX
+                        leftY = baseY + aw * perpY
+                        rightX = baseX - aw * perpX
+                        rightY = baseY - aw * perpY
                         pts =
                             String.join " "
                                 [ String.fromFloat tipX ++ "," ++ String.fromFloat tipY
                                 , String.fromFloat leftX ++ "," ++ String.fromFloat leftY
                                 , String.fromFloat rightX ++ "," ++ String.fromFloat rightY
                                 ]
+                        color = config.theme.startArrowColor
+                        startArrowInteraction =
+                            if config.isSimulateMode then
+                                []
+                            else
+                                [ SE.custom "mousedown"
+                                    (Decode.map2
+                                        (\x y ->
+                                            { message = config.onStartArrowMouseDown state.id x y
+                                            , stopPropagation = True
+                                            , preventDefault = False
+                                            }
+                                        )
+                                        offsetX
+                                        offsetY
+                                    )
+                                , SA.style "cursor: grab;"
+                                ]
                     in
-                    [ Svg.line [ SA.x1 (String.fromFloat lineX1), SA.y1 (String.fromFloat lineY1), SA.x2 (String.fromFloat tipX), SA.y2 (String.fromFloat tipY), SA.stroke config.theme.edgeColor, SA.strokeWidth "2" ] []
-                    , Svg.polygon [ SA.points pts, SA.fill config.theme.edgeColor ] []
+                    [ Svg.line ([ SA.x1 (String.fromFloat lineX1), SA.y1 (String.fromFloat lineY1), SA.x2 (String.fromFloat tipX), SA.y2 (String.fromFloat tipY), SA.stroke color, SA.strokeWidth "2.5" ] ++ startArrowInteraction) []
+                    , Svg.line ([ SA.x1 (String.fromFloat lineX1), SA.y1 (String.fromFloat lineY1), SA.x2 (String.fromFloat tipX), SA.y2 (String.fromFloat tipY), SA.stroke config.theme.colorTransparent, SA.strokeWidth "14" ] ++ startArrowInteraction) []
+                    , Svg.polygon ([ SA.points pts, SA.fill color ] ++ startArrowInteraction) []
                     ]
                else
                     []
@@ -376,7 +400,7 @@ svgState config state =
         )
 
 
-groupTransitions : List Transition -> List { from : Int, to : Int, symbols : List String }
+groupTransitions : List Transition -> List { from : Int, to : Int, symbols : List String, bend : Float }
 groupTransitions transitions =
     transitions
         |> List.foldl
@@ -392,12 +416,12 @@ groupTransitions transitions =
                             )
                             acc
                     Nothing ->
-                        acc ++ [ { from = t.from, to = t.to, symbols = [ t.symbol ] } ]
+                        acc ++ [ { from = t.from, to = t.to, symbols = [ t.symbol ], bend = t.bend } ]
             )
             []
 
 
-viewGroupedTransition : Config msg -> { from : Int, to : Int, symbols : List String } -> Svg msg
+viewGroupedTransition : Config msg -> { from : Int, to : Int, symbols : List String, bend : Float } -> Svg msg
 viewGroupedTransition config grouped =
     let
         maybeFromState =
@@ -431,37 +455,103 @@ viewGroupedTransition config grouped =
     case ( maybeFromState, maybeToState ) of
         ( Just fromState, Just toState ) ->
             if fromState.id == toState.id then
-                svgSelfLoop config fromState grouped.symbols isActive isHighlighted highlightedSymbolsForGroup
+                svgSelfLoop config fromState grouped.symbols grouped.bend isActive isHighlighted highlightedSymbolsForGroup
             else
                 if hasReverseTransition then
-                    svgCurvedEdge config fromState toState grouped.symbols isActive isHighlighted highlightedSymbolsForGroup
+                    svgCurvedEdge config fromState toState grouped.symbols grouped.bend isActive isHighlighted highlightedSymbolsForGroup
                 else
-                    svgEdge config fromState toState grouped.symbols isActive isHighlighted highlightedSymbolsForGroup
+                    svgEdge config fromState toState grouped.symbols grouped.bend isActive isHighlighted highlightedSymbolsForGroup
 
         _ ->
             Svg.g [] []
 
 
-svgSelfLoop : Config msg -> State -> List String -> Bool -> Bool -> List String -> Svg msg
-svgSelfLoop config state symbols isActive isHighlighted highlightedSymbolsList =
+symRightClickAttrs : Config msg -> Int -> Int -> String -> List (Svg.Attribute msg)
+symRightClickAttrs config fromId toId sym =
+    if config.isSimulateMode then
+        []
+    else
+        [ SE.custom "contextmenu"
+            (Decode.succeed
+                { message = config.onTransitionRightClick fromId toId sym
+                , stopPropagation = True
+                , preventDefault = True
+                }
+            )
+        ]
+
+
+symLeftClickAttrs : Config msg -> Int -> Int -> String -> List (Svg.Attribute msg)
+symLeftClickAttrs config fromId toId sym =
+    if config.isSimulateMode then
+        []
+    else
+        [ SE.custom "click"
+            (Decode.succeed
+                { message = config.onTransitionClick fromId toId sym
+                , stopPropagation = True
+                , preventDefault = False
+                }
+            )
+        ]
+
+
+arrowInteractionAttrs : Config msg -> Int -> Int -> List (Svg.Attribute msg)
+arrowInteractionAttrs config fromId toId =
+    if config.isSimulateMode then
+        []
+    else
+        [ SE.custom "mousedown"
+            (Decode.map2
+                (\x y ->
+                    { message = config.onArrowMouseDown fromId toId x y
+                    , stopPropagation = True
+                    , preventDefault = False
+                    }
+                )
+                offsetX
+                offsetY
+            )
+        , SE.custom "contextmenu"
+            (Decode.succeed
+                { message = config.onArrowRightClick fromId toId
+                , stopPropagation = True
+                , preventDefault = True
+                }
+            )
+        ]
+
+
+svgSelfLoop : Config msg -> State -> List String -> Float -> Bool -> Bool -> List String -> Svg msg
+svgSelfLoop config state symbols bend isActive isHighlighted highlightedSymbolsList =
     let
         r = 35
-        startAngle = degrees -150
-        endAngle = degrees -30
-
-        sx = state.x + r * cos startAngle
-        sy = state.y + r * sin startAngle
-
-        ex = state.x + r * cos endAngle
-        ey = state.y + r * sin endAngle
-
         loopHeight = 55
 
-        c1x = sx
-        c1y = sy - loopHeight
+        -- bend stores the angle for self-loops (0 = up, clockwise)
+        -- midAngle is the direction the loop points in standard math coords
+        midAngle = bend - pi / 2
 
-        c2x = ex
-        c2y = ey - loopHeight
+        halfAperture = pi / 3  -- 60 degrees each side = 120 degree opening
+
+        startAngle = midAngle - halfAperture
+        endAngle = midAngle + halfAperture
+
+        sx = state.x + toFloat r * cos startAngle
+        sy = state.y + toFloat r * sin startAngle
+
+        ex = state.x + toFloat r * cos endAngle
+        ey = state.y + toFloat r * sin endAngle
+
+        -- Control points extend outward from start/end in the loop direction
+        outX = cos midAngle
+        outY = sin midAngle
+
+        c1x = sx + loopHeight * outX
+        c1y = sy + loopHeight * outY
+
+        c2x = ex + loopHeight * outX
+        c2y = ey + loopHeight * outY
 
         d =
             "M "
@@ -471,53 +561,45 @@ svgSelfLoop config state symbols isActive isHighlighted highlightedSymbolsList =
                 ++ String.fromFloat c2x ++ " " ++ String.fromFloat c2y ++ ", "
                 ++ String.fromFloat ex ++ " " ++ String.fromFloat ey
 
-        vx = ex - c2x
-        vy = ey - c2y
-        len = sqrt (vx * vx + vy * vy)
-        ux = if len == 0 then 1 else vx / len
-        uy = if len == 0 then 0 else vy / len
+        -- Arrow direction: tangent at end of bezier = endpoint - last control point
+        avx = ex - c2x
+        avy = ey - c2y
+        alen = sqrt (avx * avx + avy * avy)
+        aux = if alen == 0 then 1 else avx / alen
+        auy = if alen == 0 then 0 else avy / alen
 
-        arrowPts = calculateArrowHead ex ey ux uy
+        arrowPts = calculateArrowHead ex ey aux auy
+
+        -- Label offset beyond the peak of the loop, in the outward direction
+        peakX = state.x + (toFloat r + loopHeight + 12) * cos midAngle
+        peakY = state.y + (toFloat r + loopHeight + 12) * sin midAngle
 
         labels =
             let
                 n = List.length symbols
                 spacing = 16
-                labelY = state.y - r - loopHeight + 5
                 symbolStyle = if config.isSimulateMode then "user-select: none; pointer-events: none;" else "user-select: none;"
-                symClickAttrs sym =
-                    if config.isSimulateMode then
-                        []
-                    else
-                        [ SE.custom "click"
-                            (Decode.succeed
-                                { message = config.onTransitionClick state.id state.id sym
-                                , stopPropagation = True
-                                , preventDefault = False
-                                }
-                            )
-                        ]
-                startX = state.x - (toFloat (n - 1) * toFloat spacing) / 2
+                labelStartX = peakX - (toFloat (n - 1) * toFloat spacing) / 2
             in
             List.indexedMap
                 (\i sym ->
-                    let
-                        cx = startX + toFloat i * toFloat spacing
-                        labelColor = if List.member sym highlightedSymbolsList then "#f9a825" else config.theme.edgeLabelColor
+                        let
+                            lx = labelStartX + toFloat i * toFloat spacing
+                            labelColor = if List.member sym highlightedSymbolsList then config.theme.highlightEdgeColor else config.theme.edgeLabelColor
                     in
-                    Svg.g (symClickAttrs sym)
+                    Svg.g (symLeftClickAttrs config state.id state.id sym ++ symRightClickAttrs config state.id state.id sym)
                         [ Svg.rect
-                            [ SA.x (String.fromFloat (cx - 12))
-                            , SA.y (String.fromFloat (labelY - 14))
+                            [ SA.x (String.fromFloat (lx - 12))
+                            , SA.y (String.fromFloat (peakY - 10))
                             , SA.width "24"
                             , SA.height "20"
-                            , SA.fill "transparent"
+                            , SA.fill config.theme.colorTransparent
                             , SA.style "cursor: pointer;"
                             ]
                             []
                         , Svg.text_
-                            [ SA.x (String.fromFloat cx)
-                            , SA.y (String.fromFloat labelY)
+                            [ SA.x (String.fromFloat lx)
+                            , SA.y (String.fromFloat (peakY + 5))
                             , SA.textAnchor "middle"
                             , SA.fontSize "16"
                             , SA.fill labelColor
@@ -530,33 +612,20 @@ svgSelfLoop config state symbols isActive isHighlighted highlightedSymbolsList =
                 symbols
 
         strokeWidth = if isActive then "4" else "2"
-        strokeColor = if isActive then "#e74c3c" else if isHighlighted then "#f9a825" else config.theme.edgeColor
-
-        arrowClickAttrs =
-            if config.isSimulateMode then
-                []
-            else
-                [ SE.custom "click"
-                    (Decode.succeed
-                        { message = config.onArrowClick state.id state.id
-                        , stopPropagation = True
-                        , preventDefault = False
-                        }
-                    )
-                ]
+        strokeColor = if isActive then config.theme.activeEdgeColor else if isHighlighted then config.theme.highlightEdgeColor else config.theme.edgeColor
     in
     Svg.g []
         ([ Svg.path [ SA.d d, SA.fill "none", SA.stroke strokeColor, SA.strokeWidth strokeWidth, SA.strokeLinecap "round" ] []
-         , Svg.path ([ SA.d d, SA.fill "none", SA.stroke "transparent", SA.strokeWidth "12", SA.strokeLinecap "round", SA.style "cursor: pointer;" ] ++ arrowClickAttrs) []
+         , Svg.path ([ SA.d d, SA.fill "none", SA.stroke config.theme.colorTransparent, SA.strokeWidth "12", SA.strokeLinecap "round", SA.style "cursor: pointer;" ] ++ arrowInteractionAttrs config state.id state.id) []
          , Svg.polygon [ SA.points arrowPts, SA.fill strokeColor ] []
-         , Svg.polygon ([ SA.points arrowPts, SA.fill "transparent", SA.strokeWidth "10", SA.stroke "transparent", SA.style "cursor: pointer;" ] ++ arrowClickAttrs) []
+         , Svg.polygon ([ SA.points arrowPts, SA.fill config.theme.colorTransparent, SA.strokeWidth "10", SA.stroke config.theme.colorTransparent, SA.style "cursor: pointer;" ] ++ arrowInteractionAttrs config state.id state.id) []
          ]
             ++ labels
         )
 
 
-svgEdge : Config msg -> State -> State -> List String -> Bool -> Bool -> List String -> Svg msg
-svgEdge config a b symbols isActive isHighlighted highlightedSymbolsList =
+svgEdge : Config msg -> State -> State -> List String -> Float -> Bool -> Bool -> List String -> Svg msg
+svgEdge config a b symbols bend isActive isHighlighted highlightedSymbolsList =
     let
         r = 35
         vx = b.x - a.x
@@ -565,58 +634,155 @@ svgEdge config a b symbols isActive isHighlighted highlightedSymbolsList =
         ux = if len == 0 then 1 else vx / len
         uy = if len == 0 then 0 else vy / len
 
-        sx = a.x + ux * toFloat r
-        sy = a.y + uy * toFloat r
-        ex = b.x - ux * toFloat r
-        ey = b.y - uy * toFloat r
+        px = -uy
+        py = ux
+    in
+    if bend == 0 then
+        -- Straight edge
+        let
+            sx = a.x + ux * toFloat r
+            sy = a.y + uy * toFloat r
+            ex = b.x - ux * toFloat r
+            ey = b.y - uy * toFloat r
 
-        d =
-            "M " ++ String.fromFloat sx ++ " " ++ String.fromFloat sy
-                ++ " L " ++ String.fromFloat ex ++ " " ++ String.fromFloat ey
+            d =
+                "M " ++ String.fromFloat sx ++ " " ++ String.fromFloat sy
+                    ++ " L " ++ String.fromFloat ex ++ " " ++ String.fromFloat ey
 
-        arrowPts = calculateArrowHead ex ey ux uy
+            arrowPts = calculateArrowHead ex ey ux uy
+
+            n = List.length symbols
+            spacing = 16
+            midX = (sx + ex) / 2
+            midY = (sy + ey) / 2
+
+            angleRad = atan2 uy ux
+            angleDeg = angleRad * 180 / pi
+            rotationAngle = if ux < 0 then angleDeg + 180 else angleDeg
+
+            labels =
+                [ Svg.g
+                    [ SA.transform
+                        ("translate(" ++ String.fromFloat midX ++ "," ++ String.fromFloat midY
+                            ++ ") rotate(" ++ String.fromFloat rotationAngle ++ ")")
+                    ]
+                    (List.indexedMap
+                        (\i sym ->
+                            let
+                                sx2 = (toFloat i - toFloat (n - 1) / 2.0) * toFloat spacing
+                                labelColor = if List.member sym highlightedSymbolsList then config.theme.highlightEdgeColor else config.theme.edgeLabelColor
+                            in
+                            Svg.g (symLeftClickAttrs config a.id b.id sym ++ symRightClickAttrs config a.id b.id sym)
+                                [ Svg.rect
+                                    [ SA.x (String.fromFloat (sx2 - 12))
+                                    , SA.y "-20"
+                                    , SA.width "24"
+                                    , SA.height "20"
+                                    , SA.fill config.theme.colorTransparent
+                                    , SA.style "cursor: pointer;"
+                                    ]
+                                    []
+                                , Svg.text_
+                                    [ SA.x (String.fromFloat sx2)
+                                    , SA.y "-6"
+                                    , SA.textAnchor "middle"
+                                    , SA.fontSize "16"
+                                    , SA.fill labelColor
+                                    , SA.fontWeight "bold"
+                                    , SA.style "user-select: none;"
+                                    ]
+                                    [ Svg.text sym ]
+                                ]
+                        )
+                        symbols
+                    )
+                ]
+
+            strokeWidth = if isActive then "4" else "2"
+            strokeColor = if isActive then config.theme.activeEdgeColor else if isHighlighted then config.theme.highlightEdgeColor else config.theme.edgeColor
+        in
+        Svg.g []
+            ([ Svg.path [ SA.d d, SA.fill "none", SA.stroke strokeColor, SA.strokeWidth strokeWidth ] []
+             , Svg.path ([ SA.d d, SA.fill "none", SA.stroke config.theme.colorTransparent, SA.strokeWidth "24", SA.style "cursor: pointer;" ] ++ arrowInteractionAttrs config a.id b.id) []
+             , Svg.polygon [ SA.points arrowPts, SA.fill strokeColor ] []
+             , Svg.polygon ([ SA.points arrowPts, SA.fill config.theme.colorTransparent, SA.strokeWidth "10", SA.stroke config.theme.colorTransparent, SA.style "cursor: pointer;" ] ++ arrowInteractionAttrs config a.id b.id) []
+             ]
+                ++ labels
+            )
+    else
+        -- Bent edge (quadratic bezier)
+        svgBentEdge config a b symbols bend px py ux uy isActive isHighlighted highlightedSymbolsList
+
+
+svgBentEdge : Config msg -> State -> State -> List String -> Float -> Float -> Float -> Float -> Float -> Bool -> Bool -> List String -> Svg msg
+svgBentEdge config a b symbols bend px py ux uy isActive isHighlighted highlightedSymbolsList =
+    let
+        r = 35
+
+        midX = (a.x + b.x) / 2
+        midY = (a.y + b.y) / 2
+        cx = midX + bend * px
+        cy = midY + bend * py
+
+        acX = cx - a.x
+        acY = cy - a.y
+        acLen = sqrt (acX * acX + acY * acY)
+        acUx = acX / acLen
+        acUy = acY / acLen
+
+        sx = a.x + acUx * toFloat r
+        sy = a.y + acUy * toFloat r
+
+        bcX = cx - b.x
+        bcY = cy - b.y
+        bcLen = sqrt (bcX * bcX + bcY * bcY)
+        bcUx = bcX / bcLen
+        bcUy = bcY / bcLen
+
+        ex = b.x + bcUx * toFloat r
+        ey = b.y + bcUy * toFloat r
+
+        d = "M " ++ String.fromFloat sx ++ " " ++ String.fromFloat sy
+            ++ " Q " ++ String.fromFloat cx ++ " " ++ String.fromFloat cy
+            ++ " " ++ String.fromFloat ex ++ " " ++ String.fromFloat ey
+
+        tVx = ex - cx
+        tVy = ey - cy
+        tLen = sqrt (tVx * tVx + tVy * tVy)
+        tUx = tVx / tLen
+        tUy = tVy / tLen
+
+        arrowPts = calculateArrowHead ex ey tUx tUy
 
         n = List.length symbols
         spacing = 16
-        midX = (sx + ex) / 2
-        midY = (sy + ey) / 2
+
+        curveMidX = 0.25 * sx + 0.5 * cx + 0.25 * ex
+        curveMidY = 0.25 * sy + 0.5 * cy + 0.25 * ey
 
         angleRad = atan2 uy ux
         angleDeg = angleRad * 180 / pi
         rotationAngle = if ux < 0 then angleDeg + 180 else angleDeg
 
-        symClickAttrs sym =
-            if config.isSimulateMode then
-                []
-            else
-                [ SE.custom "click"
-                    (Decode.succeed
-                        { message = config.onTransitionClick a.id b.id sym
-                        , stopPropagation = True
-                        , preventDefault = False
-                        }
-                    )
-                ]
-
         labels =
             [ Svg.g
                 [ SA.transform
-                    ("translate(" ++ String.fromFloat midX ++ "," ++ String.fromFloat midY
+                    ("translate(" ++ String.fromFloat curveMidX ++ "," ++ String.fromFloat curveMidY
                         ++ ") rotate(" ++ String.fromFloat rotationAngle ++ ")")
                 ]
                 (List.indexedMap
                     (\i sym ->
                         let
                             sx2 = (toFloat i - toFloat (n - 1) / 2.0) * toFloat spacing
-                            labelColor = if List.member sym highlightedSymbolsList then "#f9a825" else config.theme.edgeLabelColor
+                            labelColor = if List.member sym highlightedSymbolsList then config.theme.highlightEdgeColor else config.theme.edgeLabelColor
                         in
-                        Svg.g (symClickAttrs sym)
+                        Svg.g (symLeftClickAttrs config a.id b.id sym ++ symRightClickAttrs config a.id b.id sym)
                             [ Svg.rect
                                 [ SA.x (String.fromFloat (sx2 - 12))
                                 , SA.y "-20"
                                 , SA.width "24"
                                 , SA.height "20"
-                                , SA.fill "transparent"
+                                , SA.fill config.theme.colorTransparent
                                 , SA.style "cursor: pointer;"
                                 ]
                                 []
@@ -637,31 +803,20 @@ svgEdge config a b symbols isActive isHighlighted highlightedSymbolsList =
             ]
 
         strokeWidth = if isActive then "4" else "2"
-        strokeColor = if isActive then "#e74c3c" else if isHighlighted then "#f9a825" else config.theme.edgeColor
-
-        arrowClickAttrs =
-            if config.isSimulateMode then
-                []
-            else
-                [ SE.custom "click"
-                    (Decode.succeed
-                        { message = config.onArrowClick a.id b.id
-                        , stopPropagation = True
-                        , preventDefault = False
-                        }
-                    )
-                ]
+        strokeColor = if isActive then config.theme.activeEdgeColor else if isHighlighted then config.theme.highlightEdgeColor else config.theme.edgeColor
     in
     Svg.g []
         ([ Svg.path [ SA.d d, SA.fill "none", SA.stroke strokeColor, SA.strokeWidth strokeWidth ] []
-         , Svg.path ([ SA.d d, SA.fill "none", SA.stroke "transparent", SA.strokeWidth "12", SA.style "cursor: pointer;" ] ++ arrowClickAttrs) []
+         , Svg.path ([ SA.d d, SA.fill "none", SA.stroke config.theme.colorTransparent, SA.strokeWidth "24", SA.style "cursor: pointer;" ] ++ arrowInteractionAttrs config a.id b.id) []
          , Svg.polygon [ SA.points arrowPts, SA.fill strokeColor ] []
-         , Svg.polygon ([ SA.points arrowPts, SA.fill "transparent", SA.strokeWidth "10", SA.stroke "transparent", SA.style "cursor: pointer;" ] ++ arrowClickAttrs) []
+         , Svg.polygon ([ SA.points arrowPts, SA.fill config.theme.colorTransparent, SA.strokeWidth "10", SA.stroke config.theme.colorTransparent, SA.style "cursor: pointer;" ] ++ arrowInteractionAttrs config a.id b.id) []
          ]
             ++ labels
         )
 
-svgCurvedEdge config a b symbols isActive isHighlighted highlightedSymbolsList =
+
+svgCurvedEdge : Config msg -> State -> State -> List String -> Float -> Bool -> Bool -> List String -> Svg msg
+svgCurvedEdge config a b symbols bend isActive isHighlighted highlightedSymbolsList =
     let
         r = 35
 
@@ -675,7 +830,7 @@ svgCurvedEdge config a b symbols isActive isHighlighted highlightedSymbolsList =
         px = -uy
         py = ux
 
-        offset = 40
+        offset = 40 + bend
 
         midX = (a.x + b.x) / 2
         midY = (a.y + b.y) / 2
@@ -722,19 +877,6 @@ svgCurvedEdge config a b symbols isActive isHighlighted highlightedSymbolsList =
         angleDeg = angleRad * 180 / pi
         rotationAngle = if ux < 0 then angleDeg + 180 else angleDeg
 
-        symClickAttrs sym =
-            if config.isSimulateMode then
-                []
-            else
-                [ SE.custom "click"
-                    (Decode.succeed
-                        { message = config.onTransitionClick a.id b.id sym
-                        , stopPropagation = True
-                        , preventDefault = False
-                        }
-                    )
-                ]
-
         labels =
             [ Svg.g
                 [ SA.transform
@@ -745,15 +887,15 @@ svgCurvedEdge config a b symbols isActive isHighlighted highlightedSymbolsList =
                     (\i sym ->
                         let
                             sx2 = (toFloat i - toFloat (n - 1) / 2.0) * toFloat spacing
-                            labelColor = if List.member sym highlightedSymbolsList then "#f9a825" else config.theme.edgeLabelColor
+                            labelColor = if List.member sym highlightedSymbolsList then config.theme.highlightEdgeColor else config.theme.edgeLabelColor
                         in
-                        Svg.g (symClickAttrs sym)
+                        Svg.g (symLeftClickAttrs config a.id b.id sym ++ symRightClickAttrs config a.id b.id sym)
                             [ Svg.rect
                                 [ SA.x (String.fromFloat (sx2 - 12))
                                 , SA.y "-20"
                                 , SA.width "24"
                                 , SA.height "20"
-                                , SA.fill "transparent"
+                                , SA.fill config.theme.colorTransparent
                                 , SA.style "cursor: pointer;"
                                 ]
                                 []
@@ -774,26 +916,13 @@ svgCurvedEdge config a b symbols isActive isHighlighted highlightedSymbolsList =
             ]
 
         strokeWidth = if isActive then "4" else "2"
-        strokeColor = if isActive then "#e74c3c" else if isHighlighted then "#f9a825" else config.theme.edgeColor
-
-        arrowClickAttrs =
-            if config.isSimulateMode then
-                []
-            else
-                [ SE.custom "click"
-                    (Decode.succeed
-                        { message = config.onArrowClick a.id b.id
-                        , stopPropagation = True
-                        , preventDefault = False
-                        }
-                    )
-                ]
+        strokeColor = if isActive then config.theme.activeEdgeColor else if isHighlighted then config.theme.highlightEdgeColor else config.theme.edgeColor
     in
     Svg.g []
         ([ Svg.path [ SA.d d, SA.fill "none", SA.stroke strokeColor, SA.strokeWidth strokeWidth ] []
-         , Svg.path ([ SA.d d, SA.fill "none", SA.stroke "transparent", SA.strokeWidth "12", SA.style "cursor: pointer;" ] ++ arrowClickAttrs) []
+         , Svg.path ([ SA.d d, SA.fill "none", SA.stroke config.theme.colorTransparent, SA.strokeWidth "24", SA.style "cursor: pointer;" ] ++ arrowInteractionAttrs config a.id b.id) []
          , Svg.polygon [ SA.points arrowPts, SA.fill strokeColor ] []
-         , Svg.polygon ([ SA.points arrowPts, SA.fill "transparent", SA.strokeWidth "10", SA.stroke "transparent", SA.style "cursor: pointer;" ] ++ arrowClickAttrs) []
+         , Svg.polygon ([ SA.points arrowPts, SA.fill config.theme.colorTransparent, SA.strokeWidth "10", SA.stroke config.theme.colorTransparent, SA.style "cursor: pointer;" ] ++ arrowInteractionAttrs config a.id b.id) []
          ]
             ++ labels
         )

@@ -29,6 +29,7 @@ encodeState s =
         , ( "isStart", E.bool s.isStart )
         , ( "isEnd", E.bool s.isEnd )
         , ( "isCompact", E.bool s.isCompact )
+        , ( "startAngle", E.float s.startAngle )
         ]
 
 
@@ -38,6 +39,7 @@ encodeTransition t =
         [ ( "from", E.int t.from )
         , ( "to", E.int t.to )
         , ( "symbol", E.string t.symbol )
+        , ( "bend", E.float t.bend )
         ]
 
 
@@ -51,7 +53,7 @@ decoder =
 
 stateDecoder : Decoder State
 stateDecoder =
-    D.map7 State
+    D.map8 State
         (D.field "id" D.int)
         (D.field "x" D.float)
         (D.field "y" D.float)
@@ -59,11 +61,13 @@ stateDecoder =
         (D.field "isStart" D.bool)
         (D.field "isEnd" D.bool)
         (D.oneOf [ D.field "isCompact" D.bool, D.succeed False ])
+        (D.oneOf [ D.field "startAngle" D.float, D.succeed pi ])
 
 
 transitionDecoder : Decoder Transition
 transitionDecoder =
-    D.map3 Transition
+    D.map4 Transition
         (D.field "from" D.int)
         (D.field "to" D.int)
         (D.field "symbol" D.string)
+        (D.oneOf [ D.field "bend" D.float, D.succeed 0 ])

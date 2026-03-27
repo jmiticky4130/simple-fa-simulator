@@ -26,14 +26,14 @@ example1 t =
     , description = t.example1Desc
     , automaton =
         { states =
-            [ { id = 0, x = 200, y = 280, label = "q0", isStart = True, isEnd = False, isCompact = False }
-            , { id = 1, x = 520, y = 280, label = "q1", isStart = False, isEnd = True, isCompact = False }
+            [ { id = 0, x = 200, y = 280, label = "q0", isStart = True, isEnd = False, isCompact = False, startAngle = pi }
+            , { id = 1, x = 520, y = 280, label = "q1", isStart = False, isEnd = True, isCompact = False, startAngle = pi }
             ]
         , transitions =
-            [ { from = 0, to = 1, symbol = "a" }
-            , { from = 0, to = 0, symbol = "b" }
-            , { from = 1, to = 1, symbol = "a" }
-            , { from = 1, to = 0, symbol = "b" }
+            [ { from = 0, to = 1, symbol = "a", bend = 0 }
+            , { from = 0, to = 0, symbol = "b", bend = 0 }
+            , { from = 1, to = 1, symbol = "a", bend = 0 }
+            , { from = 1, to = 0, symbol = "b", bend = 0 }
             ]
         , nextStateId = 2
         }
@@ -47,14 +47,14 @@ example2 t =
     , description = t.example2Desc
     , automaton =
         { states =
-            [ { id = 0, x = 200, y = 280, label = "even", isStart = True, isEnd = True, isCompact = False }
-            , { id = 1, x = 520, y = 280, label = "odd", isStart = False, isEnd = False, isCompact = False }
+            [ { id = 0, x = 200, y = 280, label = "even", isStart = True, isEnd = True, isCompact = False, startAngle = pi }
+            , { id = 1, x = 520, y = 280, label = "odd", isStart = False, isEnd = False, isCompact = False, startAngle = pi }
             ]
         , transitions =
-            [ { from = 0, to = 1, symbol = "0" }
-            , { from = 0, to = 0, symbol = "1" }
-            , { from = 1, to = 0, symbol = "0" }
-            , { from = 1, to = 1, symbol = "1" }
+            [ { from = 0, to = 1, symbol = "0", bend = 0 }
+            , { from = 0, to = 0, symbol = "1", bend = 0 }
+            , { from = 1, to = 0, symbol = "0", bend = 0 }
+            , { from = 1, to = 1, symbol = "1", bend = 0 }
             ]
         , nextStateId = 2
         }
@@ -68,15 +68,15 @@ example3 t =
     , description = t.example3Desc
     , automaton =
         { states =
-            [ { id = 0, x = 150, y = 280, label = "q0", isStart = True, isEnd = False, isCompact = False }
-            , { id = 1, x = 370, y = 280, label = "q1", isStart = False, isEnd = False, isCompact = False }
-            , { id = 2, x = 590, y = 280, label = "q2", isStart = False, isEnd = True, isCompact = False }
+            [ { id = 0, x = 150, y = 280, label = "q0", isStart = True, isEnd = False, isCompact = False, startAngle = pi }
+            , { id = 1, x = 370, y = 280, label = "q1", isStart = False, isEnd = False, isCompact = False, startAngle = pi }
+            , { id = 2, x = 590, y = 280, label = "q2", isStart = False, isEnd = True, isCompact = False, startAngle = pi }
             ]
         , transitions =
-            [ { from = 0, to = 0, symbol = "0" }
-            , { from = 0, to = 0, symbol = "1" }
-            , { from = 0, to = 1, symbol = "0" }
-            , { from = 1, to = 2, symbol = "1" }
+            [ { from = 0, to = 0, symbol = "0", bend = 0 }
+            , { from = 0, to = 0, symbol = "1", bend = 0 }
+            , { from = 0, to = 1, symbol = "0", bend = 0 }
+            , { from = 1, to = 2, symbol = "1", bend = 0 }
             ]
         , nextStateId = 3
         }
@@ -90,15 +90,15 @@ example4 t =
     , description = t.example4Desc
     , automaton =
         { states =
-            [ { id = 0, x = 150, y = 280, label = "q0", isStart = True, isEnd = False, isCompact = False }
-            , { id = 1, x = 360, y = 280, label = "q1", isStart = False, isEnd = False, isCompact = False }
-            , { id = 2, x = 570, y = 170, label = "q2", isStart = False, isEnd = True, isCompact = False }
-            , { id = 3, x = 570, y = 390, label = "q3", isStart = False, isEnd = True, isCompact = False }
+            [ { id = 0, x = 150, y = 280, label = "q0", isStart = True, isEnd = False, isCompact = False, startAngle = pi }
+            , { id = 1, x = 360, y = 280, label = "q1", isStart = False, isEnd = False, isCompact = False, startAngle = pi }
+            , { id = 2, x = 570, y = 170, label = "q2", isStart = False, isEnd = True, isCompact = False, startAngle = pi }
+            , { id = 3, x = 570, y = 390, label = "q3", isStart = False, isEnd = True, isCompact = False, startAngle = pi }
             ]
         , transitions =
-            [ { from = 0, to = 1, symbol = "a" }
-            , { from = 1, to = 2, symbol = "ε" }
-            , { from = 1, to = 3, symbol = "b" }
+            [ { from = 0, to = 1, symbol = "a", bend = 0 }
+            , { from = 1, to = 2, symbol = "ε", bend = 0 }
+            , { from = 1, to = 3, symbol = "b", bend = 0 }
             ]
         , nextStateId = 4
         }
@@ -112,16 +112,16 @@ example5 t =
     , description = t.example5Desc
     , automaton =
         { states =
-            [ { id = 0, x = 150, y = 280, label = "q0", isStart = True, isEnd = False, isCompact = False }
-            , { id = 1, x = 370, y = 280, label = "q1", isStart = False, isEnd = False, isCompact = False }
-            , { id = 2, x = 590, y = 280, label = "q2", isStart = False, isEnd = True, isCompact = False }
+            [ { id = 0, x = 150, y = 280, label = "q0", isStart = True, isEnd = False, isCompact = False, startAngle = pi }
+            , { id = 1, x = 370, y = 280, label = "q1", isStart = False, isEnd = False, isCompact = False, startAngle = pi }
+            , { id = 2, x = 590, y = 280, label = "q2", isStart = False, isEnd = True, isCompact = False, startAngle = pi }
             ]
         , transitions =
-            [ { from = 0, to = 0, symbol = "0" }
-            , { from = 0, to = 0, symbol = "1" }
-            , { from = 0, to = 1, symbol = "1" }
-            , { from = 1, to = 2, symbol = "0" }
-            , { from = 1, to = 2, symbol = "1" }
+            [ { from = 0, to = 0, symbol = "0", bend = 0 }
+            , { from = 0, to = 0, symbol = "1", bend = 0 }
+            , { from = 0, to = 1, symbol = "1", bend = 0 }
+            , { from = 1, to = 2, symbol = "0", bend = 0 }
+            , { from = 1, to = 2, symbol = "1", bend = 0 }
             ]
         , nextStateId = 3
         }
@@ -135,13 +135,13 @@ example6 t =
     , description = t.example6Desc
     , automaton =
         { states =
-            [ { id = 0, x = 200, y = 280, label = "q0", isStart = True, isEnd = True, isCompact = False }
-            , { id = 1, x = 520, y = 280, label = "q1", isStart = False, isEnd = True, isCompact = False }
+            [ { id = 0, x = 200, y = 280, label = "q0", isStart = True, isEnd = True, isCompact = False, startAngle = pi }
+            , { id = 1, x = 520, y = 280, label = "q1", isStart = False, isEnd = True, isCompact = False, startAngle = pi }
             ]
         , transitions =
-            [ { from = 0, to = 0, symbol = "a" }
-            , { from = 0, to = 1, symbol = "ε" }
-            , { from = 1, to = 1, symbol = "b" }
+            [ { from = 0, to = 0, symbol = "a", bend = 0 }
+            , { from = 0, to = 1, symbol = "ε", bend = 0 }
+            , { from = 1, to = 1, symbol = "b", bend = 0 }
             ]
         , nextStateId = 2
         }

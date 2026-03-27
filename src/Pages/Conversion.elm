@@ -397,12 +397,12 @@ viewTopBar theme settingsOpen darkMode language stepNum total isAtStart isAtEnd 
         , navBtn theme "<" StepBackward isAtStart
         , navBtn theme ">" StepForward isAtEnd
         , navBtn theme ">>" JumpToEnd isAtEnd
-        , div [ style "color" "white", style "font-size" "14px", style "padding" "0 8px" ]
+        , div [ style "color" theme.textOnDark, style "font-size" "14px", style "padding" "0 8px" ]
             [ text (t.stepLabel ++ " " ++ String.fromInt stepNum ++ " / " ++ String.fromInt total) ]
         , div
             [ style "width" "1px"
             , style "height" "28px"
-            , style "background-color" "rgba(255,255,255,0.2)"
+            , style "background-color" theme.overlayLight20
             , style "margin" "0 4px"
             ]
             []
@@ -416,7 +416,24 @@ viewTopBar theme settingsOpen darkMode language stepNum total isAtStart isAtEnd 
             , style "gap" "8px"
             ]
             [ guideColorBtn theme t.guide ShowGuide
-            , colorBtn theme t.backToEditor theme.btnPrimary SwitchToEditor True
+            , button
+                [ onClick SwitchToEditor
+                , style "padding" "11px 18px"
+                , style "background-color" theme.btnPrimary
+                , style "color" theme.textOnDark
+                , style "border" "none"
+                , style "border-radius" "5px"
+                , style "cursor" "pointer"
+                , style "font-size" "14px"
+                , style "font-weight" "bold"
+                , style "display" "flex"
+                , style "align-items" "center"
+                , style "gap" "6px"
+                , style "white-space" "nowrap"
+                ]
+                [ img [ src "icons/undo_svg.svg", style "width" "18px", style "height" "18px" ] []
+                , text t.backToEditor
+                ]
             , settingsGearBtn theme settingsOpen darkMode language
             ]
         ]
@@ -435,7 +452,7 @@ settingsGearBtn theme settingsOpen darkMode language =
             [ onClick ToggleSettings
             , style "padding" "11px 16px"
             , style "background-color" theme.btnSecondaryBg
-            , style "color" "white"
+            , style "color" theme.textOnDark
             , style "border" "none"
             , style "border-radius" "5px"
             , style "cursor" "pointer"
@@ -459,7 +476,7 @@ settingsGearBtn theme settingsOpen darkMode language =
                 , style "gap" "10px"
                 ]
                 [ div
-                    [ style "color" "white"
+                    [ style "color" theme.textOnDark
                     , style "font-size" "13px"
                     , style "display" "flex"
                     , style "align-items" "center"
@@ -467,7 +484,7 @@ settingsGearBtn theme settingsOpen darkMode language =
                     , style "gap" "10px"
                     ]
                     [ text t.darkMode
-                    , pillToggle ToggleDarkMode darkMode
+                    , pillToggle theme ToggleDarkMode darkMode
                     ]
                 , div
                     [ style "height" "1px"
@@ -475,7 +492,7 @@ settingsGearBtn theme settingsOpen darkMode language =
                     ]
                     []
                 , div
-                    [ style "color" "white"
+                    [ style "color" theme.textOnDark
                     , style "font-size" "13px"
                     , style "display" "flex"
                     , style "align-items" "center"
@@ -483,7 +500,7 @@ settingsGearBtn theme settingsOpen darkMode language =
                     , style "gap" "10px"
                     ]
                     [ text t.language
-                    , languageToggleBtn t ToggleLanguage
+                    , languageToggleBtn theme t ToggleLanguage
                     ]
                 ]
           else
@@ -491,14 +508,14 @@ settingsGearBtn theme settingsOpen darkMode language =
         ]
 
 
-pillToggle : msg -> Bool -> Html msg
-pillToggle toggleMsg isOn =
+pillToggle : Theme.Theme -> msg -> Bool -> Html msg
+pillToggle theme toggleMsg isOn =
     div
         [ onClick toggleMsg
         , style "width" "40px"
         , style "height" "20px"
         , style "border-radius" "10px"
-        , style "background-color" (if isOn then "#0288d1" else "#607d8b")
+        , style "background-color" (if isOn then theme.toggleOnBg else theme.btnDisabledText)
         , style "position" "relative"
         , style "cursor" "pointer"
         , style "flex-shrink" "0"
@@ -508,7 +525,7 @@ pillToggle toggleMsg isOn =
             [ style "width" "16px"
             , style "height" "16px"
             , style "border-radius" "50%"
-            , style "background-color" "white"
+            , style "background-color" theme.colorWhite
             , style "position" "absolute"
             , style "top" "2px"
             , style "left" (if isOn then "22px" else "2px")
@@ -518,12 +535,12 @@ pillToggle toggleMsg isOn =
         ]
 
 
-languageToggleBtn : Translations.Translations -> msg -> Html msg
-languageToggleBtn t onToggle =
+languageToggleBtn : Theme.Theme -> Translations.Translations -> msg -> Html msg
+languageToggleBtn theme t onToggle =
     button
         [ onClick onToggle
-        , style "background" "#37474f"
-        , style "color" "white"
+        , style "background" theme.btnSecondaryBg
+        , style "color" theme.textOnDark
         , style "border" "none"
         , style "border-radius" "4px"
         , style "padding" "2px 8px"
@@ -549,7 +566,7 @@ iconActionBtn theme icon label msg isEnabled =
         [ onClick msg
         , style "padding" "11px 18px"
         , style "background-color" (if isEnabled then theme.btnPrimary else theme.btnDisabledBg)
-        , style "color" (if isEnabled then "white" else theme.btnDisabledText)
+        , style "color" (if isEnabled then theme.textOnDark else theme.btnDisabledText)
         , style "border" "none"
         , style "border-radius" "5px"
         , style "cursor" (if isEnabled then "pointer" else "not-allowed")
@@ -569,7 +586,7 @@ navBtn theme label msg isDisabled =
         [ onClick msg
         , style "padding" "11px 16px"
         , style "background-color" (if isDisabled then theme.btnDisabledBg else theme.btnSecondaryBg)
-        , style "color" (if isDisabled then theme.btnDisabledText else "white")
+        , style "color" (if isDisabled then theme.btnDisabledText else theme.textOnDark)
         , style "border" "none"
         , style "border-radius" "5px"
         , style "cursor" (if isDisabled then "not-allowed" else "pointer")
@@ -585,7 +602,7 @@ actionBtn theme label msg isEnabled =
         [ onClick msg
         , style "padding" "11px 18px"
         , style "background-color" (if isEnabled then theme.btnPrimary else theme.btnDisabledBg)
-        , style "color" (if isEnabled then "white" else theme.btnDisabledText)
+        , style "color" (if isEnabled then theme.textOnDark else theme.btnDisabledText)
         , style "border" "none"
         , style "border-radius" "5px"
         , style "cursor" (if isEnabled then "pointer" else "not-allowed")
@@ -602,7 +619,7 @@ colorBtn theme label color msg isEnabled =
         [ onClick msg
         , style "padding" "11px 18px"
         , style "background-color" (if isEnabled then color else theme.btnDisabledBg)
-        , style "color" (if isEnabled then "white" else theme.btnDisabledText)
+        , style "color" (if isEnabled then theme.textOnDark else theme.btnDisabledText)
         , style "border" "none"
         , style "border-radius" "5px"
         , style "cursor" (if isEnabled then "pointer" else "not-allowed")
@@ -619,7 +636,7 @@ guideColorBtn theme label msg =
         [ onClick msg
         , style "padding" "11px 18px"
         , style "background-color" theme.btnGuide
-        , style "color" "white"
+        , style "color" theme.textOnDark
         , style "border" "none"
         , style "border-radius" "5px"
         , style "cursor" "pointer"
@@ -826,7 +843,7 @@ viewWorktableRow theme snap alph highlightStateId highlightSymbol state =
             highlightStateId == Just state.id
 
         rowBg =
-            if isRowHighlighted then theme.convTableRowHighlight else "transparent"
+            if isRowHighlighted then theme.convTableRowHighlight else theme.colorTransparent
 
         isProcessed =
             List.member state.id snap.processedIds
@@ -857,7 +874,7 @@ worktableCell theme snap isRowHighlighted isProcessed rowBg highlightSymbol stat
             else if highlightSymbol == Just sym then
                 theme.convTableColHighlight
             else
-                "transparent"
+                theme.colorTransparent
 
         target =
             List.filter (\t -> t.from == stateId && t.symbol == sym) snap.transitions
@@ -896,7 +913,7 @@ viewSaveModal theme t model =
             , style "left" "0"
             , style "width" "100%"
             , style "height" "100%"
-            , style "background-color" "rgba(0,0,0,0.5)"
+            , style "background-color" theme.overlayDark50
             , style "z-index" "2000"
             , style "display" "flex"
             , style "align-items" "center"
@@ -930,7 +947,7 @@ viewSaveModal theme t model =
                     [ onClick ConfirmSaveToStorage
                     , style "padding" "10px"
                     , style "background-color" theme.btnSecondaryBg
-                    , style "color" "white"
+                    , style "color" theme.textOnDark
                     , style "border" "none"
                     , style "border-radius" "5px"
                     , style "cursor" "pointer"
@@ -941,7 +958,7 @@ viewSaveModal theme t model =
                     [ onClick DismissSaveModal
                     , style "padding" "8px"
                     , style "background-color" theme.btnDelete
-                    , style "color" "white"
+                    , style "color" theme.textOnDark
                     , style "border" "none"
                     , style "border-radius" "5px"
                     , style "cursor" "pointer"

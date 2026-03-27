@@ -1057,42 +1057,42 @@ viewReadingHead theme alphabet fullInput remaining =
                 , style "border-radius" "4px"
                 , style "background-color"
                     (if isCurrent && isUnknown then
-                        "#f9a825"
+                        theme.warningColor
 
                      else if isCurrent then
-                        "#1e88e5"
+                        theme.runningFillColor
 
                      else if isConsumed then
                         theme.readingHeadConsumedBg
 
                      else if isUnknown then
-                        "#f9a825"
+                        theme.warningColor
 
                      else
                         theme.inputBg
                     )
                 , style "color"
                     (if isCurrent && isUnknown then
-                        "#000"
+                        theme.colorBlack
 
                      else if isCurrent then
-                        "white"
+                        theme.textOnDark
 
                      else if isConsumed then
                         theme.readingHeadConsumedText
 
                      else if isUnknown then
-                        "#000"
+                        theme.colorBlack
 
                      else
                         theme.inputText
                     )
                 , style "border"
                     (if isCurrent then
-                        "2px solid #1565c0"
+                        "2px solid " ++ theme.runningBorderColor
 
                      else if isUnknown then
-                        "1px solid #f57f17"
+                        "1px solid " ++ theme.highlightBorderColor
 
                      else
                         "1px solid " ++ theme.inputBorder
@@ -1119,13 +1119,13 @@ viewReadingHead theme alphabet fullInput remaining =
             ]
 
 
-viewDisabledToggleTab : String -> Html Msg
-viewDisabledToggleTab label =
+viewDisabledToggleTab : Theme.Theme -> String -> Html Msg
+viewDisabledToggleTab theme label =
     Html.button
         [ Html.Attributes.disabled True
         , style "padding" "7px 18px"
-        , style "background-color" "transparent"
-        , style "color" "#78909c"
+        , style "background-color" theme.colorTransparent
+        , style "color" theme.textMuted
         , style "border" "none"
         , style "border-bottom" "2px solid transparent"
         , style "cursor" "not-allowed"
@@ -1140,10 +1140,10 @@ viewToggleTab theme label isActive msg =
     Html.button
         [ onClick msg
         , style "padding" "7px 18px"
-        , style "background-color" (if isActive then theme.tabActiveBg else "transparent")
+        , style "background-color" (if isActive then theme.tabActiveBg else theme.colorTransparent)
         , style "color" theme.tabText
         , style "border" "none"
-        , style "border-bottom" (if isActive then "2px solid #00bcd4" else "2px solid transparent")
+        , style "border-bottom" (if isActive then ("2px solid " ++ theme.accentColor) else ("2px solid " ++ theme.colorTransparent))
         , style "cursor" "pointer"
         , style "font-size" "13px"
         , style "font-weight" (if isActive then "bold" else "normal")
@@ -1154,10 +1154,19 @@ viewToggleTab theme label isActive msg =
 viewWhyNfaBlock : Theme.Theme -> Translations.Translations -> AutomatonType -> Bool -> Bool -> Html Msg
 viewWhyNfaBlock theme t autoType hasEpsilon hasNonDeterminism =
     let
+        title =
+            case autoType of
+                IncompleteDFA -> t.simWhyIncompleteDfaTitle
+                _ -> t.simWhyNfaTitle
+
         reasons =
-            (if hasEpsilon then [ t.simWhyNfaEpsilon ] else [])
-                ++ (if hasNonDeterminism then [ t.simWhyNfaNondet ] else [])
-                ++ (if autoType == IncompleteDFA then [ t.simWhyNfaIncomplete ] else [])
+            case autoType of
+                IncompleteDFA ->
+                    [ t.simWhyNfaIncomplete ]
+
+                _ ->
+                    (if hasEpsilon then [ t.simWhyNfaEpsilon ] else [])
+                        ++ (if hasNonDeterminism then [ t.simWhyNfaNondet ] else [])
     in
     div
         [ style "padding" "10px 15px"
@@ -1169,7 +1178,7 @@ viewWhyNfaBlock theme t autoType hasEpsilon hasNonDeterminism =
             , style "color" theme.textPrimary
             , style "margin-bottom" "6px"
             ]
-            [ text t.simWhyNfaTitle ]
+            [ text title ]
         , div []
             (List.map
                 (\reason ->
@@ -1337,8 +1346,8 @@ view consoleOpen darkMode settingsOpen language tutorialInputHighlight tutorialB
                         , style "flex-shrink" "0"
                         ]
                         (if model.efficientMode then
-                            [ viewDisabledToggleTab t.simAutomatonTab
-                            , viewDisabledToggleTab t.simTreeTab
+                            [ viewDisabledToggleTab theme t.simAutomatonTab
+                            , viewDisabledToggleTab theme t.simTreeTab
                             ]
 
                          else
@@ -1409,7 +1418,10 @@ view consoleOpen darkMode settingsOpen language tutorialInputHighlight tutorialB
                                 , onStateDoubleClick = \_ -> CanvasClick 0 0
                                 , onStateRightClick = \_ -> CanvasClick 0 0
                                 , onTransitionClick = TransitionClick
-                                , onArrowClick = \_ _ -> CanvasClick 0 0
+                                , onTransitionRightClick = \_ _ _ -> CanvasClick 0 0
+                                , onArrowMouseDown = \_ _ _ _ -> CanvasClick 0 0
+                                , onArrowRightClick = \_ _ -> CanvasClick 0 0
+                                , onStartArrowMouseDown = \_ _ _ -> CanvasClick 0 0
                                 , onStartDrag = StartDrag
                                 , onDragMove = DragMove
                                 , onEndDrag = EndDrag
@@ -1446,7 +1458,7 @@ view consoleOpen darkMode settingsOpen language tutorialInputHighlight tutorialB
                                 , style "justify-content" "center"
                                 , style "opacity" (if targetVisible then "0.4" else "1")
                                 , style "background-color" theme.btnSecondaryBg
-                                , style "color" "white"
+                                , style "color" theme.textOnDark
                                 , style "white-space" "nowrap"
                                 ] ++ (if targetVisible then [ disabled True ] else [ onClick (RecenterCanvas canvasW canvasH) ]))
                                 [ text t.editorRecenter ]
@@ -1500,7 +1512,7 @@ view consoleOpen darkMode settingsOpen language tutorialInputHighlight tutorialB
                     ++ (if tutorialInputHighlight then
                             [ style "position" "relative"
                             , style "z-index" "501"
-                            , style "box-shadow" "0 0 0 3px #ffeb3b, 0 0 16px rgba(255,235,59,0.7)"
+                            , style "box-shadow" theme.yellowGlowShadow
                             ]
                         else
                             []
@@ -1514,7 +1526,7 @@ view consoleOpen darkMode settingsOpen language tutorialInputHighlight tutorialB
                         , style "width" "100%"
                         , style "padding" "8px"
                         , style "margin-top" "5px"
-                        , style "border" (if String.isEmpty model.inputString then "2px solid #e53935" else "1px solid " ++ theme.inputBorder)
+                        , style "border" (if String.isEmpty model.inputString then ("2px solid " ++ theme.rejectFillColor) else "1px solid " ++ theme.inputBorder)
                         , style "border-radius" "4px"
                         , style "box-sizing" "border-box"
                         , style "background-color" theme.inputBg
@@ -1524,7 +1536,7 @@ view consoleOpen darkMode settingsOpen language tutorialInputHighlight tutorialB
                         []
                     , if String.isEmpty model.inputString then
                         div
-                            [ style "color" "#e53935"
+                            [ style "color" theme.rejectFillColor
                             , style "font-size" "12px"
                             , style "margin-top" "4px"
                             ]
@@ -1542,7 +1554,7 @@ view consoleOpen darkMode settingsOpen language tutorialInputHighlight tutorialB
                         in
                         if hasUnknownSymbol then
                             div
-                                [ style "color" "#f9a825"
+                                [ style "color" theme.warningColor
                                 , style "font-size" "12px"
                                 , style "margin-top" "4px"
                                 ]
@@ -1641,8 +1653,8 @@ view consoleOpen darkMode settingsOpen language tutorialInputHighlight tutorialB
                                             , style "width" "14px"
                                             , style "height" "14px"
                                             , style "border-radius" "50%"
-                                            , style "background" "#90a4ae"
-                                            , style "color" "white"
+                                            , style "background" theme.neutralGrayBg
+                                            , style "color" theme.textOnDark
                                             , style "font-size" "9px"
                                             , style "font-weight" "bold"
                                             , style "cursor" "help"
@@ -1659,7 +1671,7 @@ view consoleOpen darkMode settingsOpen language tutorialInputHighlight tutorialB
                                     ]
                             , div
                                     [ style "padding" "6px 15px"
-                                    , style "border-top" "1px solid #e0e0e0"
+                                    , style "border-top" ("1px solid " ++ theme.lightDividerBorder)
                                     , style "display" "flex"
                                     , style "align-items" "center"
                                     , style "gap" "6px"
@@ -1671,7 +1683,7 @@ view consoleOpen darkMode settingsOpen language tutorialInputHighlight tutorialB
                                         , style "font-size" "12px"
                                         , style "user-select" "none"
                                         , style "cursor" "pointer"
-                                        , style "color" "#546e7a"
+                                        , style "color" theme.textMuted
                                         ]
                                         [ Html.input
                                             [ type_ "checkbox"
@@ -1689,8 +1701,8 @@ view consoleOpen darkMode settingsOpen language tutorialInputHighlight tutorialB
                                         , style "width" "14px"
                                         , style "height" "14px"
                                         , style "border-radius" "50%"
-                                        , style "background" "#90a4ae"
-                                        , style "color" "white"
+                                        , style "background" theme.neutralGrayBg
+                                        , style "color" theme.textOnDark
                                         , style "font-size" "9px"
                                         , style "font-weight" "bold"
                                         , style "cursor" "help"
@@ -1703,17 +1715,17 @@ view consoleOpen darkMode settingsOpen language tutorialInputHighlight tutorialB
                                 div []
                                     [ Html.button
                                         [ onClick RunEfficient
-                                        , style "width" "100%"
+                                        , style "width" "calc(100% - 30px)"
                                         , style "padding" "12px 16px"
                                         , style "background-color" theme.btnPrimary
-                                        , style "color" "white"
+                                        , style "color" theme.textOnDark
                                         , style "border" "none"
                                         , style "border-radius" "6px"
                                         , style "cursor" "pointer"
                                         , style "font-size" "15px"
                                         , style "font-weight" "bold"
                                         , style "margin" "8px 15px"
-                                        , style "box-sizing" "border-box"
+                                        , style "display" "block"
                                         ]
                                         [ text t.simInstantRun ]
                                     , case model.efficientResult of
@@ -1725,7 +1737,7 @@ view consoleOpen darkMode settingsOpen language tutorialInputHighlight tutorialB
                                                 , style "background-color"
                                                     (if result.isAccepted then theme.resultAcceptBg else theme.resultRejectBg)
                                                 , style "border-left"
-                                                    (if result.isAccepted then "4px solid #43a047" else "4px solid #e53935")
+                                                    (if result.isAccepted then ("4px solid " ++ theme.acceptFillColor) else ("4px solid " ++ theme.rejectFillColor))
                                                 ]
                                                 [ div
                                                     [ style "font-weight" "bold"
