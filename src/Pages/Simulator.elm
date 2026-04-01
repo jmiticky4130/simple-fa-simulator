@@ -385,7 +385,7 @@ update msg model =
             in
             { model
                 | efficientResult = Just result
-                , consoleMessages = { text = t.simEfficientRunPrefix ++ result.text, msgType = Console.Info } :: model.consoleMessages
+                , consoleMessages = { text = t.simEfficientRunPrefix ++ (if result.isAccepted then t.simWordAccepted else t.simWordRejected), msgType = Console.Info } :: model.consoleMessages
             }
 
         ToggleConsole ->
@@ -1803,7 +1803,7 @@ view consoleOpen darkMode settingsOpen language tutorialInputHighlight tutorialB
                                                     , style "color"
                                                         (if result.isAccepted then theme.resultAcceptText else theme.resultRejectText)
                                                     ]
-                                                    [ text result.text ]
+                                                    [ text (if result.isAccepted then t.simWordAccepted else t.simWordRejected) ]
                                                 , div
                                                     [ style "font-size" "12px"
                                                     , style "color" theme.textMuted

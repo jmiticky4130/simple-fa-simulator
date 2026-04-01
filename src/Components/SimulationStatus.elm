@@ -41,7 +41,7 @@ view config =
                     , style "font-size" "18px"
                     , style "margin-top" "10px"
                     ]
-                    [ text v.text ]
+                    [ text (if v.isAccepted then t.simWordAccepted else t.simWordRejected) ]
             Nothing ->
                 text ""
         ]

@@ -11121,7 +11121,9 @@ var $author$project$Pages$Simulator$update = F2(
 							$elm$core$List$cons,
 							{
 								msgType: $author$project$Components$Console$Info,
-								text: _Utils_ap(t.simEfficientRunPrefix, result.text)
+								text: _Utils_ap(
+									t.simEfficientRunPrefix,
+									result.isAccepted ? t.simWordAccepted : t.simWordRejected)
 							},
 							model.consoleMessages),
 						efficientResult: $elm$core$Maybe$Just(result)
@@ -18170,7 +18172,8 @@ var $author$project$Components$SimulationStatus$view = function (config) {
 							]),
 						_List_fromArray(
 							[
-								$elm$html$Html$text(v.text)
+								$elm$html$Html$text(
+								v.isAccepted ? t.simWordAccepted : t.simWordRejected)
 							]));
 				} else {
 					return $elm$html$Html$text('');
@@ -19863,7 +19866,8 @@ var $author$project$Pages$Simulator$view = F9(
 																				]),
 																			_List_fromArray(
 																				[
-																					$elm$html$Html$text(result.text)
+																					$elm$html$Html$text(
+																					result.isAccepted ? t.simWordAccepted : t.simWordRejected)
 																				])),
 																			A2(
 																			$elm$html$Html$div,
