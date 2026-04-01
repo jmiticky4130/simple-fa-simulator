@@ -10224,48 +10224,54 @@ var $elm$core$Set$isEmpty = function (_v0) {
 	var dict = _v0.a;
 	return $elm$core$Dict$isEmpty(dict);
 };
+var $elm$core$Set$member = F2(
+	function (key, _v0) {
+		var dict = _v0.a;
+		return A2($elm$core$Dict$member, key, dict);
+	});
+var $elm$core$Dict$singleton = F2(
+	function (key, value) {
+		return A5($elm$core$Dict$RBNode_elm_builtin, $elm$core$Dict$Black, key, value, $elm$core$Dict$RBEmpty_elm_builtin, $elm$core$Dict$RBEmpty_elm_builtin);
+	});
+var $elm$core$Set$singleton = function (key) {
+	return $elm$core$Set$Set_elm_builtin(
+		A2($elm$core$Dict$singleton, key, _Utils_Tuple0));
+};
 var $elm$core$String$foldr = _String_foldr;
 var $elm$core$String$toList = function (string) {
 	return A3($elm$core$String$foldr, $elm$core$List$cons, _List_Nil, string);
 };
+var $elm$core$Set$union = F2(
+	function (_v0, _v1) {
+		var dict1 = _v0.a;
+		var dict2 = _v1.a;
+		return $elm$core$Set$Set_elm_builtin(
+			A2($elm$core$Dict$union, dict1, dict2));
+	});
 var $author$project$Pages$Simulator$runEfficientNfa = F3(
 	function (language, automaton, inputStr) {
+		var transIndex = A3(
+			$elm$core$List$foldl,
+			F2(
+				function (tr, acc) {
+					if (tr.symbol === 'ε') {
+						return acc;
+					} else {
+						var key = $elm$core$String$fromInt(tr.from) + (':' + tr.symbol);
+						var existing = A2(
+							$elm$core$Maybe$withDefault,
+							$elm$core$Set$empty,
+							A2($elm$core$Dict$get, key, acc));
+						return A3(
+							$elm$core$Dict$insert,
+							key,
+							A2($elm$core$Set$insert, tr.to, existing),
+							acc);
+					}
+				}),
+			$elm$core$Dict$empty,
+			automaton.transitions);
 		var t = $author$project$Utils$Translations$getTranslations(language);
-		var step = F2(
-			function (_char, currentSet) {
-				var symbol = $elm$core$String$fromChar(_char);
-				var targets = A3(
-					$elm$core$Set$foldl,
-					F2(
-						function (stId, acc) {
-							return A3(
-								$elm$core$List$foldl,
-								F2(
-									function (transition, innerAcc) {
-										return (_Utils_eq(transition.from, stId) && _Utils_eq(transition.symbol, symbol)) ? A2($elm$core$Set$insert, transition.to, innerAcc) : innerAcc;
-									}),
-								acc,
-								automaton.transitions);
-						}),
-					$elm$core$Set$empty,
-					currentSet);
-				var expanded = A3(
-					$elm$core$Set$foldl,
-					F2(
-						function (stId, acc) {
-							return A3(
-								$elm$core$List$foldl,
-								F2(
-									function (x, s) {
-										return A2($elm$core$Set$insert, x, s);
-									}),
-								acc,
-								A2($author$project$Utils$AutomatonHelpers$epsilonClosure, automaton.transitions, stId));
-						}),
-					$elm$core$Set$empty,
-					targets);
-				return expanded;
-			});
 		var startState = A2(
 			$elm$core$Maybe$map,
 			function ($) {
@@ -10278,15 +10284,101 @@ var $author$project$Pages$Simulator$runEfficientNfa = F3(
 						return $.isStart;
 					},
 					automaton.states)));
+		var epsClosure = function (stateId) {
+			var go = F2(
+				function (toVisit, visited) {
+					go:
+					while (true) {
+						if (!toVisit.b) {
+							return visited;
+						} else {
+							var current = toVisit.a;
+							var rest = toVisit.b;
+							if (A2($elm$core$Set$member, current, visited)) {
+								var $temp$toVisit = rest,
+									$temp$visited = visited;
+								toVisit = $temp$toVisit;
+								visited = $temp$visited;
+								continue go;
+							} else {
+								var epsTargets = A2(
+									$elm$core$List$filterMap,
+									function (tr) {
+										return (_Utils_eq(tr.from, current) && (tr.symbol === 'ε')) ? $elm$core$Maybe$Just(tr.to) : $elm$core$Maybe$Nothing;
+									},
+									automaton.transitions);
+								var $temp$toVisit = _Utils_ap(rest, epsTargets),
+									$temp$visited = A2($elm$core$Set$insert, current, visited);
+								toVisit = $temp$toVisit;
+								visited = $temp$visited;
+								continue go;
+							}
+						}
+					}
+				});
+			return A2(
+				go,
+				_List_fromArray(
+					[stateId]),
+				$elm$core$Set$empty);
+		};
+		var epsDict = A3(
+			$elm$core$List$foldl,
+			F2(
+				function (st, acc) {
+					return A3(
+						$elm$core$Dict$insert,
+						st.id,
+						epsClosure(st.id),
+						acc);
+				}),
+			$elm$core$Dict$empty,
+			automaton.states);
+		var epsLookup = function (sid) {
+			return A2(
+				$elm$core$Maybe$withDefault,
+				$elm$core$Set$singleton(sid),
+				A2($elm$core$Dict$get, sid, epsDict));
+		};
 		var initialSet = function () {
 			if (startState.$ === 'Nothing') {
 				return $elm$core$Set$empty;
 			} else {
 				var sid = startState.a;
-				return $elm$core$Set$fromList(
-					A2($author$project$Utils$AutomatonHelpers$epsilonClosure, automaton.transitions, sid));
+				return epsLookup(sid);
 			}
 		}();
+		var step = F2(
+			function (_char, currentSet) {
+				var symbol = $elm$core$String$fromChar(_char);
+				var targets = A3(
+					$elm$core$Set$foldl,
+					F2(
+						function (stId, acc) {
+							var key = $elm$core$String$fromInt(stId) + (':' + symbol);
+							var _v0 = A2($elm$core$Dict$get, key, transIndex);
+							if (_v0.$ === 'Nothing') {
+								return acc;
+							} else {
+								var tgts = _v0.a;
+								return A2($elm$core$Set$union, acc, tgts);
+							}
+						}),
+					$elm$core$Set$empty,
+					currentSet);
+				var expanded = A3(
+					$elm$core$Set$foldl,
+					F2(
+						function (stId, acc) {
+							return A2(
+								$elm$core$Set$union,
+								acc,
+								epsLookup(stId));
+						}),
+					$elm$core$Set$empty,
+					targets);
+				return expanded;
+			});
 		var finalSet = A3(
 			$elm$core$List$foldl,
 			step,

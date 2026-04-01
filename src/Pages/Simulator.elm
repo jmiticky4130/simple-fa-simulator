@@ -15,6 +15,7 @@ import Components.SimulationStatus as SimulationStatus
 import Components.NfaInstancePanel as NfaInstancePanel
 import Components.NfaTreeView as NfaTreeView
 import Set
+import Dict
 import Utils.AutomatonHelpers exposing (getStateLabel, getStateById, isDFA, classifyAutomaton, epsilonClosure)
 import Json.Encode
 import Utils.Theme as Theme
@@ -919,6 +920,64 @@ runEfficientNfa language automaton inputStr =
         t =
             Translations.getTranslations language
 
+        -- Precompute ε-closures for all states using Set-based BFS: O(n × m) total
+        epsClosure stateId =
+            let
+                go toVisit visited =
+                    case toVisit of
+                        [] ->
+                            visited
+
+                        current :: rest ->
+                            if Set.member current visited then
+                                go rest visited
+
+                            else
+                                let
+                                    epsTargets =
+                                        List.filterMap
+                                            (\tr ->
+                                                if tr.from == current && tr.symbol == "ε" then
+                                                    Just tr.to
+
+                                                else
+                                                    Nothing
+                                            )
+                                            automaton.transitions
+                                in
+                                go (rest ++ epsTargets) (Set.insert current visited)
+            in
+            go [ stateId ] Set.empty
+
+        epsDict =
+            List.foldl
+                (\st acc -> Dict.insert st.id (epsClosure st.id) acc)
+                Dict.empty
+                automaton.states
+
+        epsLookup sid =
+            Maybe.withDefault (Set.singleton sid) (Dict.get sid epsDict)
+
+        -- Precompute transition index: Dict "fromId:symbol" (Set Int targetIds)
+        transIndex =
+            List.foldl
+                (\tr acc ->
+                    if tr.symbol == "ε" then
+                        acc
+
+                    else
+                        let
+                            key =
+                                String.fromInt tr.from ++ ":" ++ tr.symbol
+
+                            existing =
+                                Maybe.withDefault Set.empty (Dict.get key acc)
+                        in
+                        Dict.insert key (Set.insert tr.to existing) acc
+                )
+                Dict.empty
+                automaton.transitions
+
         startState =
             List.filter .isStart automaton.states |> List.head |> Maybe.map .id
 
@@ -928,36 +987,35 @@ runEfficientNfa language automaton inputStr =
                     Set.empty
 
                 Just sid ->
-                    epsilonClosure automaton.transitions sid
-                        |> Set.fromList
+                    epsLookup sid
 
         step char currentSet =
             let
                 symbol =
                     String.fromChar char
 
+                -- Collect all direct symbol targets via index lookup: O(n × log(n×|Σ|))
                 targets =
                     Set.foldl
                         (\stId acc ->
-                            List.foldl
-                                (\transition innerAcc ->
-                                    if transition.from == stId && transition.symbol == symbol then
-                                        Set.insert transition.to innerAcc
+                            let
+                                key =
+                                    String.fromInt stId ++ ":" ++ symbol
+                            in
+                            case Dict.get key transIndex of
+                                Nothing ->
+                                    acc
 
-                                    else
-                                        innerAcc
-                                )
-                                acc
-                                automaton.transitions
+                                Just tgts ->
+                                    Set.union acc tgts
                         )
                         Set.empty
                         currentSet
 
+                -- Expand ε-closures via precomputed dict: O(n²) union ops
                 expanded =
                     Set.foldl
-                        (\stId acc ->
-                            List.foldl (\x s -> Set.insert x s) acc (epsilonClosure automaton.transitions stId)
-                        )
+                        (\stId acc -> Set.union acc (epsLookup stId))
                         Set.empty
                         targets
             in
