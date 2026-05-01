@@ -486,7 +486,7 @@ stepExplanation t nfaStates dfaStates step =
                 destStr =
                     subsetLabel nfaStates info.epsClosed
             in
-            t.convProcessingPrefix ++ srcLabel ++ " so symbolom '" ++ info.symbol
+            t.convProcessingPrefix ++ srcLabel ++ t.convWithSymbol ++ info.symbol
                     ++ t.convMovePrefix ++ moveStr ++ t.convClosurePrefix ++ destStr
                     ++ (if info.isNewState then t.convNewStateCreated else t.convStateAlreadyExists)
 

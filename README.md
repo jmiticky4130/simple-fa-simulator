@@ -31,19 +31,34 @@ git clone https://github.com/jmiticky4130/simple-fa-simulator.git
 cd simple-fa-simulator
 ```
 
-2. Skompilujte Elm aplikáciu:
+2. Skompilujte aplikáciu. Máte dve možnosti:
+
+**Bez optimalizácie (rýchlejšie pre vývoj):**
 
 ```bash
 elm make src/Main.elm --output=elm.js
 ```
 
-3. Spustite Elm Reactor:
+**S optimalizáciou (pre produkciu, vyžaduje npm):**
+
+Tento spôsob spustí `elm make --optimize` a následne použije `terser` na zmenšenie veľkosti výsledného súboru. Vyberte si skript podľa vášho operačného systému:
+
+- Pre **Linux / macOS**:
+  ```bash
+  ./build.sh
+  ```
+- Pre **Windows** (spustite prostredníctvom PowerShell):
+  ```powershell
+  .\build.ps1
+  ```
+
+3. Spustite aplikáciu. Súbor `index.html` môžete otvoriť priamo v prehliadači, prípadne použiť Elm Reactor:
 
 ```bash
 elm reactor
 ```
 
-4. V prehliadači otvorte `index.html` cez Reactor UI.
+4. V prehliadači otvorte `index.html` (priamo alebo cez Reactor UI).
 
 ## Ovládanie editora
 

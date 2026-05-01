@@ -212,6 +212,7 @@ type alias Translations =
     , convInitPrefix : String
     , convInitSuffix : String
     , convProcessingPrefix : String
+    , convWithSymbol : String
     , convDeadStateSuffix : String
     , convMovePrefix : String
     , convClosurePrefix : String
@@ -413,6 +414,7 @@ skTranslations =
     , convInitPrefix = "ε-uzáver počiatočného stavu = "
     , convInitSuffix = ". Toto je počiatočný stav DFA."
     , convProcessingPrefix = "Spracúvame "
+    , convWithSymbol = " so symbolom '"
     , convDeadStateSuffix = ". move = ∅. Mŕtvy stav (∅), vynechané."
     , convMovePrefix = ". move = "
     , convClosurePrefix = ", ε-uzáver = "
@@ -614,6 +616,7 @@ enTranslations =
     , convInitPrefix = "ε-closure of the start state = "
     , convInitSuffix = ". This is the initial DFA state."
     , convProcessingPrefix = "Processing "
+    , convWithSymbol = " with symbol: "
     , convDeadStateSuffix = ". move = ∅. Dead state (∅), skipped."
     , convMovePrefix = ". move = "
     , convClosurePrefix = ", ε-closure = "
