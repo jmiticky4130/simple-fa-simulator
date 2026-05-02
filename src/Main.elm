@@ -125,7 +125,7 @@ init flagsValue =
 
         loadedAutomaton =
             flags.urlData
-                |> Maybe.andThen (Decode.decodeString Utils.AutomatonCodec.decoder >> Result.toMaybe)
+                |> Maybe.andThen (Utils.AutomatonCodec.decodeCompact >> Result.toMaybe)
 
         editorInitBase =
             Editor.initWith lang loadedAutomaton
@@ -253,7 +253,7 @@ update msg model =
                             Editor.update editorMsg model.editorModel
                     in
                     ( { model | editorModel = newEditorModel }
-                    , Cmd.batch [ Cmd.map EditorMsg editorCmd, setUrlHash (Utils.AutomatonCodec.encode model.editorModel.automaton.present) ]
+                    , Cmd.batch [ Cmd.map EditorMsg editorCmd, setUrlHash (Utils.AutomatonCodec.encodeCompact model.editorModel.automaton.present) ]
                     )
 
                 Editor.ConfirmSave ->

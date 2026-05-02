@@ -36,12 +36,18 @@
 </head>
 <body>
   <div id="elm"></div>
+  <script src="https://cdn.jsdelivr.net/npm/lz-string@1.5.0/libs/lz-string.min.js"></script>
   <script src="elm.js"></script>
   <script>
     var hash = window.location.hash;
-    var hashData = hash.startsWith('#data=')
-      ? decodeURIComponent(hash.slice(6))
-      : null;
+    var hashData = null;
+    if (hash.startsWith('#a=')) {
+      try {
+        hashData = LZString.decompressFromEncodedURIComponent(hash.slice(3));
+      } catch (e) {
+        hashData = null;
+      }
+    }
 
     var dark = localStorage.getItem('darkMode') === 'true';
     var lang = localStorage.getItem('language') || 'sk';
@@ -80,8 +86,9 @@
       });
     });
 
-    app.ports.setUrlHash.subscribe(function(json) {
-      window.location.hash = 'data=' + encodeURIComponent(json);
+    app.ports.setUrlHash.subscribe(function(payload) {
+      var compressed = LZString.compressToEncodedURIComponent(payload);
+      window.location.hash = 'a=' + compressed;
       navigator.clipboard.writeText(window.location.href).catch(function() {});
     });
 
