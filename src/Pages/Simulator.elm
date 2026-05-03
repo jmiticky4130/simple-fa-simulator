@@ -67,6 +67,7 @@ type alias Model =
     , instancePanelVisible : Int
     , efficientMode : Bool
     , efficientResult : Maybe { text : String, isAccepted : Bool, reachedStates : List Int }
+    , tapeExpanded : Bool
     }
 
 
@@ -131,6 +132,7 @@ init language automaton =
     , instancePanelVisible = 100
     , efficientMode = False
     , efficientResult = Nothing
+    , tapeExpanded = False
     }
 
 
@@ -171,6 +173,7 @@ type Msg
     | ToggleDarkMode
     | ToggleLanguage
     | RecenterCanvas Float Float
+    | ToggleTapeExpanded
 
 
 update : Msg -> Model -> Model
@@ -387,6 +390,9 @@ update msg model =
                 | efficientResult = Just result
                 , consoleMessages = { text = t.simEfficientRunPrefix ++ (if result.isAccepted then t.simWordAccepted else t.simWordRejected), msgType = Console.Info } :: model.consoleMessages
             }
+
+        ToggleTapeExpanded ->
+            { model | tapeExpanded = not model.tapeExpanded }
 
         ToggleConsole ->
             model
@@ -1084,14 +1090,20 @@ viewNfaTree theme treeNodes instances states selectedId mergedEdges zoom =
         }
 
 
-viewReadingHead : Theme.Theme -> List String -> String -> String -> Html Msg
-viewReadingHead theme alphabet fullInput remaining =
+viewReadingHead : Theme.Theme -> List String -> String -> String -> Bool -> Bool -> Translations.Translations -> Html Msg
+viewReadingHead theme alphabet fullInput remaining efficientMode tapeExpanded t =
     let
         consumedCount =
             String.length fullInput - String.length remaining
 
         chars =
             String.toList fullInput
+
+        totalCount =
+            List.length chars
+
+        tapeCutoff =
+            49
 
         renderChar idx c =
             let
@@ -1158,8 +1170,33 @@ viewReadingHead theme alphabet fullInput remaining =
                 , style "padding" "0 4px"
                 ]
                 [ text (String.fromChar c) ]
+
+        visibleChars =
+            if tapeExpanded || totalCount <= tapeCutoff then
+                chars
+            else
+                List.take tapeCutoff chars
+
+        expandButton =
+            if totalCount > tapeCutoff then
+                button
+                    [ onClick ToggleTapeExpanded
+                    , style "margin-left" "4px"
+                    , style "padding" "2px 8px"
+                    , style "font-size" "11px"
+                    , style "border" ("1px solid " ++ theme.inputBorder)
+                    , style "border-radius" "4px"
+                    , style "background" theme.inputBg
+                    , style "color" theme.textMuted
+                    , style "cursor" "pointer"
+                    , style "white-space" "nowrap"
+                    , style "flex-shrink" "0"
+                    ]
+                    [ text (if tapeExpanded then t.tapeCollapseLabel else t.tapeExpandLabel ++ " (" ++ String.fromInt totalCount ++ ")") ]
+            else
+                text ""
     in
-    if String.isEmpty fullInput then
+    if efficientMode || String.isEmpty fullInput then
         div [] []
 
     else
@@ -1167,13 +1204,29 @@ viewReadingHead theme alphabet fullInput remaining =
             [ style "padding" "6px 15px 8px 15px"
             , style "border-bottom" ("1px solid " ++ theme.separatorColor)
             ]
-            [ div
-                [ style "display" "flex"
-                , style "flex-wrap" "wrap"
-                , style "gap" "3px"
-                , style "align-items" "center"
-                ]
-                (List.indexedMap renderChar chars)
+            [ if tapeExpanded && totalCount > tapeCutoff then
+                div
+                    [ style "overflow-x" "auto"
+                    , style "overflow-y" "hidden"
+                    , style "max-height" "46px"
+                    ]
+                    [ div
+                        [ style "display" "flex"
+                        , style "flex-wrap" "nowrap"
+                        , style "gap" "3px"
+                        , style "align-items" "center"
+                        , style "padding-bottom" "4px"
+                        ]
+                        (List.indexedMap renderChar visibleChars ++ [ expandButton ])
+                    ]
+              else
+                div
+                    [ style "display" "flex"
+                    , style "flex-wrap" "wrap"
+                    , style "gap" "3px"
+                    , style "align-items" "center"
+                    ]
+                    (List.indexedMap renderChar visibleChars ++ [ expandButton ])
             ]
 
 
@@ -1624,6 +1677,9 @@ view consoleOpen darkMode settingsOpen language tutorialInputHighlight tutorialB
                     (model.automaton.transitions |> List.map .symbol |> List.filter (\s -> s /= "ε"))
                     model.inputString
                     readingHeadRemaining
+                    model.efficientMode
+                    model.tapeExpanded
+                    t
                 , case model.mode of
                     DfaMode ->
                         div []

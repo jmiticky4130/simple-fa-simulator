@@ -265,6 +265,8 @@ type alias Translations =
     , editorAddDeadStateInfo : String
     , editorDeadStateAdded : String
     , gridMode : String
+    , tapeExpandLabel : String
+    , tapeCollapseLabel : String
     }
 
 
@@ -467,6 +469,8 @@ skTranslations =
     , editorAddDeadStateInfo = "Automat je neúplný DFA — niektorým stavom chýbajú prechody pre niektoré symboly abecedy. Kliknutím pridáte mŕtvy stav, ktorý zachytí všetky chýbajúce prechody. Automat tak bude formálne úplný DFA."
     , editorDeadStateAdded = "Mŕtvy stav bol pridaný. Automat je teraz úplný DFA."
     , gridMode = "Mriežka"
+    , tapeExpandLabel = "Zobraziť všetky"
+    , tapeCollapseLabel = "Zbaliť"
     }
 
 
@@ -669,6 +673,8 @@ enTranslations =
     , editorAddDeadStateInfo = "The automaton is an incomplete DFA — some states are missing transitions for certain alphabet symbols. Clicking this adds a dead (trap) state that catches all missing transitions, making the automaton a formally complete DFA."
     , editorDeadStateAdded = "Dead state added. The automaton is now a complete DFA."
     , gridMode = "Grid"
+    , tapeExpandLabel = "Show all"
+    , tapeCollapseLabel = "Collapse"
     }
 
 
