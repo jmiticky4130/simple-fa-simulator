@@ -3,6 +3,9 @@ module Utils.Translations exposing
     , GuideErrorSectionText
     , GuideErrorText
     , GuideErrorsPageText
+    , GuideInfoPageText
+    , GuideInfoSectionText
+    , GuideInfoText
     , GuidePageText
     , GuideRowText
     , GuideSectionText
@@ -13,6 +16,7 @@ module Utils.Translations exposing
     , guideConversionPage
     , guideEditorPage
     , guideErrorsPage
+    , guideInfoPage
     , guideSimulatorPage
     )
 
@@ -60,6 +64,24 @@ type alias GuideErrorsPageText =
     }
 
 
+type alias GuideInfoText =
+    { message : String
+    , when : String
+    }
+
+
+type alias GuideInfoSectionText =
+    { title : String
+    , rows : List GuideInfoText
+    }
+
+
+type alias GuideInfoPageText =
+    { intro : String
+    , sections : List GuideInfoSectionText
+    }
+
+
 type alias AboutPageText =
     { sectionTitle : String
     , rows : List GuideRowText
@@ -76,6 +98,7 @@ type alias Translations =
     , guideTabSimulator : String
     , guideTabConversion : String
     , guideTabErrors : String
+    , guideTabInfo : String
     , guideTabAbout : String
     , loadIntoEditor : String
     , notSelected : String
@@ -280,6 +303,7 @@ skTranslations =
     , guideTabSimulator = "Simulátor"
     , guideTabConversion = "Konverzia NFA->DFA"
     , guideTabErrors = "Chybové správy"
+    , guideTabInfo = "Informačné správy"
     , guideTabAbout = "O projekte"
     , loadIntoEditor = "Načítať do editora"
     , notSelected = "nebol vybratý"
@@ -484,6 +508,7 @@ enTranslations =
     , guideTabSimulator = "Simulator"
     , guideTabConversion = "NFA\u{2192}DFA Conversion"
     , guideTabErrors = "Error Messages"
+    , guideTabInfo = "Info Messages"
     , guideTabAbout = "About"
     , loadIntoEditor = "Load into editor"
     , notSelected = "not selected"
@@ -991,48 +1016,213 @@ guideErrorsPage : Language -> GuideErrorsPageText
 guideErrorsPage lang =
     case lang of
         Slovak ->
-            { intro = "Zoznam chýb a upozornení, ktoré sa môžu v aplikácii objaviť, vrátane ich príčiny a riešenia."
+            { intro = "Zoznam chybových správ, ktoré sa zobrazujú v konzole aplikácie, vrátane ich príčiny."
             , sections =
                 [ { title = "Chyby v editore"
                   , rows =
-                        [ errorRow "Prázdny názov nie je povolený" "Stav musí mať neprázdny názov. Zadajte aspoň jeden znak."
-                        , errorRow "Stav s názvom '...' už existuje" "Každý stav musí mať unikátny názov. Zvoľte iný názov."
-                        , errorRow "Slučka nemôže byť eps-prechodom" "Epsilon self-loop (stav na seba samého) nie je povolený."
-                        , errorRow "Prechod '...' už existuje" "Duplikátny prechod: rovnaký (zdroj, symbol, cieľ) už existuje."
-                        , errorRow "Symbol nemôže obsahovať medzery" "Symbol prechodu nesmie obsahovať medzery."
+                        [ errorRow "Zadajte názov automatu." "Pokus o uloženie automatu bez zadaného názvu."
+                        , errorRow "Prázdny názov nie je povolený." "Stav musí mať neprázdny názov. Zadajte aspoň jeden znak."
+                        , errorRow "Stav s názvom '...' už existuje." "Každý stav musí mať unikátny názov. Zvoľte iný názov."
+                        , errorRow "Slučka nemôže byť ε-prechodom." "Epsilon self-loop (stav na seba samého) nie je povolený."
+                        , errorRow "ε-prechod už existuje." "Medzi danými dvoma stavmi už existuje ε-prechod."
+                        , errorRow "Prechod(y) už existujú: ..." "Niektoré z vložených symbolov už majú prechod medzi týmito stavmi."
                         , errorRow "Chyba importu: ..." "Neplatný JSON súbor alebo formát nezodpovedá schéme automatu."
+                        , errorRow "Chyba: ..." "Generická chyba (napr. chyba pri spracovaní URL alebo dekódovaní JSON)."
+                        ]
+                  }
+                , { title = "Chyby simulátora"
+                  , rows =
+                        [ errorRow "Chyba: Neexistuje prechod pre symbol '...'" "DFA nemá definovaný prechod pre daný symbol z aktuálneho stavu. Simulácia je zablokovaná (neúplný DFA)."
+                        , errorRow "Chyba: Nie je nastavený aktuálny stav." "Interná chyba — stav simulátora nie je inicializovaný. Spustite simuláciu znovu."
                         ]
                   }
                 , { title = "Neaktívne tlačidlá (podmienky spustenia)"
                   , rows =
-                        [ errorRow "Simulovať - 'Pridajte aspoň jeden stav'" "Automat nemá žiadne stavy. Dvojklikom na plátno pridajte stav."
-                        , errorRow "Simulovať - 'Nastavte počiatočný stav'" "Automat nemá počiatočný stav. Dvojklik na stav -> zaškrtnúť Počiatočný stav."
-                        , errorRow "Simulovať - 'Nastavte aspoň jeden koncový stav'" "Automat nemá žiadny akceptujúci stav. Nastavte ho cez modál stavu."
-                        , errorRow "NFA->DFA - dostupné iba pre NFA" "Tlačidlo je neaktívne pre DFA (žiadne eps-prechody ani nedeterminizmus)."
+                        [ errorRow "Simulovať — 'Pridajte aspoň jeden stav'" "Automat nemá žiadne stavy. Dvojklikom na plátno pridajte stav."
+                        , errorRow "Simulovať — 'Nastavte počiatočný stav'" "Automat nemá počiatočný stav. Pravý klik na stav -> zaškrtnúť Počiatočný stav."
+                        , errorRow "Simulovať — 'Nastavte aspoň jeden koncový stav'" "Automat nemá žiadny akceptujúci stav. Nastavte ho cez modál stavu."
+                        , errorRow "NFA->DFA — dostupné iba pre NFA" "Tlačidlo je neaktívne pre DFA (žiadne ε-prechody ani nedeterminizmus)."
                         ]
                   }
                 ]
             }
 
         English ->
-            { intro = "A list of errors and warnings that can appear in the app, including their cause and resolution."
+            { intro = "A list of error messages shown in the console, including their cause."
             , sections =
                 [ { title = "Editor errors"
                   , rows =
-                        [ errorRow "An empty name is not allowed" "A state must have a non-empty name. Enter at least one character."
-                        , errorRow "A state named '...' already exists" "Each state must have a unique name. Choose a different name."
-                        , errorRow "A loop cannot be an eps-transition" "An epsilon self-loop is not allowed."
-                        , errorRow "Transition '...' already exists" "Duplicate transition: the same (source, symbol, target) already exists."
-                        , errorRow "A symbol cannot contain spaces" "A transition symbol must not contain spaces."
+                        [ errorRow "Enter an automaton name." "Attempted to save the automaton without entering a name."
+                        , errorRow "An empty name is not allowed." "A state must have a non-empty name. Enter at least one character."
+                        , errorRow "A state named '...' already exists." "Each state must have a unique name. Choose a different name."
+                        , errorRow "A loop cannot be an ε-transition." "Epsilon self-loops are not allowed."
+                        , errorRow "An ε-transition already exists." "An epsilon transition between these two states already exists."
+                        , errorRow "Transition(s) already exist: ..." "Some of the entered symbols already have a transition between these states."
                         , errorRow "Import error: ..." "The JSON file is invalid or its format does not match the automaton schema."
+                        , errorRow "Error: ..." "A generic error (e.g. bad URL or JSON decode failure)."
+                        ]
+                  }
+                , { title = "Simulator errors"
+                  , rows =
+                        [ errorRow "Error: No transition exists for symbol '...'" "The DFA has no transition for this symbol from the current state. Simulation is blocked (incomplete DFA)."
+                        , errorRow "Error: No current state is set." "Internal error — simulator state not initialised. Restart the simulation."
                         ]
                   }
                 , { title = "Disabled buttons (launch conditions)"
                   , rows =
-                        [ errorRow "Simulate - 'Add at least one state'" "The automaton has no states. Double-click the canvas to add one."
-                        , errorRow "Simulate - 'Set a start state'" "The automaton has no start state. Double-click a state and check Start state."
-                        , errorRow "Simulate - 'Set at least one end state'" "The automaton has no accepting state. Set it in the state modal."
-                        , errorRow "NFA->DFA - available only for NFAs" "The button is inactive for DFAs (no eps-transitions or nondeterminism)."
+                        [ errorRow "Simulate — 'Add at least one state'" "The automaton has no states. Double-click the canvas to add one."
+                        , errorRow "Simulate — 'Set a start state'" "The automaton has no start state. Right-click a state and check Start state."
+                        , errorRow "Simulate — 'Set at least one end state'" "The automaton has no accepting state. Set it via the state modal."
+                        , errorRow "NFA->DFA — available only for NFAs" "The button is inactive for DFAs (no ε-transitions or nondeterminism)."
+                        ]
+                  }
+                ]
+            }
+
+
+infoRow : String -> String -> GuideInfoText
+infoRow message when =
+    { message = message, when = when }
+
+
+guideInfoPage : Language -> GuideInfoPageText
+guideInfoPage lang =
+    case lang of
+        Slovak ->
+            { intro = "Prehľad informačných správ, ktoré konzola zobrazuje pri úspešnom vykonaní akcií. Správy potvrdzujú každú zmenu automatu a uľahčujú orientáciu v aplikácii."
+            , sections =
+                [ { title = "Vítanie a načítavanie"
+                  , rows =
+                        [ infoRow "Vitajte v simulátore DFA/NFA. Dvojklikom na plátno pridajte stav." "Prvé otvorenie aplikácie bez automatu v URL"
+                        , infoRow "Automat načítaný z URL." "Stránka otvorená s #a=... v adrese (zdieľaný odkaz)"
+                        , infoRow "Automat importovaný zo súboru." "Úspešný import súboru .json"
+                        , infoRow "Automat načítaný: <meno>" "Načítanie pomenovaného automatu z lokálneho úložiska prehliadača"
+                        ]
+                  }
+                , { title = "Ukladanie a zdieľanie"
+                  , rows =
+                        [ infoRow "URL skopírovaná do schránky." "Klik na tlačidlo Zdieľať cez URL"
+                        , infoRow "Definícia automatu skopírovaná do schránky." "Klik na Kopírovať definíciu v paneli definície automatu"
+                        , infoRow "Automat uložený: <meno>" "Úspešné uloženie automatu do lokálneho úložiska"
+                        ]
+                  }
+                , { title = "Stavy"
+                  , rows =
+                        [ infoRow "Pridaný stav: q0" "Dvojklik na prázdne plátno (názov je predvolený)"
+                        , infoRow "Mŕtvy stav bol pridaný. Automat je teraz úplný DFA." "Klik na tlačidlo Doplniť mŕtvy stav"
+                        , infoRow "Vyberte cieľový stav pre prechod." "1. klik pri tvorbe prechodu (označenie zdrojového stavu)"
+                        , infoRow "Zadajte symbol(y) pre prechod (oddeľte medzerou)." "2. klik pri tvorbe prechodu (označenie cieľového stavu)"
+                        , infoRow "Stav premenovaný na: <label>" "Potvrdenie nového mena stavu v modáli"
+                        , infoRow "Stav upravený: <label>" "Zmena vlastností stavu (počiatočný / koncový) v modáli"
+                        , infoRow "Odstránený stav: <label>" "Klik nástrojom Odstrániť na stav"
+                        ]
+                  }
+                , { title = "Prechody"
+                  , rows =
+                        [ infoRow "Pridaný prechod: <symbol>" "Potvrdenie jedného symbolu prechodu"
+                        , infoRow "Pridaných N prechody." "Potvrdenie viacerých symbolov naraz (napr. a b)"
+                        , infoRow "Pridaný ε-prechod." "Prázdny vstup = ε-prechod (nie je slučka)"
+                        , infoRow "Upravte symbol prechodu." "Pravý klik na prechod — otvorenie editácie symbolu"
+                        , infoRow "Odstránený prechod: <symbol>" "Klik nástrojom Odstrániť na symbol prechodu"
+                        , infoRow "Odstránené všetky prechody." "Vymazanie všetkých prechodov medzi dvoma stavmi"
+                        , infoRow "Všetky prechody už existujú." "Všetky zadané symboly sú duplicitné (nie je chyba, len upozornenie)"
+                        ]
+                  }
+                , { title = "Nástroje a ovládanie"
+                  , rows =
+                        [ infoRow "Nástroj: Stavať — ..." "Prepnutie na nástroj Stavať (Shift+B alebo klik na tlačidlo)"
+                        , infoRow "Nástroj: Odstrániť — ..." "Prepnutie na nástroj Odstrániť (Shift+D alebo klik na tlačidlo)"
+                        , infoRow "Akcia zrušená." "Stlačenie klávesy Escape (zatvorenie modálov, zrušenie výberu)"
+                        , infoRow "Automat bol resetovaný." "Klik na tlačidlo Reset"
+                        ]
+                  }
+                , { title = "Simulátor"
+                  , rows =
+                        [ infoRow "Simulátor pripravený. Zadajte vstupné slovo." "Otvorenie stránky simulátora"
+                        , infoRow "Vstup nastavený: <slovo>" "Potvrdenie vstupného slova"
+                        , infoRow "Prechod cez '<symbol>' do stavu <stav>" "DFA krok vpred — úspešný prechod"
+                        , infoRow "Koniec vstupu." "DFA krok vpred — vstupný reťazec bol plne prečítaný"
+                        , infoRow "Krok späť." "Klik na tlačidlo Krok späť (DFA aj NFA)"
+                        , infoRow "Krok vpred (NFA)." "NFA krok vpred"
+                        , infoRow "Efektívny beh: Slovo je akceptované / nie je akceptované" "Klik na Okamžitý beh v efektívnom režime"
+                        ]
+                  }
+                , { title = "Konverzia NFA -> DFA"
+                  , rows =
+                        [ infoRow "Konverzia NFA -> DFA spustená." "Otvorenie stránky konverzie"
+                        , infoRow "Konverzia dokončená." "Skok na posledný krok konverzie"
+                        , infoRow "Automat nahradený konvertovaným DFA." "Klik na tlačidlo Nahradiť automat"
+                        , infoRow "DFA uložený: <meno>" "Klik na Uložiť DFA s menom"
+                        ]
+                  }
+                ]
+            }
+
+        English ->
+            { intro = "A list of informational messages shown in the console when actions are completed successfully. They confirm every change to the automaton and help you track what happened."
+            , sections =
+                [ { title = "Welcome and loading"
+                  , rows =
+                        [ infoRow "Welcome to the DFA/NFA simulator. Double-click the canvas to add a state." "Application opened without a saved automaton in the URL"
+                        , infoRow "Automaton loaded from URL." "Page opened with #a=... in the address (shared link)"
+                        , infoRow "Automaton imported from file." "JSON file imported successfully"
+                        , infoRow "Automaton loaded: <name>" "Named automaton loaded from browser local storage"
+                        ]
+                  }
+                , { title = "Saving and sharing"
+                  , rows =
+                        [ infoRow "URL copied to clipboard." "Share via URL button clicked"
+                        , infoRow "Automaton definition copied to clipboard." "Copy definition button clicked in the definition panel"
+                        , infoRow "Automaton saved: <name>" "Automaton saved to local storage successfully"
+                        ]
+                  }
+                , { title = "States"
+                  , rows =
+                        [ infoRow "Added state: q0" "Double-click on empty canvas (default name assigned)"
+                        , infoRow "Dead state added. The automaton is now a complete DFA." "Add dead state button clicked"
+                        , infoRow "Select a target state for the transition." "1st click while building a transition (source state selected)"
+                        , infoRow "Enter transition symbol(s), separated by spaces." "2nd click while building a transition (target state selected)"
+                        , infoRow "State renamed to: <label>" "New state name confirmed in the modal"
+                        , infoRow "State updated: <label>" "State properties changed (start / end) in the modal"
+                        , infoRow "Deleted state: <label>" "Delete tool clicked on a state"
+                        ]
+                  }
+                , { title = "Transitions"
+                  , rows =
+                        [ infoRow "Added transition: <symbol>" "Single transition symbol confirmed"
+                        , infoRow "Added N transitions." "Multiple symbols confirmed at once (e.g. a b)"
+                        , infoRow "Added ε-transition." "Empty input = epsilon transition (not a self-loop)"
+                        , infoRow "Edit the transition symbol." "Right-click on a transition — open symbol editor"
+                        , infoRow "Deleted transition: <symbol>" "Delete tool clicked on a transition symbol"
+                        , infoRow "All transitions deleted." "All transitions between two states removed"
+                        , infoRow "All transitions already exist." "All entered symbols are duplicates (not an error, just a notice)"
+                        ]
+                  }
+                , { title = "Tools and controls"
+                  , rows =
+                        [ infoRow "Tool: Build — ..." "Switched to Build tool (Shift+B or button click)"
+                        , infoRow "Tool: Delete — ..." "Switched to Delete tool (Shift+D or button click)"
+                        , infoRow "Action canceled." "Escape key pressed (closes modals, cancels selection)"
+                        , infoRow "Automaton was reset." "Reset button clicked"
+                        ]
+                  }
+                , { title = "Simulator"
+                  , rows =
+                        [ infoRow "Simulator ready. Enter an input word." "Simulator page opened"
+                        , infoRow "Input set: <word>" "Input word confirmed"
+                        , infoRow "Transition through '<symbol>' to state <state>" "DFA step forward — successful transition"
+                        , infoRow "End of input." "DFA step forward — full input has been consumed"
+                        , infoRow "Step back." "Step back button clicked (DFA and NFA)"
+                        , infoRow "Step forward (NFA)." "NFA step forward"
+                        , infoRow "Efficient run: The word is accepted / not accepted" "Instant run clicked in efficient mode"
+                        ]
+                  }
+                , { title = "NFA -> DFA Conversion"
+                  , rows =
+                        [ infoRow "NFA -> DFA conversion started." "Conversion page opened"
+                        , infoRow "Conversion finished." "Jump to the last conversion step"
+                        , infoRow "Automaton replaced with the converted DFA." "Replace automaton button clicked"
+                        , infoRow "DFA saved: <name>" "Save DFA clicked with a name"
                         ]
                   }
                 ]

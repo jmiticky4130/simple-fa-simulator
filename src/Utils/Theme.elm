@@ -43,6 +43,8 @@ type alias Theme =
     , modalNoteBg : String
     , modalNoteText : String
     , modalErrorBg : String
+    , modalInfoBg : String
+    , modalInfoText : String
     , exampleCardBg : String
     , exampleCardBorder : String
     , resultAcceptBg : String
@@ -177,6 +179,8 @@ lightTheme =
     , modalNoteBg = "#e8f5e9"
     , modalNoteText = "#1b5e20"
     , modalErrorBg = "#fff8f8"
+    , modalInfoBg = "#f0f7ff"
+    , modalInfoText = "#0d47a1"
     , exampleCardBg = "#fafafa"
     , exampleCardBorder = "#cfd8dc"
     , resultAcceptBg = "#e8f5e9"
@@ -311,6 +315,8 @@ darkTheme =
     , modalNoteBg = "#1b3a20"
     , modalNoteText = "#a5d6a7"
     , modalErrorBg = "#2a1515"
+    , modalInfoBg = "#0d1f35"
+    , modalInfoText = "#e8f4fd"
     , exampleCardBg = "#252d36"
     , exampleCardBorder = "#2e3a47"
     , resultAcceptBg = "#1b3a20"

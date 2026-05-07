@@ -68,6 +68,7 @@ type GuideTab
     | GuideSimulator
     | GuideConversion
     | GuideErrors
+    | GuideInfo
     | GuideAbout
 
 
@@ -1171,7 +1172,7 @@ viewGuideModal theme t model =
             , style "border-radius" "10px"
             , style "width" "740px"
             , style "max-width" "96vw"
-            , style "max-height" "88vh"
+            , style "height" "88vh"
             , style "display" "flex"
             , style "flex-direction" "column"
             , style "overflow" "hidden"
@@ -1244,6 +1245,7 @@ viewGuideTabBar theme t current =
         , guideTabBtn theme GuideSimulator t.guideTabSimulator current
         , guideTabBtn theme GuideConversion t.guideTabConversion current
         , guideTabBtn theme GuideErrors t.guideTabErrors current
+        , guideTabBtn theme GuideInfo t.guideTabInfo current
         , guideTabBtn theme GuideAbout t.guideTabAbout current
         ]
 
@@ -1281,6 +1283,9 @@ viewGuideContent theme t lang tab =
 
         GuideErrors ->
             viewGuideErrors theme lang
+
+        GuideInfo ->
+            viewGuideInfo theme lang
 
         GuideAbout ->
             viewGuideAbout theme lang
@@ -1485,6 +1490,51 @@ viewGuideConversion theme lang =
 viewGuideErrors : Theme.Theme -> Language -> Html Msg
 viewGuideErrors theme lang =
     renderGuideErrorsPage theme (Translations.guideErrorsPage lang)
+
+
+-- INFO TAB
+
+
+renderGuideInfoPage : Theme.Theme -> Translations.GuideInfoPageText -> Html Msg
+renderGuideInfoPage theme page =
+    div []
+        (guidePara theme page.intro
+            :: List.map
+                (\sectionText ->
+                    guideSection theme sectionText.title
+                        (List.map (\info -> guideInfoRow theme info.message info.when) sectionText.rows)
+                )
+                page.sections
+        )
+
+
+guideInfoRow : Theme.Theme -> String -> String -> Html Msg
+guideInfoRow theme msg context =
+    div
+        [ style "display" "flex"
+        , style "gap" "10px"
+        , style "margin-bottom" "8px"
+        , style "padding" "8px 10px"
+        , style "background" theme.modalInfoBg
+        , style "border-left" ("3px solid " ++ theme.infoColor)
+        , style "border-radius" "3px"
+        ]
+        [ span
+            [ style "font-family" "monospace"
+            , style "font-size" "12px"
+            , style "color" theme.modalInfoText
+            , style "min-width" "260px"
+            , style "flex-shrink" "0"
+            , style "font-weight" "bold"
+            ]
+            [ text msg ]
+        , span [ style "font-size" "12px", style "color" theme.modalText ] [ text context ]
+        ]
+
+
+viewGuideInfo : Theme.Theme -> Language -> Html Msg
+viewGuideInfo theme lang =
+    renderGuideInfoPage theme (Translations.guideInfoPage lang)
 
 
 -- ABOUT TAB
