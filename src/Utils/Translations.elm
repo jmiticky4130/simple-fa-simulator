@@ -379,7 +379,7 @@ skTranslations =
     , editorTransitionsExistPrefix = "Prechod(y) už existujú: "
     , editorAllTransitionsExist = "Všetky prechody už existujú."
     , editorTransitionAddedPrefix = "Pridaný prechod: "
-    , editorTransitionsAddedPrefix = "Pridaných "
+    , editorTransitionsAddedPrefix = "Pridané"
     , editorTransitionsAddedSuffix = " prechody."
     , editorSelectTargetState = "Vyberte cieľový stav pre prechod."
     , editorEnterTransitionSymbols = "Zadajte symbol(y) pre prechod (oddeľte medzerou)."
@@ -1120,7 +1120,7 @@ guideInfoPage lang =
                 , { title = "Prechody"
                   , rows =
                         [ infoRow "Pridaný prechod: <symbol>" "Potvrdenie jedného symbolu prechodu"
-                        , infoRow "Pridaných N prechody." "Potvrdenie viacerých symbolov naraz (napr. a b)"
+                        , infoRow "Pridané N prechody." "Potvrdenie viacerých symbolov naraz (napr. a b)"
                         , infoRow "Pridaný ε-prechod." "Prázdny vstup = ε-prechod (nie je slučka)"
                         , infoRow "Upravte symbol prechodu." "Pravý klik na prechod — otvorenie editácie symbolu"
                         , infoRow "Odstránený prechod: <symbol>" "Klik nástrojom Odstrániť na symbol prechodu"
